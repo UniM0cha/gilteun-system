@@ -5,7 +5,7 @@ import { join } from 'path';
 export class DatabaseManager {
   private db: Database.Database;
 
-  constructor(dbPath: string = 'gilton-system.db') {
+  constructor(dbPath: string = 'gilteun-system.db') {
     this.db = new Database(dbPath);
     this.initialize();
   }

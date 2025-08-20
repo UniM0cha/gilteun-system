@@ -1,5 +1,5 @@
 {
-  "name": "@gilton/shared",
+  "name": "@gilteun/shared",
   "version": "1.0.0",
   "description": "길튼 시스템 공통 타입 및 유틸리티",
   "main": "dist/index.js",

@@ -1,5 +1,5 @@
 {
-  "name": "@gilton/server",
+  "name": "@gilteun/server",
   "version": "1.0.0",
   "description": "길튼 시스템 Electron 서버 애플리케이션",
   "main": "dist/main/main.js",
@@ -29,7 +29,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
-    "@gilton/shared": "workspace:*",
+    "@gilteun/shared": "workspace:*",
     "better-sqlite3": "^12.2.0",
     "cors": "^2.8.5",
     "electron": "^37.3.1",

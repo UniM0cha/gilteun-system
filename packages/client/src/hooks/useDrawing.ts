@@ -4,7 +4,7 @@ import type {
   DrawingEvent, 
   DrawingToolSettings, 
   ScoreViewport 
-} from '@gilton/shared';
+} from '@gilteun/shared';
 
 interface UseDrawingProps {
   scoreId: string;

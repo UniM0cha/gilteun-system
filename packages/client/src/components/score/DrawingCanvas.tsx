@@ -3,7 +3,7 @@ import type {
   DrawingEvent, 
   DrawingToolSettings, 
   ScoreViewport 
-} from '@gilton/shared';
+} from '@gilteun/shared';
 
 interface DrawingCanvasProps {
   width: number;

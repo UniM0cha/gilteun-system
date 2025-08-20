@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
-import type { ScoreViewport } from '@gilton/shared';
+import type { ScoreViewport } from '@gilteun/shared';
 
 interface ScoreNavigationProps {
   currentPage: number;

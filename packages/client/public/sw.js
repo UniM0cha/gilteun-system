@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gilton-system-v1';
+const CACHE_NAME = 'gilteun-system-v1';
 const OFFLINE_URL = '/offline.html';
 
 // 캐시할 핵심 리소스

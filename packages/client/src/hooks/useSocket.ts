@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getSocketService } from '../services/socket';
-import type { Command, DrawingData, PageNavigation } from '@gilton/shared';
+import type { Command, DrawingData, PageNavigation } from '@gilteun/shared';
 
 export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);

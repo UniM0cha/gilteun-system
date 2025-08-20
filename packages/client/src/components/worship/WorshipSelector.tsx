@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
-import type { Worship } from '@gilton/shared';
+import type { Worship } from '@gilteun/shared';
 
 interface WorshipSelectorProps {
   onSelect: (worship: Worship) => void;

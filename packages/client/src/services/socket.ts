@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import type { Command, DrawingData, DrawingEvent, PageNavigation } from '@gilton/shared';
+import type { Command, DrawingData, DrawingEvent, PageNavigation } from '@gilteun/shared';
 
 // Socket.io 이벤트 타입 정의
 interface SocketEvents {

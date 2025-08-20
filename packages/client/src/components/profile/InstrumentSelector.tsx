@@ -1,5 +1,5 @@
 import { Button } from '../ui/button';
-import type { Instrument } from '@gilton/shared';
+import type { Instrument } from '@gilteun/shared';
 
 interface InstrumentSelectorProps {
   instruments: Instrument[];

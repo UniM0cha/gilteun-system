@@ -20,7 +20,7 @@ import {
   GripVertical, 
   Save
 } from 'lucide-react';
-import type { CommandTemplate } from '@gilton/shared';
+import type { CommandTemplate } from '@gilteun/shared';
 
 interface CommandTemplateManagerProps {
   templates: CommandTemplate[];

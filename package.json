@@ -1,5 +1,5 @@
 {
-  "name": "gilton-system",
+  "name": "gilteun-system",
   "version": "1.0.0",
   "description": "교회 찬양팀 예배 진행 지원 PWA 애플리케이션",
   "main": "index.js",
@@ -11,8 +11,8 @@
     "build": "pnpm -C packages/shared build && pnpm -C packages/client build && pnpm -C packages/server build",
     "build:electron": "pnpm build && pnpm -C packages/server build:electron",
     "start:electron": "pnpm -C packages/server start:electron",
-    "lint": "pnpm -r --filter=!@gilton/server lint",
-    "lint:fix": "pnpm -r --filter=!@gilton/server lint:fix",
+    "lint": "pnpm -r --filter=!@gilteun/server lint",
+    "lint:fix": "pnpm -r --filter=!@gilteun/server lint:fix",
     "typecheck": "pnpm -r typecheck",
     "validate": "pnpm lint && pnpm typecheck",
     "clean": "pnpm -r exec rm -rf dist node_modules && rm -rf node_modules"

@@ -4,7 +4,7 @@ import type {
   Command, 
   CommandTarget, 
   CommandTemplate 
-} from '@gilton/shared';
+} from '@gilteun/shared';
 
 interface UseCommandProps {
   userId: string;

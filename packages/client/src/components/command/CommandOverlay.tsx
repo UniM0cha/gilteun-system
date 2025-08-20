@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
-import type { Command } from '@gilton/shared';
+import type { Command } from '@gilteun/shared';
 
 interface CommandOverlayProps {
   commands: Command[];

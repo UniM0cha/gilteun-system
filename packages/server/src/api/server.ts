@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
-import { SYSTEM_CONFIG } from '@gilton/shared';
+import { SYSTEM_CONFIG } from '@gilteun/shared';
 import { setupSocketHandlers } from './socket-handlers';
 import { setupRoutes } from './routes';
 
