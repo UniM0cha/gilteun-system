@@ -5,6 +5,8 @@
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently \"npm run build:watch\" \"npm run electron:dev\"",
+    "dev:api": "concurrently \"npm run build:watch\" \"npm run api:dev\"",
+    "api:dev": "wait-on dist/api/standalone.js && node dist/api/standalone.js",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "electron:dev": "wait-on dist/main/main.js && electron .",
