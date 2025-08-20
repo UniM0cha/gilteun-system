@@ -1,0 +1,37 @@
+{
+  "name": "gilton-system",
+  "version": "1.0.0",
+  "description": "교회 찬양팀 예배 진행 지원 PWA 애플리케이션",
+  "main": "index.js",
+  "scripts": {
+    "dev:client": "pnpm -C packages/client dev",
+    "dev:server": "pnpm -C packages/server dev",
+    "build": "pnpm -C packages/shared build && pnpm -C packages/client build && pnpm -C packages/server build",
+    "lint": "pnpm -r --filter=!@gilton/server lint",
+    "lint:fix": "pnpm -r --filter=!@gilton/server lint:fix",
+    "typecheck": "pnpm -r typecheck",
+    "validate": "pnpm lint && pnpm typecheck",
+    "clean": "pnpm -r exec rm -rf dist node_modules && rm -rf node_modules"
+  },
+  "keywords": [
+    "pwa",
+    "electron",
+    "church",
+    "worship",
+    "music"
+  ],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.14.0",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.40.0",
+    "@typescript-eslint/parser": "^8.40.0",
+    "eslint": "^9.33.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  }
+}

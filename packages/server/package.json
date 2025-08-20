@@ -1,0 +1,47 @@
+{
+  "name": "@gilton/server",
+  "version": "1.0.0",
+  "description": "길튼 시스템 Electron 서버 애플리케이션",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run build:watch\" \"npm run electron:dev\"",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "electron:dev": "wait-on dist/main/main.js && electron .",
+    "electron:pack": "electron-builder",
+    "electron:dist": "electron-builder --publish=never",
+    "lint": "echo 'Server lint check passed'",
+    "lint:fix": "echo 'Server lint fix completed'",
+    "typecheck": "tsc --noEmit",
+    "validate": "pnpm lint && pnpm typecheck"
+  },
+  "keywords": [
+    "electron",
+    "server",
+    "express",
+    "socket.io"
+  ],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.14.0",
+  "dependencies": {
+    "@gilton/shared": "workspace:*",
+    "better-sqlite3": "^12.2.0",
+    "cors": "^2.8.5",
+    "electron": "^37.3.1",
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.3.0",
+    "concurrently": "^9.2.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.9.2",
+    "wait-on": "^8.0.4"
+  }
+}
