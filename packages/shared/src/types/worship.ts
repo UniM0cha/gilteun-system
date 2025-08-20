@@ -9,24 +9,11 @@ export interface WorshipType {
 
 export interface Worship {
   id: string;
-  typeId: string;
+  type: string; // 예배 유형 이름
   date: Date;
-  title: string;
-  description?: string;
+  name: string; // 예배 이름
   scoreIds: string[];
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Score {
-  id: string;
-  worshipId: string;
-  title: string;
-  filename: string;
-  filepath: string;
-  order: number;
-  pageCount: number;
   createdAt: Date;
   updatedAt: Date;
 }

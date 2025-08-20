@@ -33,5 +33,5 @@ export const SYSTEM_CONFIG = {
   COMMAND_EXPIRE_TIME: 3000, // 3초
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   SUPPORTED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
-  DEFAULT_SERVER_PORT: 3000,
+  DEFAULT_SERVER_PORT: 3001,
 } as const;

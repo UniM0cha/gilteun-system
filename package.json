@@ -6,6 +6,8 @@
   "scripts": {
     "dev:client": "pnpm -C packages/client dev",
     "dev:server": "pnpm -C packages/server dev",
+    "dev:api": "pnpm -C packages/server dev:api",
+    "dev": "concurrently \"pnpm dev:api\" \"pnpm dev:client\"",
     "build": "pnpm -C packages/shared build && pnpm -C packages/client build && pnpm -C packages/server build",
     "lint": "pnpm -r --filter=!@gilton/server lint",
     "lint:fix": "pnpm -r --filter=!@gilton/server lint:fix",
@@ -26,6 +28,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.40.0",
     "@typescript-eslint/parser": "^8.40.0",
+    "concurrently": "^9.2.0",
     "eslint": "^9.33.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
