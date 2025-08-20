@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
+import { useWorshipStore } from '../../stores/worshipStore';
 import type { Worship } from '@gilteun/shared';
 
 interface WorshipSelectorProps {
@@ -7,40 +8,23 @@ interface WorshipSelectorProps {
 }
 
 export const WorshipSelector = ({ onSelect }: WorshipSelectorProps) => {
-  const [worships, setWorships] = useState<Worship[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { worships, isLoadingWorships, fetchWorships } = useWorshipStore();
   const [selectedWorshipId, setSelectedWorshipId] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO: 실제 API 호출로 예배 목록 가져오기
-    const mockWorships: Worship[] = [
-      {
-        id: 'worship_1',
-        type: '주일 1부예배',
-        date: new Date(),
-        name: '2024년 1월 7일 주일 1부예배',
-        scoreIds: [],
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: 'worship_2',
-        type: '주일 2부예배',
-        date: new Date(),
-        name: '2024년 1월 7일 주일 2부예배',
-        scoreIds: [],
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
+    const loadWorships = async () => {
+      try {
+        setError(null);
+        await fetchWorships();
+      } catch (err) {
+        setError('예배 목록을 불러오는데 실패했습니다.');
+        console.error('예배 목록 조회 실패:', err);
+      }
+    };
 
-    setTimeout(() => {
-      setWorships(mockWorships);
-      setLoading(false);
-    }, 500);
-  }, []);
+    loadWorships();
+  }, [fetchWorships]);
 
   const handleSelect = () => {
     const selectedWorship = worships.find(w => w.id === selectedWorshipId);
@@ -49,10 +33,25 @@ export const WorshipSelector = ({ onSelect }: WorshipSelectorProps) => {
     }
   };
 
-  if (loading) {
+  if (isLoadingWorships) {
     return (
       <div className="max-w-md mx-auto p-6 space-y-6 bg-white rounded-lg shadow-lg">
         <h3 className="text-xl font-semibold text-center">예배 목록 로딩 중...</h3>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-md mx-auto p-6 space-y-6 bg-white rounded-lg shadow-lg">
+        <h3 className="text-xl font-semibold text-center text-red-600">오류</h3>
+        <p className="text-center text-gray-600">{error}</p>
+        <Button 
+          onClick={() => window.location.reload()} 
+          className="w-full"
+        >
+          다시 시도
+        </Button>
       </div>
     );
   }

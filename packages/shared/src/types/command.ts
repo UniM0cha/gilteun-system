@@ -1,4 +1,4 @@
-export type CommandTarget = 'all' | 'leaders' | 'sessions';
+export type CommandTarget = 'all' | 'leaders' | 'sessions' | 'specific';
 
 export interface Command {
   id: string;

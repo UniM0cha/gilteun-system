@@ -1,18 +1,20 @@
 import { Express } from 'express';
-// import { worshipRoutes } from './worshipRoutes';
-// import { scoreRoutes } from './scoreRoutes';
-// import { getDB } from '../database/db';
+import { worshipRoutes } from './worshipRoutes';
+import { scoreRoutes } from './scoreRoutes';
+import { backupRoutes } from './backupRoutes';
+import { getDB } from '../database/db';
 
 export function setupRoutes(app: Express): void {
-  // 데이터베이스 초기화 (개발 중에는 주석 처리)
-  // getDB();
+  // 데이터베이스 초기화
+  getDB();
 
   // 정적 파일 서빙 (업로드된 파일들)
   app.use('/uploads', require('express').static('uploads'));
 
-  // API 라우트 연결 (개발 중에는 주석 처리)
-  // app.use('/api/worships', worshipRoutes);
-  // app.use('/api/scores', scoreRoutes);
+  // API 라우트 연결
+  app.use('/api/worships', worshipRoutes);
+  app.use('/api/scores', scoreRoutes);
+  app.use('/api/backup', backupRoutes);
 
   // 악기 목록 API (개발용 하드코딩)
   app.get('/api/instruments', (_req, res) => {

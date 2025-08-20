@@ -65,9 +65,40 @@ export const Admin = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleExportData = () => {
-    console.log('데이터 백업 시작...');
-    // TODO: 실제 데이터 백업 구현
+  const handleExportData = async () => {
+    try {
+      console.log('데이터 백업 시작...');
+      
+      // API 호출로 백업 데이터 요청
+      const response = await fetch('/api/backup/export', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('백업 데이터를 가져올 수 없습니다.');
+      }
+      
+      const backupData = await response.json();
+      
+      // JSON 파일로 다운로드
+      const dataStr = JSON.stringify(backupData, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = `gilteun-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      
+      console.log('데이터 백업 완료');
+    } catch (error) {
+      console.error('데이터 백업 실패:', error);
+      alert('데이터 백업 중 오류가 발생했습니다.');
+    }
   };
 
   const handleClearCache = () => {

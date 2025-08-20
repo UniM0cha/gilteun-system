@@ -4,6 +4,7 @@ import { ProfileSelector } from '../components/profile/ProfileSelector';
 import { ProfileCreator } from '../components/profile/ProfileCreator';
 import { WorshipSelector } from '../components/worship/WorshipSelector';
 import { useProfile } from '../hooks/useProfile';
+import { useWorshipStore } from '../stores/worshipStore';
 import type { Worship } from '@gilteun/shared';
 
 type HomeStep = 'profile' | 'create-profile' | 'worship-select';
@@ -11,6 +12,7 @@ type HomeStep = 'profile' | 'create-profile' | 'worship-select';
 export const Home = () => {
   const navigate = useNavigate();
   const { isLoggedIn } = useProfile();
+  const { setCurrentWorship } = useWorshipStore();
   const [currentStep, setCurrentStep] = useState<HomeStep>(
     isLoggedIn ? 'worship-select' : 'profile'
   );
@@ -20,7 +22,8 @@ export const Home = () => {
   };
 
   const handleWorshipSelect = (worship: Worship) => {
-    // TODO: 선택된 예배 정보를 글로벌 상태에 저장
+    // 선택된 예배 정보를 글로벌 상태에 저장
+    setCurrentWorship(worship);
     console.log('Selected worship:', worship);
     navigate('/worship');
   };
