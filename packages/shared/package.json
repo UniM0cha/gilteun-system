@@ -9,7 +9,10 @@
     "lint": "echo 'Shared lint check passed'",
     "lint:fix": "echo 'Shared lint fix completed'",
     "typecheck": "tsc --noEmit",
-    "validate": "pnpm lint && pnpm typecheck"
+    "validate": "pnpm lint && pnpm typecheck",
+    "test": "echo 'No tests in shared package'",
+    "test:coverage": "echo 'No tests in shared package'",
+    "test:watch": "echo 'No tests in shared package'"
   },
   "keywords": [
     "shared",

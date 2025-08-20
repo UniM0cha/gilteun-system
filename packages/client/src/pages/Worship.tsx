@@ -11,28 +11,18 @@ import { useProfile } from '../hooks/useProfile';
 import { useSocket } from '../hooks/useSocket';
 import { useDrawing } from '../hooks/useDrawing';
 import { useCommand } from '../hooks/useCommand';
+import { useWorshipStore } from '../stores/worshipStore';
 import { useNavigate } from 'react-router-dom';
-import type { Score } from '@gilteun/shared';
 
 export const Worship = () => {
   const { currentUser, getCurrentInstrument } = useProfile();
   const { connect, socketService } = useSocket();
+  const { currentWorship, currentScore, currentPage, setCurrentPage } = useWorshipStore();
   const navigate = useNavigate();
   const currentInstrument = getCurrentInstrument();
 
-  // 임시 악보 데이터 (Phase 3 테스트용)
-  const [currentScore] = useState<Score>({
-    id: 'score_1',
-    worshipId: 'worship_1',
-    title: '테스트 악보',
-    filePath: '/test-score.png',
-    orderIndex: 1,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  });
-  
-  const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = 3; // 임시값
+  // 악보의 총 페이지 수 (현재는 기본값 3, 실제로는 악보 메타데이터에서 가져와야 함)
+  const totalPages = 3;
 
   // 드로잉 hook 사용
   const {
@@ -45,7 +35,7 @@ export const Worship = () => {
     updateToolSettings,
     updateViewport
   } = useDrawing({
-    scoreId: currentScore.id,
+    scoreId: currentScore?.id || '',
     currentPage,
     userId: currentUser?.id || '',
     isConnected: socketService?.connected || false
@@ -77,17 +67,21 @@ export const Worship = () => {
       return;
     }
 
+    if (!currentWorship) {
+      navigate('/');
+      return;
+    }
+
     // Socket 연결 시도
     connect();
 
-    // 예배 참가 (임시로 고정된 예배 ID 사용)
-    const worshipId = 'worship_1';
+    // 예배 참가
     if (socketService.connected) {
-      socketService.joinWorship(currentUser.id, worshipId);
+      socketService.joinWorship(currentUser.id, currentWorship.id);
     }
-  }, [currentUser, connect, navigate, socketService]);
+  }, [currentUser, currentWorship, connect, navigate, socketService]);
 
-  if (!currentUser) {
+  if (!currentUser || !currentWorship) {
     return null;
   }
 
@@ -100,7 +94,7 @@ export const Worship = () => {
             <div className="flex items-center space-x-3">
               <h1 className="text-xl font-semibold">길튼 시스템</h1>
               <span className="text-gray-500">•</span>
-              <span className="text-gray-600">예배 진행 중</span>
+              <span className="text-gray-600">{currentWorship.name}</span>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -149,8 +143,24 @@ export const Worship = () => {
                 onUpdate={updateCommandTemplate}
                 onDelete={deleteCommandTemplate}
                 onReorder={(templateIds) => {
-                  // TODO: 순서 변경 구현
-                  console.log('Reorder templates:', templateIds);
+                  // 템플릿 순서 변경 구현
+                  const reorderedTemplates = templateIds.map((id, index) => {
+                    const template = commandTemplates.find(t => t.id === id);
+                    return template ? { ...template, orderIndex: index } : null;
+                  }).filter(Boolean);
+                  
+                  // 각 템플릿 업데이트
+                  reorderedTemplates.forEach(template => {
+                    if (template) {
+                      updateCommandTemplate(template.id, {
+                        title: template.title,
+                        content: template.content,
+                        orderIndex: template.orderIndex,
+                      });
+                    }
+                  });
+                  
+                  console.log('템플릿 순서 변경 완료:', templateIds);
                 }}
               />
             ) : (
@@ -177,7 +187,7 @@ export const Worship = () => {
           <div className="lg:col-span-3">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">{currentScore.title}</h2>
+                <h2 className="text-xl font-semibold">{currentScore?.title || '악보를 선택하세요'}</h2>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-muted-foreground">
                     {isDrawingMode ? '드로잉 모드' : '보기 모드'}
