@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, Instrument } from '@gilton/shared';
+import type { User, Instrument } from '@gilteun/shared';
 
 interface ProfileStore {
   currentUser: User | null;

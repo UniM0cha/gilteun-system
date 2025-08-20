@@ -12,7 +12,7 @@ import { useSocket } from '../hooks/useSocket';
 import { useDrawing } from '../hooks/useDrawing';
 import { useCommand } from '../hooks/useCommand';
 import { useNavigate } from 'react-router-dom';
-import type { Score } from '@gilton/shared';
+import type { Score } from '@gilteun/shared';
 
 export const Worship = () => {
   const { currentUser, getCurrentInstrument } = useProfile();

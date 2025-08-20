@@ -98,7 +98,7 @@
 
 ### **모노레포 구조**
 ```
-gilton-system/
+gilteun-system/
 ├── packages/
 │   ├── client/          # PWA 클라이언트 앱
 │   ├── server/          # Electron 서버 앱  
@@ -289,7 +289,7 @@ interface SocketEvents {
 
 ### **전체 디렉토리 구조**
 ```
-gilton-system/
+gilteun-system/
 ├── packages/
 │   ├── shared/                    # 공통 타입 및 유틸리티
 │   │   ├── src/

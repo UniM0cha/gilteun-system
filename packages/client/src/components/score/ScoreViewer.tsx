@@ -6,7 +6,7 @@ import type {
   ScoreViewport, 
   DrawingEvent, 
   DrawingToolSettings 
-} from '@gilton/shared';
+} from '@gilteun/shared';
 
 interface ScoreViewerProps {
   score?: Score;

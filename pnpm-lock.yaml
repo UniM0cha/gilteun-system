@@ -41,7 +41,7 @@ importers:
 
   packages/client:
     dependencies:
-      '@gilton/shared':
+      '@gilteun/shared':
         specifier: workspace:*
         version: link:../shared
       '@radix-ui/react-dialog':
@@ -141,7 +141,7 @@ importers:
 
   packages/server:
     dependencies:
-      '@gilton/shared':
+      '@gilteun/shared':
         specifier: workspace:*
         version: link:../shared
       better-sqlite3:

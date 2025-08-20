@@ -1,5 +1,5 @@
 import { getDB } from '../database/db';
-import type { Score } from '@gilton/shared';
+import type { Score } from '@gilteun/shared';
 
 export class ScoreService {
   private db = getDB().getDatabase();

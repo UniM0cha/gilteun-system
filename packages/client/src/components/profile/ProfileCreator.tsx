@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { InstrumentSelector } from './InstrumentSelector';
 import { useProfile } from '../../hooks/useProfile';
-import type { UserRole } from '@gilton/shared';
+import type { UserRole } from '@gilteun/shared';
 
 interface ProfileCreatorProps {
   onComplete: () => void;

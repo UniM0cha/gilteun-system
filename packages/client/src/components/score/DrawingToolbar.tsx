@@ -11,7 +11,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import type { DrawingTool, DrawingToolSettings } from '@gilton/shared';
+import type { DrawingTool, DrawingToolSettings } from '@gilteun/shared';
 
 interface DrawingToolbarProps {
   toolSettings: DrawingToolSettings;

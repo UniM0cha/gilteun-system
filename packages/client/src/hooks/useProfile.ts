@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useProfileStore } from '../stores/profileStore';
-import type { User, UserRole } from '@gilton/shared';
+import type { User, UserRole } from '@gilteun/shared';
 
 export const useProfile = () => {
   const { 

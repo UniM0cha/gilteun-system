@@ -4,7 +4,7 @@ import { ProfileSelector } from '../components/profile/ProfileSelector';
 import { ProfileCreator } from '../components/profile/ProfileCreator';
 import { WorshipSelector } from '../components/worship/WorshipSelector';
 import { useProfile } from '../hooks/useProfile';
-import type { Worship } from '@gilton/shared';
+import type { Worship } from '@gilteun/shared';
 
 type HomeStep = 'profile' | 'create-profile' | 'worship-select';
 

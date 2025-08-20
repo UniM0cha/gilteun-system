@@ -4,7 +4,7 @@ import type {
   DrawingData, 
   PageNavigation, 
   UserSession 
-} from '@gilton/shared';
+} from '@gilteun/shared';
 
 // Socket.IO 이벤트 리스트 (문서화)
 // - user:join: 사용자 예배 참가

@@ -1,5 +1,5 @@
 import { getDB } from '../database/db';
-import type { Worship } from '@gilton/shared';
+import type { Worship } from '@gilteun/shared';
 
 export class WorshipService {
   private db = getDB().getDatabase();

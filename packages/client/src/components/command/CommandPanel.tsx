@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Send, Plus, Settings } from 'lucide-react';
-import type { CommandTarget, CommandTemplate } from '@gilton/shared';
+import type { CommandTarget, CommandTemplate } from '@gilteun/shared';
 
 interface CommandPanelProps {
   userRole: 'session' | 'leader' | 'admin';
