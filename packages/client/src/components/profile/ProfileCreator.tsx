@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { InstrumentSelector } from './InstrumentSelector';
 import { useProfile } from '../../hooks/useProfile';
 import type { UserRole } from '@gilton/shared';
@@ -7,6 +11,24 @@ import type { UserRole } from '@gilton/shared';
 interface ProfileCreatorProps {
   onComplete: () => void;
 }
+
+const roleOptions: Array<{ value: UserRole; label: string; description: string }> = [
+  {
+    value: 'session',
+    label: '세션',
+    description: '악보 열람, 마크업 가능'
+  },
+  {
+    value: 'leader',
+    label: '인도자',
+    description: '명령 전송 가능'
+  },
+  {
+    value: 'admin',
+    label: '관리자',
+    description: '전체 관리 권한'
+  }
+];
 
 export const ProfileCreator = ({ onComplete }: ProfileCreatorProps) => {
   const { availableInstruments, createProfile } = useProfile();
@@ -36,74 +58,69 @@ export const ProfileCreator = ({ onComplete }: ProfileCreatorProps) => {
   const isFormValid = name.trim() && selectedInstrumentId;
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-center">새 프로필 생성</h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 이름 입력 */}
-        <div className="space-y-2">
-          <label htmlFor="name" className="text-sm font-medium">
-            이름
-          </label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="이름을 입력하세요"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            maxLength={20}
-            required
-          />
-        </div>
-
-        {/* 역할 선택 */}
-        <div className="space-y-3">
-          <label className="text-sm font-medium">역할</label>
-          <div className="grid grid-cols-1 gap-2">
-            <Button
-              type="button"
-              variant={role === 'session' ? 'default' : 'outline'}
-              onClick={() => setRole('session')}
-              className="justify-start"
-            >
-              세션 (악보 열람, 마크업 가능)
-            </Button>
-            <Button
-              type="button"
-              variant={role === 'leader' ? 'default' : 'outline'}
-              onClick={() => setRole('leader')}
-              className="justify-start"
-            >
-              인도자 (명령 전송 가능)
-            </Button>
-            <Button
-              type="button"
-              variant={role === 'admin' ? 'default' : 'outline'}
-              onClick={() => setRole('admin')}
-              className="justify-start"
-            >
-              관리자 (전체 관리 권한)
-            </Button>
+    <Card className="max-w-md mx-auto">
+      <CardHeader>
+        <CardTitle className="text-center">새 프로필 생성</CardTitle>
+        <CardDescription className="text-center">
+          예배팀에서 사용할 프로필을 만들어주세요
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 이름 입력 */}
+          <div className="space-y-2">
+            <Label htmlFor="name">이름</Label>
+            <Input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="이름을 입력하세요"
+              maxLength={20}
+              required
+            />
           </div>
-        </div>
 
-        {/* 악기 선택 */}
-        <InstrumentSelector
-          instruments={availableInstruments}
-          selectedInstrumentId={selectedInstrumentId}
-          onSelect={setSelectedInstrumentId}
-        />
+          {/* 역할 선택 */}
+          <div className="space-y-3">
+            <Label>역할</Label>
+            <RadioGroup
+              value={role}
+              onValueChange={(value) => setRole(value as UserRole)}
+              className="space-y-2"
+            >
+              {roleOptions.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <RadioGroupItem value={option.value} id={option.value} />
+                  <Label htmlFor={option.value} className="flex flex-col space-y-1 cursor-pointer">
+                    <span className="font-medium">{option.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {option.description}
+                    </span>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
 
-        {/* 제출 버튼 */}
-        <Button
-          type="submit"
-          disabled={!isFormValid || isSubmitting}
-          className="w-full"
-        >
-          {isSubmitting ? '생성 중...' : '프로필 생성'}
-        </Button>
-      </form>
-    </div>
+          {/* 악기 선택 */}
+          <InstrumentSelector
+            instruments={availableInstruments}
+            selectedInstrumentId={selectedInstrumentId}
+            onSelect={setSelectedInstrumentId}
+          />
+
+          {/* 제출 버튼 */}
+          <Button
+            type="submit"
+            disabled={!isFormValid || isSubmitting}
+            className="w-full"
+            size="lg"
+          >
+            {isSubmitting ? '생성 중...' : '프로필 생성'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
