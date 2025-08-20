@@ -1,9 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '../components/ui/button';
 import { ConnectionStatus } from '../components/ConnectionStatus';
+import { ScoreViewer } from '../components/score/ScoreViewer';
+import { ScoreNavigation } from '../components/score/ScoreNavigation';
+import { DrawingToolbar } from '../components/score/DrawingToolbar';
+import { CommandOverlay } from '../components/command/CommandOverlay';
+import { CommandPanel } from '../components/command/CommandPanel';
+import { CommandTemplateManager } from '../components/command/CommandTemplateManager';
 import { useProfile } from '../hooks/useProfile';
-import { useSocket, useCommandReceived } from '../hooks/useSocket';
+import { useSocket } from '../hooks/useSocket';
+import { useDrawing } from '../hooks/useDrawing';
+import { useCommand } from '../hooks/useCommand';
 import { useNavigate } from 'react-router-dom';
+import type { Score } from '@gilton/shared';
 
 export const Worship = () => {
   const { currentUser, getCurrentInstrument } = useProfile();
@@ -11,11 +20,56 @@ export const Worship = () => {
   const navigate = useNavigate();
   const currentInstrument = getCurrentInstrument();
 
-  // 명령 수신 처리
-  useCommandReceived((command) => {
-    console.log('명령 수신:', command);
-    // TODO: Phase 4에서 명령 오버레이 표시 구현
+  // 임시 악보 데이터 (Phase 3 테스트용)
+  const [currentScore] = useState<Score>({
+    id: 'score_1',
+    worshipId: 'worship_1',
+    title: '테스트 악보',
+    filePath: '/test-score.png',
+    orderIndex: 1,
+    createdAt: new Date(),
+    updatedAt: new Date()
   });
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = 3; // 임시값
+
+  // 드로잉 hook 사용
+  const {
+    drawingEvents,
+    isDrawingMode,
+    toolSettings,
+    viewport,
+    sendDrawingEvent,
+    toggleDrawingMode,
+    updateToolSettings,
+    updateViewport
+  } = useDrawing({
+    scoreId: currentScore.id,
+    currentPage,
+    userId: currentUser?.id || '',
+    isConnected: socketService?.connected || false
+  });
+
+  // 명령 hook 사용
+  const {
+    commands,
+    commandTemplates,
+    sendCommand,
+    expireCommand,
+    addCommandTemplate,
+    updateCommandTemplate,
+    deleteCommandTemplate
+  } = useCommand({
+    userId: currentUser?.id || '',
+    userName: currentUser?.name || '',
+    userInstrument: currentInstrument?.name || '',
+    isConnected: socketService?.connected || false
+  });
+
+  // 템플릿 관리 모드
+  const [isManagingTemplates, setIsManagingTemplates] = useState(false);
+
 
   useEffect(() => {
     if (!currentUser) {
@@ -68,57 +122,94 @@ export const Worship = () => {
       </div>
 
       {/* 메인 콘텐츠 */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold">예배 화면</h2>
-          <p className="text-gray-600">
-            Phase 3에서 악보 뷰어와 드로잉 기능이 구현됩니다.
-          </p>
-          <div className="bg-white p-8 rounded-lg shadow-sm border-2 border-dashed border-gray-300">
-            <p className="text-gray-500">악보 영역 (개발 예정)</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* 좌측 네비게이션 */}
+          <div className="lg:col-span-1 space-y-4">
+            <ScoreNavigation
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              viewport={viewport}
+              onViewportChange={updateViewport}
+            />
+            
+            <DrawingToolbar
+              toolSettings={toolSettings}
+              onToolSettingsChange={updateToolSettings}
+              isDrawingMode={isDrawingMode}
+              onDrawingModeChange={toggleDrawingMode}
+            />
+
+            {/* 명령 시스템 */}
+            {isManagingTemplates ? (
+              <CommandTemplateManager
+                templates={commandTemplates}
+                onAdd={addCommandTemplate}
+                onUpdate={updateCommandTemplate}
+                onDelete={deleteCommandTemplate}
+                onReorder={(templateIds) => {
+                  // TODO: 순서 변경 구현
+                  console.log('Reorder templates:', templateIds);
+                }}
+              />
+            ) : (
+              <CommandPanel
+                userRole={currentUser?.role || 'session'}
+                onSendCommand={sendCommand}
+                commandTemplates={commandTemplates}
+                onManageTemplates={() => setIsManagingTemplates(true)}
+              />
+            )}
+
+            {isManagingTemplates && (
+              <Button
+                variant="outline"
+                onClick={() => setIsManagingTemplates(false)}
+                className="w-full"
+              >
+                명령 패널로 돌아가기
+              </Button>
+            )}
           </div>
 
-          {/* 테스트용 명령 전송 버튼 (인도자/관리자만) */}
-          {(currentUser.role === 'leader' || currentUser.role === 'admin') && (
-            <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-              <h3 className="text-lg font-semibold mb-4">명령 전송 (테스트)</h3>
-              <div className="space-x-2">
-                <Button
-                  onClick={() => {
-                    if (socketService.connected) {
-                      socketService.sendCommand({
-                        content: '1절로 이동',
-                        senderId: currentUser.id,
-                        senderName: currentUser.name,
-                        senderInstrument: currentInstrument?.name || '',
-                        target: 'all',
-                      });
-                    }
-                  }}
-                  variant="outline"
-                >
-                  1절로 이동
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (socketService.connected) {
-                      socketService.sendCommand({
-                        content: '처음부터 다시',
-                        senderId: currentUser.id,
-                        senderName: currentUser.name,
-                        senderInstrument: currentInstrument?.name || '',
-                        target: 'all',
-                      });
-                    }
-                  }}
-                  variant="outline"
-                >
-                  처음부터 다시
-                </Button>
+          {/* 중앙 악보 영역 */}
+          <div className="lg:col-span-3">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">{currentScore.title}</h2>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">
+                    {isDrawingMode ? '드로잉 모드' : '보기 모드'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="relative">
+                <ScoreViewer
+                  score={currentScore}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  viewport={viewport}
+                  onViewportChange={updateViewport}
+                  drawingEvents={drawingEvents}
+                  isDrawingMode={isDrawingMode}
+                  toolSettings={toolSettings}
+                  onDrawingEvent={sendDrawingEvent}
+                  userId={currentUser?.id || ''}
+                />
+                
+                {/* 명령 오버레이 */}
+                <CommandOverlay
+                  commands={commands}
+                  onCommandExpire={expireCommand}
+                />
               </div>
             </div>
-          )}
+          </div>
         </div>
+
       </div>
     </div>
   );

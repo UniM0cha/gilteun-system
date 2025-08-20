@@ -10,6 +10,8 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "electron:dev": "wait-on dist/main/main.js && electron .",
+    "build:electron": "pnpm build && electron-builder",
+    "start:electron": "electron .",
     "electron:pack": "electron-builder",
     "electron:dist": "electron-builder --publish=never",
     "lint": "echo 'Server lint check passed'",

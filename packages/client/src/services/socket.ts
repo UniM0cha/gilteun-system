@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import type { Command, DrawingData, PageNavigation } from '@gilton/shared';
+import type { Command, DrawingData, DrawingEvent, PageNavigation } from '@gilton/shared';
 
 // Socket.io 이벤트 타입 정의
 interface SocketEvents {
@@ -7,11 +7,13 @@ interface SocketEvents {
   'user:join': (data: { userId: string; worshipId: string }) => void;
   'score:page-change': (data: { page: number; userId: string }) => void;
   'score:drawing': (data: DrawingData) => void;
+  'drawing:event': (data: DrawingEvent) => void;
   'command:send': (data: Omit<Command, 'id' | 'timestamp' | 'expiresAt'>) => void;
   
   // 서버 → 클라이언트
   'command:received': (data: Command) => void;
   'score:sync': (data: { scoreId: string; drawings: DrawingData[] }) => void;
+  'drawing:received': (data: DrawingEvent) => void;
   'users:update': (data: unknown[]) => void;
   'page:update': (data: PageNavigation) => void;
 }
@@ -79,6 +81,11 @@ export class SocketService {
     this.emit('score:drawing', drawingData);
   }
 
+  // 실시간 드로잉 이벤트 전송
+  sendDrawingEvent(drawingEvent: DrawingEvent): void {
+    this.emit('drawing:event', drawingEvent);
+  }
+
   // 명령 전송
   sendCommand(command: Omit<Command, 'id' | 'timestamp' | 'expiresAt'>): void {
     this.emit('command:send', command);
@@ -101,6 +108,10 @@ export class SocketService {
     this.on('page:update', callback);
   }
 
+  onDrawingReceived(callback: (event: DrawingEvent) => void): void {
+    this.on('drawing:received', callback);
+  }
+
   // 이벤트 리스너 제거
   offCommandReceived(callback: (command: Command) => void): void {
     this.off('command:received', callback);
@@ -116,6 +127,10 @@ export class SocketService {
 
   offPageUpdate(callback: (navigation: PageNavigation) => void): void {
     this.off('page:update', callback);
+  }
+
+  offDrawingReceived(callback: (event: DrawingEvent) => void): void {
+    this.off('drawing:received', callback);
   }
 
   // 연결 상태 확인
