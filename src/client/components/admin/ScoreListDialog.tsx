@@ -97,7 +97,7 @@ export const ScoreListDialog = ({ open, onOpenChange }: ScoreListDialogProps) =>
               </Card>
             ) : (
               filteredScores.map((score) => (
-                <Card key={score.id} className="hover:shadow-md transition-shadow">
+                <Card key={score.id} className="cursor-pointer hover:bg-accent/50 transition-colors">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
