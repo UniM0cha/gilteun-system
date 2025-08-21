@@ -124,8 +124,8 @@ export function setupSocketHandlers(io: SocketIOServer): void {
       }
     });
 
-    // 명령 전송
-    socket.on('command:send', (data: Omit<Command, 'id' | 'timestamp' | 'expiresAt'> & { targetUserIds?: string[] }) => {
+    // 명령 전송  
+    socket.on('command:send', (data: any) => {
       const userSession = connectedUsers.get(socket.id);
       if (!userSession) return;
 
@@ -137,10 +137,12 @@ export function setupSocketHandlers(io: SocketIOServer): void {
       };
 
       // 대상에 따라 명령 전송
-      if (data.target === 'all') {
+      const target = data.target;
+      
+      if (target === 'all') {
         // 전체 예배 참가자에게 전송
         io.to(`worship:${userSession.worshipId}`).emit('command:received', command);
-      } else if (data.target === 'specific' && 'targetUserIds' in data && data.targetUserIds) {
+      } else if (target === 'specific' && 'targetUserIds' in data && data.targetUserIds) {
         // 특정 사용자들에게만 전송
         const targetSockets = Array.from(connectedUsers.entries())
           .filter(([, session]) => 
@@ -154,7 +156,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
         });
         
         console.log(`특정 사용자에게 명령 전송: ${data.content} (대상: ${data.targetUserIds.length}명)`);
-      } else if (data.target && data.target !== 'all' && data.target !== 'specific') {
+      } else if (target === 'leaders' || target === 'sessions') {
         // 특정 악기 그룹에게 전송 (instrument 기반)
         // 현재는 모든 사용자에게 전송하되, 클라이언트에서 필터링하도록 함
         socket.to(`worship:${userSession.worshipId}`).emit('command:received', {

@@ -2,13 +2,22 @@ import { getDB } from '../database/db';
 import type { DrawingEvent } from '@gilteun/shared';
 
 export class DrawingService {
-  private db = getDB().getDatabase();
+  private db: any | null = null;
+
+  private getDatabase(): any {
+    if (!this.db) {
+      const dbManager = getDB();
+      this.db = dbManager.getDatabase();
+    }
+    return this.db;
+  }
 
   // 드로잉 이벤트 저장
   saveDrawing(drawing: DrawingEvent): string {
     const id = `drawing_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    const db = this.getDatabase();
     
-    const stmt = this.db.prepare(`
+    const stmt = db.prepare(`
       INSERT INTO score_drawings 
       (id, score_id, page_number, user_id, drawing_type, drawing_data, created_at)
       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -32,7 +41,8 @@ export class DrawingService {
 
   // 특정 악보 페이지의 모든 드로잉 조회
   getDrawingsByScorePage(scoreId: string, pageNumber: number): DrawingEvent[] {
-    const stmt = this.db.prepare(`
+    const db = this.getDatabase();
+    const stmt = db.prepare(`
       SELECT * FROM score_drawings 
       WHERE score_id = ? AND page_number = ?
       ORDER BY created_at ASC
@@ -58,7 +68,8 @@ export class DrawingService {
 
   // 특정 악보의 모든 드로잉 조회
   getDrawingsByScore(scoreId: string): DrawingEvent[] {
-    const stmt = this.db.prepare(`
+    const db = this.getDatabase();
+    const stmt = db.prepare(`
       SELECT * FROM score_drawings 
       WHERE score_id = ?
       ORDER BY page_number ASC, created_at ASC
@@ -84,14 +95,16 @@ export class DrawingService {
 
   // 드로잉 삭제 (특정 ID)
   deleteDrawing(id: string): boolean {
-    const stmt = this.db.prepare('DELETE FROM score_drawings WHERE id = ?');
+    const db = this.getDatabase();
+    const stmt = db.prepare('DELETE FROM score_drawings WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
   }
 
   // 특정 악보 페이지의 모든 드로잉 삭제
   clearDrawingsOnPage(scoreId: string, pageNumber: number): number {
-    const stmt = this.db.prepare(`
+    const db = this.getDatabase();
+    const stmt = db.prepare(`
       DELETE FROM score_drawings 
       WHERE score_id = ? AND page_number = ?
     `);
@@ -101,14 +114,16 @@ export class DrawingService {
 
   // 특정 악보의 모든 드로잉 삭제
   clearDrawingsByScore(scoreId: string): number {
-    const stmt = this.db.prepare('DELETE FROM score_drawings WHERE score_id = ?');
+    const db = this.getDatabase();
+    const stmt = db.prepare('DELETE FROM score_drawings WHERE score_id = ?');
     const result = stmt.run(scoreId);
     return result.changes;
   }
 
   // 오래된 드로잉 정리 (예: 30일 이상 된 것들)
   cleanupOldDrawings(daysOld: number = 30): number {
-    const stmt = this.db.prepare(`
+    const db = this.getDatabase();
+    const stmt = db.prepare(`
       DELETE FROM score_drawings 
       WHERE created_at < datetime('now', '-' || ? || ' days')
     `);

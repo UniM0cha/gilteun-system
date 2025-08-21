@@ -1,16 +1,43 @@
-import Database from 'better-sqlite3';
+// Development fallback - use JSON database if better-sqlite3 is not available
+let Database: any;
+let JsonDatabase: any;
+
+try {
+  Database = require('better-sqlite3');
+} catch (error) {
+  console.warn('better-sqlite3 not available, using JSON database for development');
+  try {
+    JsonDatabase = require('./jsonDb').default;
+  } catch (jsonError) {
+    console.error('Failed to load JSON database:', jsonError);
+  }
+}
+
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
 export class DatabaseManager {
-  private db: Database.Database;
+  private db: any;
+  private isJsonDb: boolean;
 
   constructor(dbPath: string = 'gilteun-system.db') {
-    this.db = new Database(dbPath);
-    this.initialize();
+    this.isJsonDb = !Database;
+    
+    if (this.isJsonDb) {
+      this.db = new JsonDatabase();
+      console.log('JSON 데이터베이스 사용 중 (개발 모드)');
+    } else {
+      this.db = new Database(dbPath);
+      this.initialize();
+    }
   }
 
   private initialize(): void {
+    if (this.isJsonDb) {
+      // JSON database doesn't need initialization
+      return;
+    }
+    
     // WAL 모드 설정 (성능 향상)
     this.db.pragma('journal_mode = WAL');
     
@@ -39,16 +66,22 @@ export class DatabaseManager {
     console.log('데이터베이스 초기화 완료');
   }
 
-  getDatabase(): Database.Database {
+  getDatabase(): any {
     return this.db;
   }
 
   close(): void {
-    this.db.close();
+    if (!this.isJsonDb && this.db.close) {
+      this.db.close();
+    }
   }
 
   // 트랜잭션 헬퍼
-  transaction<T>(fn: (db: Database.Database) => T): T {
+  transaction<T>(fn: (db: any) => T): T {
+    if (this.isJsonDb) {
+      // JSON database doesn't support transactions, execute directly
+      return fn(this.db);
+    }
     const transaction = this.db.transaction(fn);
     return transaction(this.db);
   }

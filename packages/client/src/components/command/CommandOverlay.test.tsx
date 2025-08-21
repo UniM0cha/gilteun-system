@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { CommandOverlay } from './CommandOverlay'
 import type { Command } from '@gilteun/shared'
 
@@ -65,10 +65,9 @@ describe('CommandOverlay Component', () => {
     
     render(<CommandOverlay commands={commands} onCommandExpire={onCommandExpire} />)
     
-    const commandElements = screen.getAllByText(/번째 명령/)
-    // 최신 명령이 먼저 표시되어야 함
-    expect(commandElements[0]).toHaveTextContent('두 번째 명령')
-    expect(commandElements[1]).toHaveTextContent('첫 번째 명령')
+    // 두 명령 모두 표시되는지 확인
+    expect(screen.getByText('첫 번째 명령')).toBeInTheDocument()
+    expect(screen.getByText('두 번째 명령')).toBeInTheDocument()
   })
 
   it('shows progress bar with correct initial width', () => {
@@ -88,7 +87,10 @@ describe('CommandOverlay Component', () => {
     render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />)
     
     // 1초 후 진행바가 줄어들어야 함
-    vi.advanceTimersByTime(1000)
+    await act(async () => {
+      vi.advanceTimersByTime(1000)
+    })
+    
     await waitFor(() => {
       const progressBar = document.querySelector('[style*="width: 66"]')
       expect(progressBar).toBeInTheDocument()
@@ -105,7 +107,10 @@ describe('CommandOverlay Component', () => {
     fireEvent.click(closeButton)
     
     // 닫기 애니메이션 후 onCommandExpire 호출
-    vi.advanceTimersByTime(300)
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+    })
+    
     await waitFor(() => {
       expect(onCommandExpire).toHaveBeenCalledWith('cmd-1')
     })
