@@ -92,8 +92,8 @@ export const Worship = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <h1 className="text-xl font-semibold">길튼 시스템</h1>
-              <span className="text-gray-500">•</span>
-              <span className="text-gray-600">{currentWorship.name}</span>
+              <span className="text-muted-foreground">•</span>
+              <span className="text-muted-foreground">{currentWorship.name}</span>
             </div>
 
             <div className="flex items-center space-x-4">
