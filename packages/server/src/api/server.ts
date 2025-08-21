@@ -63,7 +63,9 @@ export async function startApiServer(): Promise<void> {
   }
 
   // 서버 시작
-  const port = process.env.PORT || SYSTEM_CONFIG.DEFAULT_SERVER_PORT;
+  const port = process.env.NODE_ENV === 'production' 
+    ? (process.env.PORT || 80) 
+    : (process.env.PORT || SYSTEM_CONFIG.DEFAULT_SERVER_PORT);
   
   return new Promise((resolve, reject) => {
     httpServer.listen(port, () => {
