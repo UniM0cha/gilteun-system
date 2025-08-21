@@ -1,29 +1,30 @@
 import { getDB } from '../database/db';
 import type { DrawingEvent } from '@shared/types/score';
+import type { DatabaseInterface, DrawingRow } from '../database/types';
 
 export class DrawingService {
-  private db: any | null = null;
+  private db: DatabaseInterface | null = null;
 
-  private getDatabase(): any {
+  private async getDatabase(): Promise<DatabaseInterface> {
     if (!this.db) {
-      const dbManager = getDB();
-      this.db = dbManager.getDatabase();
+      const dbManager = await getDB();
+      this.db = dbManager.getDatabase() as DatabaseInterface;
     }
     return this.db;
   }
 
   // 드로잉 이벤트 저장
-  saveDrawing(drawing: DrawingEvent): string {
+  async saveDrawing(drawing: DrawingEvent): Promise<string> {
     const id = `drawing_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-    const db = this.getDatabase();
+    const db = await this.getDatabase();
 
-    const stmt = db.prepare(`
+    const stmt = db.prepare?.(`
       INSERT INTO score_drawings 
       (id, score_id, page_number, user_id, drawing_type, drawing_data, created_at)
       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
-    stmt.run(
+    stmt?.run?.(
       id,
       drawing.scoreId,
       drawing.pageNumber,
@@ -40,15 +41,15 @@ export class DrawingService {
   }
 
   // 특정 악보 페이지의 모든 드로잉 조회
-  getDrawingsByScorePage(scoreId: string, pageNumber: number): DrawingEvent[] {
-    const db = this.getDatabase();
-    const stmt = db.prepare(`
+  async getDrawingsByScorePage(scoreId: string, pageNumber: number): Promise<DrawingEvent[]> {
+    const db = await this.getDatabase();
+    const stmt = db.prepare?.(`
       SELECT * FROM score_drawings 
       WHERE score_id = ? AND page_number = ?
       ORDER BY created_at ASC
     `);
 
-    const rows = stmt.all(scoreId, pageNumber) as any[];
+    const rows = stmt?.all(scoreId, pageNumber) as DrawingRow[];
 
     return rows.map((row) => {
       const drawingData = JSON.parse(row.drawing_data);
@@ -61,21 +62,21 @@ export class DrawingService {
         points: drawingData.points,
         settings: drawingData.settings,
         isComplete: drawingData.isComplete,
-        timestamp: new Date(row.created_at),
+        timestamp: new Date(row.created_at as string),
       } as DrawingEvent;
     });
   }
 
   // 특정 악보의 모든 드로잉 조회
-  getDrawingsByScore(scoreId: string): DrawingEvent[] {
-    const db = this.getDatabase();
-    const stmt = db.prepare(`
+  async getDrawingsByScore(scoreId: string): Promise<DrawingEvent[]> {
+    const db = await this.getDatabase();
+    const stmt = db.prepare?.(`
       SELECT * FROM score_drawings 
       WHERE score_id = ?
       ORDER BY page_number ASC, created_at ASC
     `);
 
-    const rows = stmt.all(scoreId) as any[];
+    const rows = stmt?.all(scoreId) as DrawingRow[];
 
     return rows.map((row) => {
       const drawingData = JSON.parse(row.drawing_data);
@@ -88,47 +89,47 @@ export class DrawingService {
         points: drawingData.points,
         settings: drawingData.settings,
         isComplete: drawingData.isComplete,
-        timestamp: new Date(row.created_at),
+        timestamp: new Date(row.created_at as string),
       } as DrawingEvent;
     });
   }
 
   // 드로잉 삭제 (특정 ID)
-  deleteDrawing(id: string): boolean {
-    const db = this.getDatabase();
-    const stmt = db.prepare('DELETE FROM score_drawings WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
+  async deleteDrawing(id: string): Promise<boolean> {
+    const db = await this.getDatabase();
+    const stmt = db.prepare?.('DELETE FROM score_drawings WHERE id = ?');
+    const result = stmt?.run?.(id);
+    return (result?.changes ?? 0) > 0;
   }
 
   // 특정 악보 페이지의 모든 드로잉 삭제
-  clearDrawingsOnPage(scoreId: string, pageNumber: number): number {
-    const db = this.getDatabase();
-    const stmt = db.prepare(`
+  async clearDrawingsOnPage(scoreId: string, pageNumber: number): Promise<number> {
+    const db = await this.getDatabase();
+    const stmt = db.prepare?.(`
       DELETE FROM score_drawings 
       WHERE score_id = ? AND page_number = ?
     `);
-    const result = stmt.run(scoreId, pageNumber);
-    return result.changes;
+    const result = stmt?.run?.(scoreId, pageNumber);
+    return result?.changes ?? 0;
   }
 
   // 특정 악보의 모든 드로잉 삭제
-  clearDrawingsByScore(scoreId: string): number {
-    const db = this.getDatabase();
-    const stmt = db.prepare('DELETE FROM score_drawings WHERE score_id = ?');
-    const result = stmt.run(scoreId);
-    return result.changes;
+  async clearDrawingsByScore(scoreId: string): Promise<number> {
+    const db = await this.getDatabase();
+    const stmt = db.prepare?.('DELETE FROM score_drawings WHERE score_id = ?');
+    const result = stmt?.run?.(scoreId);
+    return result?.changes ?? 0;
   }
 
   // 오래된 드로잉 정리 (예: 30일 이상 된 것들)
-  cleanupOldDrawings(daysOld: number = 30): number {
-    const db = this.getDatabase();
-    const stmt = db.prepare(`
+  async cleanupOldDrawings(daysOld: number = 30): Promise<number> {
+    const db = await this.getDatabase();
+    const stmt = db.prepare?.(`
       DELETE FROM score_drawings 
       WHERE created_at < datetime('now', '-' || ? || ' days')
     `);
-    const result = stmt.run(daysOld);
-    return result.changes;
+    const result = stmt?.run?.(daysOld);
+    return result?.changes ?? 0;
   }
 }
 

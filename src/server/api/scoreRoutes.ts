@@ -45,7 +45,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/scores - 악보 업로드
-router.post('/', fileService.getScoreUploadConfig().single('scoreFile'), (req, res) => {
+router.post('/', fileService.getScoreUploadConfig().single('scoreFile'), async (req, res) => {
   try {
     const { worshipId, title, orderIndex } = req.body;
     const file = req.file;
@@ -64,14 +64,14 @@ router.post('/', fileService.getScoreUploadConfig().single('scoreFile'), (req, r
       });
     }
 
-    const scoreId = scoreService.createScore({
+    const scoreId = await scoreService.createScore({
       worshipId,
       title,
       filePath: fileService.getScoreRelativePath(file.filename),
       orderIndex: orderIndex ? parseInt(orderIndex) : undefined,
     });
 
-    const score = scoreService.getScoreById(scoreId);
+    const score = await scoreService.getScoreById(scoreId);
     return res.status(201).json({ success: true, data: score });
   } catch (error) {
     console.error('악보 업로드 오류:', error);

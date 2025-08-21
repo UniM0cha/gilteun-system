@@ -4,23 +4,23 @@ import { getDB } from '../database/db';
 const router = Router();
 
 // GET /api/backup/export - 전체 데이터 백업
-router.get('/export', (_req, res) => {
+router.get('/export', async (_req, res) => {
   try {
-    const db = getDB().getDatabase();
+    const db = (await getDB()).getDatabase();
 
     // 모든 테이블의 데이터 백업
     const backup = {
       timestamp: new Date().toISOString(),
       version: '1.0',
       data: {
-        worship_types: db.prepare('SELECT * FROM worship_types').all(),
-        worships: db.prepare('SELECT * FROM worships').all(),
-        scores: db.prepare('SELECT * FROM scores').all(),
-        users: db.prepare('SELECT * FROM users').all(),
-        instruments: db.prepare('SELECT * FROM instruments').all(),
+        worship_types: db.prepare?.('SELECT * FROM worship_types')?.all() || [],
+        worships: db.prepare?.('SELECT * FROM worships')?.all() || [],
+        scores: db.prepare?.('SELECT * FROM scores')?.all() || [],
+        users: db.prepare?.('SELECT * FROM users')?.all() || [],
+        instruments: db.prepare?.('SELECT * FROM instruments')?.all() || [],
         // 드로잉 데이터는 크기가 클 수 있으므로 별도로 처리
-        drawings_count: db.prepare('SELECT COUNT(*) as count FROM score_drawings').get(),
-        command_templates: db.prepare('SELECT * FROM command_templates').all(),
+        drawings_count: db.prepare?.('SELECT COUNT(*) as count FROM score_drawings')?.get() || { count: 0 },
+        command_templates: db.prepare?.('SELECT * FROM command_templates')?.all() || [],
       },
     };
 
@@ -38,7 +38,7 @@ router.get('/export', (_req, res) => {
 });
 
 // POST /api/backup/import - 데이터 복원 (관리자용)
-router.post('/import', (req, res) => {
+router.post('/import', async (req, res) => {
   try {
     const { data } = req.body;
 
@@ -49,36 +49,37 @@ router.post('/import', (req, res) => {
       });
     }
 
-    const db = getDB().getDatabase();
+    const db = (await getDB()).getDatabase();
 
     // 트랜잭션으로 데이터 복원
-    db.transaction(() => {
+    const runTransaction = db.transaction || ((fn: () => void) => fn());
+    runTransaction(() => {
       // 기존 데이터 삭제 (외래키 제약조건 고려한 순서)
-      db.exec('DELETE FROM score_drawings');
-      db.exec('DELETE FROM command_templates');
-      db.exec('DELETE FROM scores');
-      db.exec('DELETE FROM worships');
+      db.exec?.('DELETE FROM score_drawings');
+      db.exec?.('DELETE FROM command_templates');
+      db.exec?.('DELETE FROM scores');
+      db.exec?.('DELETE FROM worships');
 
       // 데이터 복원
       if (data.data.worship_types) {
-        const insertWorshipType = db.prepare(`
+        const insertWorshipType = db.prepare?.(`
           INSERT INTO worship_types (id, name, is_active, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?)
         `);
 
         for (const item of data.data.worship_types) {
-          insertWorshipType.run(item.id, item.name, item.is_active, item.created_at, item.updated_at);
+          insertWorshipType?.run(item.id, item.name, item.is_active, item.created_at, item.updated_at);
         }
       }
 
       if (data.data.worships) {
-        const insertWorship = db.prepare(`
+        const insertWorship = db.prepare?.(`
           INSERT INTO worships (id, type_id, name, date, is_active, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
 
         for (const item of data.data.worships) {
-          insertWorship.run(
+          insertWorship?.run(
             item.id,
             item.type_id,
             item.name,
@@ -91,13 +92,13 @@ router.post('/import', (req, res) => {
       }
 
       if (data.data.scores) {
-        const insertScore = db.prepare(`
+        const insertScore = db.prepare?.(`
           INSERT INTO scores (id, worship_id, title, file_path, order_index, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
 
         for (const item of data.data.scores) {
-          insertScore.run(
+          insertScore?.run(
             item.id,
             item.worship_id,
             item.title,
@@ -110,16 +111,16 @@ router.post('/import', (req, res) => {
       }
 
       if (data.data.command_templates) {
-        const insertTemplate = db.prepare(`
+        const insertTemplate = db.prepare?.(`
           INSERT INTO command_templates (id, title, content, order_index, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?)
         `);
 
         for (const item of data.data.command_templates) {
-          insertTemplate.run(item.id, item.title, item.content, item.order_index, item.created_at, item.updated_at);
+          insertTemplate?.run(item.id, item.title, item.content, item.order_index, item.created_at, item.updated_at);
         }
       }
-    })();
+    });
 
     return res.json({
       success: true,
