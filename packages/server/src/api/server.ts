@@ -27,6 +27,14 @@ export async function startApiServer(): Promise<void> {
   // 정적 파일 제공 (악보 이미지 등)
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
+  // 프로덕션 환경에서 React 빌드 파일 서빙
+  if (process.env.NODE_ENV === 'production') {
+    const clientBuildPath = path.join(__dirname, '../../public');
+    
+    // React 빌드 파일 정적 서빙
+    app.use(express.static(clientBuildPath));
+  }
+
   // API 라우트 설정
   setupRoutes(app);
 
@@ -41,6 +49,18 @@ export async function startApiServer(): Promise<void> {
       timestamp: new Date().toISOString()
     });
   });
+
+  // 프로덕션 환경에서 SPA를 위한 fallback (React Router 지원)
+  if (process.env.NODE_ENV === 'production') {
+    app.get('*', (req, res) => {
+      if (!req.path.startsWith('/api') && 
+          !req.path.startsWith('/uploads') && 
+          !req.path.startsWith('/socket.io')) {
+        const clientBuildPath = path.join(__dirname, '../../public');
+        res.sendFile(path.join(clientBuildPath, 'index.html'));
+      }
+    });
+  }
 
   // 서버 시작
   const port = process.env.PORT || SYSTEM_CONFIG.DEFAULT_SERVER_PORT;

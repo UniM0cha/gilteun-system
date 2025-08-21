@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import type { ScoreViewport } from '@gilteun/shared';
 
@@ -76,13 +77,13 @@ export const ScoreNavigation = ({
               </Button>
               
               <div className="flex items-center space-x-1">
-                <input
+                <Input
                   type="number"
                   min={1}
                   max={totalPages}
                   value={currentPage}
                   onChange={handlePageInput}
-                  className="w-12 h-8 text-center text-sm border rounded px-1"
+                  className="w-12 h-8 text-center text-sm"
                 />
                 <span className="text-sm text-muted-foreground">
                   / {totalPages}

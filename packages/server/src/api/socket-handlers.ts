@@ -1,5 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { drawingService } from '../services/drawingService';
+import { adminService } from '../services/adminService';
 import type { 
   Command, 
   DrawingEvent, 
@@ -25,7 +26,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
     console.log(`클라이언트 연결됨: ${socket.id}`);
 
     // 사용자 입장
-    socket.on('user:join', (data: { userId: string; worshipId: string; scoreId?: string }) => {
+    socket.on('user:join', (data: { userId: string; worshipId: string; scoreId?: string; userName?: string; instrument?: string }) => {
       const userSession: UserSession = {
         userId: data.userId,
         worshipId: data.worshipId,
@@ -36,6 +37,17 @@ export function setupSocketHandlers(io: SocketIOServer): void {
 
       // 사용자 세션 저장
       connectedUsers.set(socket.id, userSession);
+      
+      // 관리자 서비스에도 사용자 추가
+      adminService.addConnectedUser(socket.id, {
+        id: socket.id,
+        name: data.userName || data.userId,
+        instrument: data.instrument || '미지정',
+        joinedAt: new Date().toLocaleTimeString('ko-KR'),
+        isActive: true,
+        currentPage: 1,
+        worshipId: data.worshipId,
+      });
       
       // 해당 예배 룸에 참가
       socket.join(`worship:${data.worshipId}`);
@@ -179,6 +191,9 @@ export function setupSocketHandlers(io: SocketIOServer): void {
       if (userSession) {
         // 사용자 세션 제거
         connectedUsers.delete(socket.id);
+        
+        // 관리자 서비스에서도 사용자 제거
+        adminService.removeConnectedUser(socket.id);
         
         // 다른 사용자들에게 사용자 퇴장 알림
         socket.to(`worship:${userSession.worshipId}`).emit('users:update',

@@ -7,7 +7,7 @@ export const ConnectionStatus = () => {
 
   if (isConnecting) {
     return (
-      <div className="flex items-center space-x-2 text-yellow-600">
+      <div className="flex items-center space-x-2 text-yellow-500">
         <Loader2 className="h-4 w-4 animate-spin" />
         <span className="text-sm">연결 중...</span>
       </div>
@@ -16,7 +16,7 @@ export const ConnectionStatus = () => {
 
   if (isConnected) {
     return (
-      <div className="flex items-center space-x-2 text-green-600">
+      <div className="flex items-center space-x-2 text-green-500">
         <Wifi className="h-4 w-4" />
         <span className="text-sm">연결됨</span>
         <Button variant="outline" size="sm" onClick={disconnect}>
@@ -27,7 +27,7 @@ export const ConnectionStatus = () => {
   }
 
   return (
-    <div className="flex items-center space-x-2 text-red-600">
+    <div className="flex items-center space-x-2 text-destructive">
       <WifiOff className="h-4 w-4" />
       <span className="text-sm">
         {error ? `연결 실패: ${error}` : '연결되지 않음'}
