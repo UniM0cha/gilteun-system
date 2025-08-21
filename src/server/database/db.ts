@@ -1,35 +1,50 @@
-// Development fallback - use JSON database if better-sqlite3 is not available
-let Database: any;
-let JsonDatabase: any;
-
-try {
-  Database = require('better-sqlite3');
-} catch {
-  console.warn('better-sqlite3 not available, using JSON database for development');
-  try {
-    JsonDatabase = require('./jsonDb').default;
-  } catch (jsonError) {
-    console.error('Failed to load JSON database:', jsonError);
-  }
-}
-
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type Database from 'better-sqlite3';
+import type { DatabaseInterface, JsonDatabaseInterface } from './types';
+
+// Development fallback - use JSON database if better-sqlite3 is not available
+let BetterSqlite3: typeof Database | null = null;
+let JsonDatabase: (new (dbPath?: string) => JsonDatabaseInterface) | null = null;
 
 export class DatabaseManager {
-  private db: any;
-  private isJsonDb: boolean;
+  private db!: DatabaseInterface; // 확정 할당 단언
+  private isJsonDb: boolean = false;
 
-  constructor(dbPath: string = 'gilteun-system.db') {
-    this.isJsonDb = !Database;
+  private constructor(_dbPath: string = 'gilteun-system.db') {
+    // Private constructor - use static async create method
+  }
 
-    if (this.isJsonDb) {
-      this.db = new JsonDatabase();
-      console.log('JSON 데이터베이스 사용 중 (개발 모드)');
-    } else {
-      this.db = new Database(dbPath);
-      this.initialize();
+  static async create(dbPath: string = 'gilteun-system.db'): Promise<DatabaseManager> {
+    const instance = new DatabaseManager();
+
+    // Try to load better-sqlite3
+    try {
+      const sqlite3Module = await import('better-sqlite3');
+      BetterSqlite3 = sqlite3Module.default;
+    } catch {
+      console.warn('better-sqlite3 not available, using JSON database for development');
+      try {
+        const jsonDbModule = await import('./jsonDb');
+        JsonDatabase = jsonDbModule.default;
+      } catch (jsonError) {
+        console.error('Failed to load JSON database:', jsonError);
+      }
     }
+
+    instance.isJsonDb = !BetterSqlite3;
+
+    if (instance.isJsonDb && JsonDatabase) {
+      instance.db = new JsonDatabase() as DatabaseInterface;
+      console.log('JSON 데이터베이스 사용 중 (개발 모드)');
+    } else if (BetterSqlite3) {
+      instance.db = new BetterSqlite3(dbPath) as unknown as DatabaseInterface;
+      instance.initialize();
+    } else {
+      throw new Error('No database engine available');
+    }
+
+    return instance;
   }
 
   private initialize(): void {
@@ -39,10 +54,10 @@ export class DatabaseManager {
     }
 
     // WAL 모드 설정 (성능 향상)
-    this.db.pragma('journal_mode = WAL');
+    this.db.pragma?.('journal_mode = WAL');
 
     // 외래 키 제약 조건 활성화
-    this.db.pragma('foreign_keys = ON');
+    this.db.pragma?.('foreign_keys = ON');
 
     // 스키마 파일 읽기 및 실행
     const schemaPath = join(__dirname, 'schema.sql');
@@ -56,7 +71,7 @@ export class DatabaseManager {
 
     for (const statement of statements) {
       try {
-        this.db.exec(statement);
+        this.db.exec?.(statement);
       } catch (error) {
         console.error('Schema execution error:', error);
         console.error('Statement:', statement);
@@ -66,7 +81,7 @@ export class DatabaseManager {
     console.log('데이터베이스 초기화 완료');
   }
 
-  getDatabase(): any {
+  getDatabase(): DatabaseInterface {
     return this.db;
   }
 
@@ -77,22 +92,24 @@ export class DatabaseManager {
   }
 
   // 트랜잭션 헬퍼
-  transaction<T>(fn: (db: any) => T): T {
+  transaction<T>(fn: () => T): T {
     if (this.isJsonDb) {
       // JSON database doesn't support transactions, execute directly
-      return fn(this.db);
+      return fn();
     }
-    const transaction = this.db.transaction(fn);
-    return transaction(this.db);
+    if (this.db.transaction) {
+      return this.db.transaction(fn);
+    }
+    return fn();
   }
 }
 
 // 싱글톤 인스턴스
 let dbInstance: DatabaseManager | null = null;
 
-export const getDB = (): DatabaseManager => {
+export const getDB = async (): Promise<DatabaseManager> => {
   if (!dbInstance) {
-    dbInstance = new DatabaseManager();
+    dbInstance = await DatabaseManager.create();
   }
   return dbInstance;
 };

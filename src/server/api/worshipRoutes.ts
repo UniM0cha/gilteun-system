@@ -43,7 +43,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/worships - 예배 생성
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { typeId, name, date } = req.body;
 
@@ -54,7 +54,7 @@ router.post('/', (req, res) => {
       });
     }
 
-    const worshipId = worshipService.createWorship({
+    const worshipId = await worshipService.createWorship({
       typeId,
       name,
       date,

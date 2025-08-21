@@ -1,13 +1,13 @@
-import express, { Express } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import { worshipRoutes } from './worshipRoutes';
 import { scoreRoutes } from './scoreRoutes';
 import { backupRoutes } from './backupRoutes';
 import { adminRoutes } from './adminRoutes';
 import { getDB } from '../database/db';
 
-export function setupRoutes(app: Express): void {
+export async function setupRoutes(app: Express): Promise<void> {
   // 데이터베이스 초기화
-  getDB();
+  await getDB();
 
   // 정적 파일 서빙 (업로드된 파일들)
   app.use('/uploads', express.static('uploads'));
@@ -76,7 +76,7 @@ export function setupRoutes(app: Express): void {
   });
 
   // 에러 핸들링 미들웨어
-  app.use((error: Error, _req: any, res: any, _next: any) => {
+  app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('API 오류:', error);
     res.status(500).json({
       success: false,

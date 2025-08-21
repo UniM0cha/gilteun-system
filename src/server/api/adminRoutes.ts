@@ -4,6 +4,8 @@ import path from 'path';
 import fs from 'fs';
 import { adminService } from '../services/adminService';
 import { getDB } from '../database/db';
+// Score 타입은 현재 사용하지 않지만 향후 확장을 위해 준비
+// import type { Score } from '@shared/types/score';
 
 const router = Router();
 
@@ -100,7 +102,7 @@ router.post('/users/:socketId/disconnect', (req, res) => {
 });
 
 // POST /api/admin/scores/upload - 악보 업로드
-router.post('/scores/upload', upload.single('scoreFile'), (req, res) => {
+router.post('/scores/upload', upload.single('scoreFile'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -118,20 +120,20 @@ router.post('/scores/upload', upload.single('scoreFile'), (req, res) => {
       });
     }
 
-    const db = getDB().getDatabase();
+    const db = (await getDB()).getDatabase();
     const scoreId = adminService.generateScoreId();
 
     // 악보 정보를 데이터베이스에 저장
-    const stmt = db.prepare(`
+    const stmt = db.prepare?.(`
       INSERT INTO scores (id, worship_id, title, file_path, order_index, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `);
 
     // 현재 예배의 악보 개수 조회하여 order_index 설정
-    const countStmt = db.prepare('SELECT COUNT(*) as count FROM scores WHERE worship_id = ?');
-    const orderIndex = (countStmt.get(worshipId) as any)?.count || 0;
+    const countStmt = db.prepare?.('SELECT COUNT(*) as count FROM scores WHERE worship_id = ?');
+    const orderIndex = (countStmt?.get(worshipId) as { count: number } | undefined)?.count || 0;
 
-    stmt.run(scoreId, worshipId, title, `/uploads/scores/${req.file.filename}`, orderIndex);
+    stmt?.run(scoreId, worshipId, title, `/uploads/scores/${req.file.filename}`, orderIndex);
 
     adminService.addLog('info', `악보 업로드 완료: ${title}`, 'AdminAPI');
 
@@ -154,13 +156,13 @@ router.post('/scores/upload', upload.single('scoreFile'), (req, res) => {
 });
 
 // DELETE /api/admin/scores/:id - 악보 삭제
-router.delete('/scores/:id', (req, res) => {
+router.delete('/scores/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const db = getDB().getDatabase();
+    const db = (await getDB()).getDatabase();
 
     // 악보 정보 조회
-    const score = db.prepare('SELECT * FROM scores WHERE id = ?').get(id);
+    const score = db.prepare?.('SELECT * FROM scores WHERE id = ?')?.get(id);
 
     if (!score) {
       return res.status(404).json({
@@ -170,16 +172,21 @@ router.delete('/scores/:id', (req, res) => {
     }
 
     // 파일 삭제
-    const filePath = path.join(process.cwd(), 'uploads', 'scores', path.basename((score as any).file_path));
+    const filePath = path.join(
+      process.cwd(),
+      'uploads',
+      'scores',
+      path.basename((score as { file_path: string }).file_path)
+    );
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
     // 데이터베이스에서 삭제
-    db.prepare('DELETE FROM scores WHERE id = ?').run(id);
-    db.prepare('DELETE FROM score_drawings WHERE score_id = ?').run(id);
+    db.prepare?.('DELETE FROM scores WHERE id = ?')?.run(id);
+    db.prepare?.('DELETE FROM score_drawings WHERE score_id = ?')?.run(id);
 
-    adminService.addLog('info', `악보 삭제 완료: ${(score as any).title}`, 'AdminAPI');
+    adminService.addLog('info', `악보 삭제 완료: ${(score as { title: string }).title}`, 'AdminAPI');
 
     return res.json({
       success: true,
@@ -212,7 +219,7 @@ router.get('/settings', (_req, res) => {
 });
 
 // PUT /api/admin/settings - 시스템 설정 업데이트
-router.put('/settings', (req, res) => {
+router.put('/settings', async (req, res) => {
   try {
     const { settings } = req.body;
 
@@ -226,7 +233,7 @@ router.put('/settings', (req, res) => {
     // 각 설정 항목을 개별적으로 업데이트
     const updatedKeys = [];
     for (const [key, value] of Object.entries(settings)) {
-      if (adminService.updateSystemSetting(key, value)) {
+      if (await adminService.updateSystemSetting(key, value)) {
         updatedKeys.push(key);
       }
     }
@@ -251,7 +258,10 @@ router.put('/settings', (req, res) => {
 router.get('/logs', (_req, res) => {
   try {
     const { limit = 100, level } = _req.query;
-    const logs = adminService.getLogs(parseInt(limit as string) || 100, level as any);
+    const logs = adminService.getLogs(
+      parseInt(limit as string) || 100,
+      level as 'info' | 'warn' | 'error' | 'debug' | undefined
+    );
 
     return res.json({
       success: true,
@@ -267,9 +277,9 @@ router.get('/logs', (_req, res) => {
 });
 
 // POST /api/admin/cleanup - 시스템 정리
-router.post('/cleanup', (_req, res) => {
+router.post('/cleanup', async (_req, res) => {
   try {
-    const result = adminService.cleanupSystem();
+    const result = await adminService.cleanupSystem();
 
     if (result.success) {
       return res.json({

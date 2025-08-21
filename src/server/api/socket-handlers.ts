@@ -25,7 +25,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
     // 사용자 입장
     socket.on(
       'user:join',
-      (data: { userId: string; worshipId: string; scoreId?: string; userName?: string; instrument?: string }) => {
+      async (data: { userId: string; worshipId: string; scoreId?: string; userName?: string; instrument?: string }) => {
         const userSession: UserSession = {
           userId: data.userId,
           worshipId: data.worshipId,
@@ -60,7 +60,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
         // 기존 드로잉 데이터 전송 (scoreId가 있는 경우)
         if (data.scoreId) {
           try {
-            const existingDrawings = drawingService.getDrawingsByScore(data.scoreId);
+            const existingDrawings = await drawingService.getDrawingsByScore(data.scoreId);
             if (existingDrawings.length > 0) {
               socket.emit('score:sync', {
                 scoreId: data.scoreId,
@@ -77,7 +77,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
     );
 
     // 악보 페이지 변경
-    socket.on('score:page-change', (data: { page: number; userId: string; scoreId?: string }) => {
+    socket.on('score:page-change', async (data: { page: number; userId: string; scoreId?: string }) => {
       const userSession = connectedUsers.get(socket.id);
       if (!userSession) return;
 
@@ -96,7 +96,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
       // 해당 페이지의 기존 드로잉 데이터 전송
       if (data.scoreId) {
         try {
-          const pageDrawings = drawingService.getDrawingsByScorePage(data.scoreId, data.page);
+          const pageDrawings = await drawingService.getDrawingsByScorePage(data.scoreId, data.page);
           if (pageDrawings.length > 0) {
             socket.emit('score:sync', {
               scoreId: data.scoreId,
@@ -138,52 +138,56 @@ export function setupSocketHandlers(io: SocketIOServer): void {
     });
 
     // 명령 전송
-    socket.on('command:send', (data: any) => {
-      const userSession = connectedUsers.get(socket.id);
-      if (!userSession) return;
+    socket.on(
+      'command:send',
+      (data: Omit<Command, 'id' | 'timestamp' | 'expiresAt'> & { targetUserIds?: string[] }) => {
+        const userSession = connectedUsers.get(socket.id);
+        if (!userSession) return;
 
-      const command: Command = {
-        ...data,
-        id: generateId(),
-        timestamp: new Date(),
-        expiresAt: new Date(Date.now() + 3000), // 3초 후 만료
-      };
+        const command: Command = {
+          ...data,
+          id: generateId(),
+          timestamp: new Date(),
+          expiresAt: new Date(Date.now() + 3000), // 3초 후 만료
+        };
 
-      // 대상에 따라 명령 전송
-      const target = data.target;
+        // 대상에 따라 명령 전송
+        const target = data.target;
 
-      if (target === 'all') {
-        // 전체 예배 참가자에게 전송
-        io.to(`worship:${userSession.worshipId}`).emit('command:received', command);
-      } else if (target === 'specific' && 'targetUserIds' in data && data.targetUserIds) {
-        // 특정 사용자들에게만 전송
-        const targetSockets = Array.from(connectedUsers.entries())
-          .filter(
-            ([, session]) => session.worshipId === userSession.worshipId && data.targetUserIds!.includes(session.userId)
-          )
-          .map(([socketId]) => socketId);
+        if (target === 'all') {
+          // 전체 예배 참가자에게 전송
+          io.to(`worship:${userSession.worshipId}`).emit('command:received', command);
+        } else if (target === 'specific' && 'targetUserIds' in data && data.targetUserIds) {
+          // 특정 사용자들에게만 전송
+          const targetSockets = Array.from(connectedUsers.entries())
+            .filter(
+              ([, session]) =>
+                session.worshipId === userSession.worshipId && data.targetUserIds!.includes(session.userId)
+            )
+            .map(([socketId]) => socketId);
 
-        targetSockets.forEach((socketId) => {
-          io.to(socketId).emit('command:received', command);
-        });
+          targetSockets.forEach((socketId) => {
+            io.to(socketId).emit('command:received', command);
+          });
 
-        console.log(`특정 사용자에게 명령 전송: ${data.content} (대상: ${data.targetUserIds.length}명)`);
-      } else if (target === 'leaders' || target === 'sessions') {
-        // 특정 악기 그룹에게 전송 (instrument 기반)
-        // 현재는 모든 사용자에게 전송하되, 클라이언트에서 필터링하도록 함
-        socket.to(`worship:${userSession.worshipId}`).emit('command:received', {
-          ...command,
-          targetInstrument: data.target, // 클라이언트에서 필터링용
-        });
+          console.log(`특정 사용자에게 명령 전송: ${data.content} (대상: ${data.targetUserIds.length}명)`);
+        } else if (target === 'leaders' || target === 'sessions') {
+          // 특정 악기 그룹에게 전송 (instrument 기반)
+          // 현재는 모든 사용자에게 전송하되, 클라이언트에서 필터링하도록 함
+          socket.to(`worship:${userSession.worshipId}`).emit('command:received', {
+            ...command,
+            targetInstrument: data.target, // 클라이언트에서 필터링용
+          });
 
-        console.log(`${data.target} 그룹에게 명령 전송: ${data.content}`);
-      } else {
-        // 기본적으로 전체에게 전송
-        socket.to(`worship:${userSession.worshipId}`).emit('command:received', command);
+          console.log(`${data.target} 그룹에게 명령 전송: ${data.content}`);
+        } else {
+          // 기본적으로 전체에게 전송
+          socket.to(`worship:${userSession.worshipId}`).emit('command:received', command);
+        }
+
+        console.log(`명령 전송: ${data.content} (발신자: ${data.senderName})`);
       }
-
-      console.log(`명령 전송: ${data.content} (발신자: ${data.senderName})`);
-    });
+    );
 
     // 연결 해제
     socket.on('disconnect', () => {

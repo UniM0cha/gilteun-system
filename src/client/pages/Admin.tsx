@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScoreUploadDialog } from '@/components/admin/ScoreUploadDialog';
 import { ScoreListDialog } from '@/components/admin/ScoreListDialog';
-import { useAdmin } from '@/hooks/useAdmin';
+import { useAdmin, type SystemSettings } from '@/hooks/useAdmin';
 import {
   Activity,
   AlertTriangle,
@@ -46,7 +46,15 @@ export const Admin = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [listDialogOpen, setListDialogOpen] = useState(false);
   const [settingsChanged, setSettingsChanged] = useState(false);
-  const [localSettings, setLocalSettings] = useState(systemSettings || {});
+  const [localSettings, setLocalSettings] = useState<SystemSettings>(
+    systemSettings || {
+      autoBackup: false,
+      dataSync: true,
+      securityEnabled: false,
+      logLevel: 'info',
+      maxUsers: 50,
+    }
+  );
 
   // 설정 변경 감지
   useEffect(() => {
@@ -308,7 +316,7 @@ export const Admin = () => {
                       <input
                         id="autoBackup"
                         type="checkbox"
-                        checked={(localSettings as any)?.autoBackup || false}
+                        checked={localSettings?.autoBackup || false}
                         onChange={(e) => handleSettingsChange('autoBackup', e.target.checked)}
                         className="rounded"
                       />
@@ -318,7 +326,7 @@ export const Admin = () => {
                       <input
                         id="dataSync"
                         type="checkbox"
-                        checked={(localSettings as any)?.dataSync !== false}
+                        checked={localSettings?.dataSync !== false}
                         onChange={(e) => handleSettingsChange('dataSync', e.target.checked)}
                         className="rounded"
                       />
@@ -328,7 +336,7 @@ export const Admin = () => {
                       <input
                         id="securityEnabled"
                         type="checkbox"
-                        checked={(localSettings as any)?.securityEnabled || false}
+                        checked={localSettings?.securityEnabled || false}
                         onChange={(e) => handleSettingsChange('securityEnabled', e.target.checked)}
                         className="rounded"
                       />
@@ -338,7 +346,7 @@ export const Admin = () => {
                       <Input
                         id="maxUsers"
                         type="number"
-                        value={(localSettings as any)?.maxUsers || 50}
+                        value={localSettings?.maxUsers || 50}
                         onChange={(e) => handleSettingsChange('maxUsers', parseInt(e.target.value))}
                         min="1"
                         max="200"

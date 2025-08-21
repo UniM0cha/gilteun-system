@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import multer from 'multer';
+import multer, { FileFilterCallback } from 'multer';
+import { Request } from 'express';
 
 export class FileService {
   private uploadDir: string;
@@ -38,14 +39,15 @@ export class FileService {
       },
     });
 
-    const fileFilter = (_req: any, file: any, cb: any) => {
+    const fileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
       // 이미지 파일만 허용 (JPG, PNG)
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
 
       if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
       } else {
-        cb(new Error('JPG, PNG 이미지 파일만 업로드 가능합니다.'), false);
+        // multer에서는 에러 시 false를 반환하고 별도 에러 처리를 하는 것이 권장됨
+        cb(null, false);
       }
     };
 

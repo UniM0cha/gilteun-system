@@ -27,7 +27,7 @@ export interface SystemLog {
   message: string;
   timestamp: Date;
   component?: string;
-  details?: any;
+  details?: unknown;
 }
 
 class AdminService {
@@ -99,7 +99,7 @@ class AdminService {
   }
 
   // 로그 관리
-  addLog(level: SystemLog['level'], message: string, component?: string, details?: any): void {
+  addLog(level: SystemLog['level'], message: string, component?: string, details?: unknown): void {
     const log: SystemLog = {
       id: this.generateId(),
       level,
@@ -146,12 +146,12 @@ class AdminService {
   }
 
   // 시스템 설정 관리
-  getSystemSettings() {
-    const db = getDB().getDatabase();
+  async getSystemSettings() {
+    const db = (await getDB()).getDatabase();
 
     try {
       // 시스템 설정 테이블이 없으면 생성
-      db.exec(`
+      db.exec?.(`
         CREATE TABLE IF NOT EXISTS system_settings (
           key TEXT PRIMARY KEY,
           value TEXT NOT NULL,
@@ -159,10 +159,13 @@ class AdminService {
         )
       `);
 
-      const settings = db.prepare('SELECT key, value FROM system_settings').all();
-      const settingsObj: Record<string, any> = {};
+      const settings = (db.prepare?.('SELECT key, value FROM system_settings')?.all?.() || []) as Array<{
+        key: string;
+        value: string;
+      }>;
+      const settingsObj: Record<string, unknown> = {};
 
-      settings.forEach((setting: any) => {
+      settings.forEach((setting) => {
         try {
           settingsObj[setting.key] = JSON.parse(setting.value);
         } catch {
@@ -185,16 +188,16 @@ class AdminService {
     }
   }
 
-  updateSystemSetting(key: string, value: any): boolean {
-    const db = getDB().getDatabase();
+  async updateSystemSetting(key: string, value: unknown): Promise<boolean> {
+    const db = (await getDB()).getDatabase();
 
     try {
-      const stmt = db.prepare(`
+      const stmt = db.prepare?.(`
         INSERT OR REPLACE INTO system_settings (key, value, updated_at)
         VALUES (?, ?, CURRENT_TIMESTAMP)
       `);
 
-      stmt.run(key, JSON.stringify(value));
+      stmt?.run?.(key, JSON.stringify(value));
       this.addLog('info', `시스템 설정 업데이트: ${key}`, 'AdminService');
       return true;
     } catch (error) {
@@ -204,16 +207,24 @@ class AdminService {
   }
 
   // 데이터베이스 통계
-  getDatabaseStats() {
-    const db = getDB().getDatabase();
+  async getDatabaseStats() {
+    const db = (await getDB()).getDatabase();
 
     try {
       const stats = {
-        worships: db.prepare('SELECT COUNT(*) as count FROM worships').get()?.count || 0,
-        scores: db.prepare('SELECT COUNT(*) as count FROM scores').get()?.count || 0,
-        drawings: db.prepare('SELECT COUNT(*) as count FROM score_drawings').get()?.count || 0,
-        templates: db.prepare('SELECT COUNT(*) as count FROM command_templates').get()?.count || 0,
-        users: db.prepare('SELECT COUNT(*) as count FROM users').get()?.count || 0,
+        worships:
+          (db.prepare?.('SELECT COUNT(*) as count FROM worships')?.get?.() as { count: number } | undefined)?.count ||
+          0,
+        scores:
+          (db.prepare?.('SELECT COUNT(*) as count FROM scores')?.get?.() as { count: number } | undefined)?.count || 0,
+        drawings:
+          (db.prepare?.('SELECT COUNT(*) as count FROM score_drawings')?.get?.() as { count: number } | undefined)
+            ?.count || 0,
+        templates:
+          (db.prepare?.('SELECT COUNT(*) as count FROM command_templates')?.get?.() as { count: number } | undefined)
+            ?.count || 0,
+        users:
+          (db.prepare?.('SELECT COUNT(*) as count FROM users')?.get?.() as { count: number } | undefined)?.count || 0,
       };
 
       return stats;
@@ -230,29 +241,23 @@ class AdminService {
   }
 
   // 시스템 정리 작업
-  cleanupSystem(): { success: boolean; message: string } {
+  async cleanupSystem(): Promise<{ success: boolean; message: string }> {
     try {
-      const db = getDB().getDatabase();
+      const db = (await getDB()).getDatabase();
 
       // 오래된 드로잉 데이터 정리 (30일 이상)
-      const deletedDrawings = db
-        .prepare(
-          `
+      const stmt1 = db.prepare?.(`
         DELETE FROM score_drawings 
         WHERE created_at < datetime('now', '-30 days')
-      `
-        )
-        .run();
+      `);
+      const deletedDrawings = stmt1?.run?.() || { changes: 0 };
 
       // 비활성 예배 정리 (90일 이상)
-      const deletedWorships = db
-        .prepare(
-          `
+      const stmt2 = db.prepare?.(`
         DELETE FROM worships 
         WHERE is_active = 0 AND updated_at < datetime('now', '-90 days')
-      `
-        )
-        .run();
+      `);
+      const deletedWorships = stmt2?.run?.() || { changes: 0 };
 
       this.addLog(
         'info',

@@ -1,12 +1,32 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import type { Worship } from '@shared/types/worship';
+import type { User } from '@shared/types/user';
+import type { Score, DrawingData } from '@shared/types/score';
+import type { CommandTemplate } from '@shared/types/command';
+import type { JsonDrawingData } from './types';
 
 interface Database {
-  worships: any[];
-  users: any[];
-  scores: any[];
-  score_drawings: any[];
-  command_templates: any[];
+  worships: Worship[];
+  users: User[];
+  scores: Score[];
+  score_drawings: DrawingData[];
+  command_templates: CommandTemplate[];
+}
+
+// type DatabaseRecord = Worship | User | Score | DrawingData | CommandTemplate;
+
+interface QueryResult {
+  changes?: number;
+  rows?: Record<string, string | number | boolean | null>[];
+}
+
+interface Statement {
+  run: (...params: (string | number | boolean | null)[]) => { changes: number };
+  get: (
+    ...params: (string | number | boolean | null)[]
+  ) => Record<string, string | number | boolean | null> | undefined;
+  all: (...params: (string | number | boolean | null)[]) => Record<string, string | number | boolean | null>[];
 }
 
 class JsonDatabase {
@@ -59,25 +79,25 @@ class JsonDatabase {
     }
   }
 
-  prepare(sql: string) {
+  prepare(sql: string): Statement {
     // Simulate SQLite prepared statements with simple JSON operations
     return {
-      run: (...params: any[]) => {
+      run: (...params: (string | number | boolean | null)[]) => {
         const result = this.executeQuery(sql, params);
         return { changes: result.changes || 0 };
       },
-      get: (...params: any[]) => {
+      get: (...params: (string | number | boolean | null)[]) => {
         const result = this.executeQuery(sql, params);
         return result.rows && result.rows.length > 0 ? result.rows[0] : undefined;
       },
-      all: (...params: any[]) => {
+      all: (...params: (string | number | boolean | null)[]) => {
         const result = this.executeQuery(sql, params);
         return result.rows || [];
       },
     };
   }
 
-  private executeQuery(sql: string, params: any[] = []): { changes?: number; rows?: any[] } {
+  private executeQuery(sql: string, params: (string | number | boolean | null)[] = []): QueryResult {
     const sqlLower = sql.toLowerCase().trim();
 
     // INSERT operations
@@ -103,7 +123,7 @@ class JsonDatabase {
     return { rows: [] };
   }
 
-  private handleInsert(sql: string, params: any[]): { changes: number } {
+  private handleInsert(sql: string, params: (string | number | boolean | null)[]): { changes: number } {
     const tableName = this.extractTableName(sql);
     if (!tableName || !this.data[tableName as keyof Database]) {
       console.error('테이블을 찾을 수 없습니다:', tableName);
@@ -111,25 +131,28 @@ class JsonDatabase {
     }
 
     // Simple insertion - create object with parameter values
-    const newRecord: any = {};
+    const newRecord: Record<string, string | number | boolean | null> = {};
 
     // For score_drawings table
     if (tableName === 'score_drawings' && params.length >= 6) {
-      newRecord.id = params[0];
-      newRecord.score_id = params[1];
-      newRecord.page_number = params[2];
-      newRecord.user_id = params[3];
-      newRecord.drawing_type = params[4];
-      newRecord.drawing_data = params[5];
+      newRecord.id = params[0] ?? null;
+      newRecord.score_id = params[1] ?? null;
+      newRecord.page_number = params[2] ?? null;
+      newRecord.user_id = params[3] ?? null;
+      newRecord.drawing_type = params[4] ?? null;
+      newRecord.drawing_data = params[5] ?? null;
       newRecord.created_at = new Date().toISOString();
     }
 
-    this.data[tableName as keyof Database].push(newRecord);
+    (this.data[tableName as keyof Database] as unknown[]).push(newRecord);
     this.saveData();
     return { changes: 1 };
   }
 
-  private handleSelect(sql: string, params: any[]): { rows: any[] } {
+  private handleSelect(
+    sql: string,
+    params: (string | number | boolean | null)[]
+  ): { rows: Record<string, string | number | boolean | null>[] } {
     const tableName = this.extractTableName(sql);
     if (!tableName || !this.data[tableName as keyof Database]) {
       return { rows: [] };
@@ -141,22 +164,32 @@ class JsonDatabase {
     // Basic WHERE filtering for score_drawings
     if (tableName === 'score_drawings') {
       if (sql.includes('WHERE score_id = ?') && params.length > 0) {
-        filteredRows = filteredRows.filter((row) => row.score_id === params[0]);
+        filteredRows = filteredRows.filter((row) => (row as unknown as JsonDrawingData).score_id === params[0]);
       }
       if (sql.includes('WHERE score_id = ? AND page_number = ?') && params.length > 1) {
-        filteredRows = filteredRows.filter((row) => row.score_id === params[0] && row.page_number === params[1]);
+        filteredRows = filteredRows.filter(
+          (row) =>
+            (row as unknown as JsonDrawingData).score_id === params[0] &&
+            (row as unknown as JsonDrawingData).page_number === params[1]
+        );
       }
     }
 
     // Sort by created_at if specified
-    if (sql.includes('ORDER BY created_at ASC')) {
-      filteredRows.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    if (sql.includes('ORDER BY created_at ASC') && tableName === 'score_drawings') {
+      filteredRows.sort((a, b) => {
+        const aCreatedAt = (a as unknown as JsonDrawingData).created_at;
+        const bCreatedAt = (b as unknown as JsonDrawingData).created_at;
+        const aDate = typeof aCreatedAt === 'string' ? aCreatedAt : '0';
+        const bDate = typeof bCreatedAt === 'string' ? bCreatedAt : '0';
+        return new Date(aDate).getTime() - new Date(bDate).getTime();
+      });
     }
 
-    return { rows: filteredRows };
+    return { rows: filteredRows as unknown as Record<string, string | number | boolean | null>[] };
   }
 
-  private handleDelete(sql: string, params: any[]): { changes: number } {
+  private handleDelete(sql: string, params: (string | number | boolean | null)[]): { changes: number } {
     const tableName = this.extractTableName(sql);
     if (!tableName || !this.data[tableName as keyof Database]) {
       return { changes: 0 };
@@ -168,13 +201,21 @@ class JsonDatabase {
     // Basic WHERE filtering
     if (tableName === 'score_drawings') {
       if (sql.includes('WHERE id = ?') && params.length > 0) {
-        this.data[tableName as keyof Database] = table.filter((row) => row.id !== params[0]);
+        (this.data[tableName as keyof Database] as unknown[]) = table.filter(
+          (row) => (row as unknown as JsonDrawingData).id !== params[0]
+        );
       } else if (sql.includes('WHERE score_id = ? AND page_number = ?') && params.length > 1) {
-        this.data[tableName as keyof Database] = table.filter(
-          (row) => !(row.score_id === params[0] && row.page_number === params[1])
+        (this.data[tableName as keyof Database] as unknown[]) = table.filter(
+          (row) =>
+            !(
+              (row as unknown as JsonDrawingData).score_id === params[0] &&
+              (row as unknown as JsonDrawingData).page_number === params[1]
+            )
         );
       } else if (sql.includes('WHERE score_id = ?') && params.length > 0) {
-        this.data[tableName as keyof Database] = table.filter((row) => row.score_id !== params[0]);
+        (this.data[tableName as keyof Database] as unknown[]) = table.filter(
+          (row) => (row as unknown as JsonDrawingData).score_id !== params[0]
+        );
       }
     }
 
@@ -186,7 +227,7 @@ class JsonDatabase {
     return { changes };
   }
 
-  private handleUpdate(_sql: string, _params: any[]): { changes: number } {
+  private handleUpdate(_sql: string, _params: (string | number | boolean | null)[]): { changes: number } {
     // Basic update implementation can be added if needed
     return { changes: 0 };
   }
