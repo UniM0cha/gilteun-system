@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { adminService } from '../services/adminService';
+import { adminService } from '../services/adminService.js';
 import { getDrizzleDB } from '../database/drizzle.js';
 import { scores } from '../database/schema.js';
 import { eq, sql } from 'drizzle-orm';
