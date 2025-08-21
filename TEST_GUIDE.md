@@ -26,13 +26,13 @@ gilteun-system/
 │   │   └── command/
 │   │       └── CommandOverlay.test.tsx
 │   └── test/
-│       └── setup.ts                    # 테스트 설정
+│       └── setup.test.ts                    # 테스트 설정
 ├── packages/server/src/
 │   ├── api/__tests__/                  # API 테스트
 │   │   ├── worshipRoutes.test.ts
 │   │   └── socket-handlers.test.ts
 │   └── test/
-│       └── setup.ts
+│       └── setup.test.ts
 └── e2e/                               # E2E 테스트
     ├── home-page.spec.ts
     └── style-consistency.spec.ts

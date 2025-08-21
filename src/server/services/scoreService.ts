@@ -1,55 +1,57 @@
-import { getDB } from '../database/db';
+import { getDrizzleDB } from '../database/drizzle.js';
+import { scores } from '../database/schema.js';
+import { eq, and, max, asc } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type { Score } from '@shared/types/score';
-import type { DatabaseInterface, ScoreRow, MaxOrderRow } from '../database/types';
 
 export class ScoreService {
-  private db: DatabaseInterface | null = null;
+  private drizzleManager: Awaited<ReturnType<typeof getDrizzleDB>> | null = null;
 
-  private async getDatabase(): Promise<DatabaseInterface> {
-    if (!this.db) {
-      this.db = (await getDB()).getDatabase();
+  private async getDrizzle() {
+    if (!this.drizzleManager) {
+      this.drizzleManager = await getDrizzleDB();
     }
-    return this.db;
+    return this.drizzleManager.getDatabase();
   }
 
   // 악보 목록 조회 (예배별)
   async getScoresByWorshipId(worshipId: string): Promise<Score[]> {
-    const db = await this.getDatabase();
-    const stmt = db.prepare?.(`
-      SELECT * FROM scores 
-      WHERE worship_id = ? 
-      ORDER BY order_index, created_at
-    `);
+    const db = await this.getDrizzle();
 
-    const rows = (stmt?.all?.(worshipId) || []) as ScoreRow[];
+    const result = await db
+      .select()
+      .from(scores)
+      .where(eq(scores.worshipId, worshipId))
+      .orderBy(asc(scores.orderIndex), asc(scores.createdAt));
 
-    return rows.map((row) => ({
-      id: String(row.id),
-      worshipId: String(row.worship_id),
-      title: String(row.title),
-      filePath: String(row.file_path),
-      orderIndex: Number(row.order_index),
-      createdAt: new Date(String(row.created_at)),
-      updatedAt: new Date(String(row.updated_at)),
+    return result.map((row) => ({
+      id: row.id,
+      worshipId: row.worshipId,
+      title: row.title,
+      filePath: row.filePath,
+      orderIndex: row.orderIndex,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
     }));
   }
 
   // 특정 악보 조회
   async getScoreById(id: string): Promise<Score | null> {
-    const db = await this.getDatabase();
-    const stmt = db.prepare?.('SELECT * FROM scores WHERE id = ?');
-    const row = stmt?.get?.(id) as ScoreRow | undefined;
+    const db = await this.getDrizzle();
 
-    if (!row) return null;
+    const result = await db.select().from(scores).where(eq(scores.id, id)).limit(1);
 
+    if (result.length === 0) return null;
+
+    const row = result[0]!;
     return {
-      id: String(row.id),
-      worshipId: String(row.worship_id),
-      title: String(row.title),
-      filePath: String(row.file_path),
-      orderIndex: Number(row.order_index),
-      createdAt: new Date(String(row.created_at)),
-      updatedAt: new Date(String(row.updated_at)),
+      id: row.id,
+      worshipId: row.worshipId,
+      title: row.title,
+      filePath: row.filePath,
+      orderIndex: row.orderIndex,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
     };
   }
 
@@ -61,26 +63,27 @@ export class ScoreService {
     orderIndex?: number;
   }): Promise<string> {
     const id = `score_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-    const db = await this.getDatabase();
+    const db = await this.getDrizzle();
 
     // orderIndex가 없으면 마지막 순서로 설정
     let orderIndex = data.orderIndex;
     if (orderIndex === undefined) {
-      const maxOrderStmt = db.prepare?.(`
-        SELECT MAX(order_index) as max_order 
-        FROM scores 
-        WHERE worship_id = ?
-      `);
-      const result = maxOrderStmt?.get?.(data.worshipId) as MaxOrderRow | undefined;
-      orderIndex = (result?.max_order || 0) + 1;
+      const result = await db
+        .select({ maxOrder: max(scores.orderIndex) })
+        .from(scores)
+        .where(eq(scores.worshipId, data.worshipId));
+
+      orderIndex = (result[0]?.maxOrder || 0) + 1;
     }
 
-    const stmt = db.prepare?.(`
-      INSERT INTO scores (id, worship_id, title, file_path, order_index)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    await db.insert(scores).values({
+      id,
+      worshipId: data.worshipId,
+      title: data.title,
+      filePath: data.filePath,
+      orderIndex,
+    });
 
-    stmt?.run(id, data.worshipId, data.title, data.filePath, orderIndex);
     return id;
   }
 
@@ -92,57 +95,51 @@ export class ScoreService {
       orderIndex?: number;
     }
   ): Promise<boolean> {
-    const db = await this.getDatabase();
-    const updates: string[] = [];
-    const params: unknown[] = [];
+    const db = await this.getDrizzle();
+
+    const updateData: Partial<typeof scores.$inferInsert> = {};
 
     if (data.title !== undefined) {
-      updates.push('title = ?');
-      params.push(data.title);
+      updateData.title = data.title;
     }
 
     if (data.orderIndex !== undefined) {
-      updates.push('order_index = ?');
-      params.push(data.orderIndex);
+      updateData.orderIndex = data.orderIndex;
     }
 
-    if (updates.length === 0) return false;
+    // 업데이트할 데이터가 없으면 false 반환
+    if (Object.keys(updateData).length === 0) return false;
 
-    updates.push('updated_at = CURRENT_TIMESTAMP');
-    params.push(id);
+    // updatedAt은 자동으로 현재 시간으로 설정 (SQL 리터럴을 문자열로 변환)
+    (updateData as Record<string, unknown>).updatedAt = sql`CURRENT_TIMESTAMP`;
 
-    const stmt = db.prepare?.(`
-      UPDATE scores 
-      SET ${updates.join(', ')}
-      WHERE id = ?
-    `);
+    const result = await db.update(scores).set(updateData).where(eq(scores.id, id));
 
-    const validParams = params.filter((p): p is string | number | boolean | null => p !== undefined);
-    const result = stmt?.run?.(...validParams) || { changes: 0 };
     return result.changes > 0;
   }
 
   // 악보 삭제
   async deleteScore(id: string): Promise<boolean> {
-    const db = await this.getDatabase();
-    const stmt = db.prepare?.('DELETE FROM scores WHERE id = ?');
-    const result = stmt?.run?.(id) || { changes: 0 };
+    const db = await this.getDrizzle();
+
+    const result = await db.delete(scores).where(eq(scores.id, id));
+
     return result.changes > 0;
   }
 
   // 악보 순서 변경
   async reorderScores(worshipId: string, scoreOrders: { id: string; orderIndex: number }[]): Promise<boolean> {
-    const dbManager = await getDB();
-    const db = dbManager.getDatabase();
+    const drizzleManager = await getDrizzleDB();
 
-    return dbManager.transaction(() => {
+    return await drizzleManager.transaction(async (tx) => {
       for (const { id, orderIndex } of scoreOrders) {
-        const stmt = db.prepare?.(`
-          UPDATE scores 
-          SET order_index = ?, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ? AND worship_id = ?
-        `);
-        stmt?.run?.(orderIndex, id, worshipId);
+        await tx
+          .update(scores)
+          .set({
+            orderIndex,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+          })
+          .where(and(eq(scores.id, id), eq(scores.worshipId, worshipId)));
       }
       return true;
     });

@@ -17,7 +17,10 @@
     "typecheck": "tsc --noEmit",
     "validate": "npm run typecheck && npm run lint && npm run format:check",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
   "keywords": [
     "pwa",
@@ -46,6 +49,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
+    "drizzle-orm": "^0.44.4",
     "express": "^5.1.0",
     "lucide-react": "^0.540.0",
     "multer": "^2.0.2",
@@ -80,6 +84,7 @@
     "@vitest/ui": "^3.2.4",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.0",
+    "drizzle-kit": "^0.31.4",
     "electron": "^37.3.1",
     "electron-builder": "^26.0.12",
     "eslint": "^9.33.0",
