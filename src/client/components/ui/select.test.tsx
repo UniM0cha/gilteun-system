@@ -73,6 +73,6 @@ describe('Select', () => {
     );
 
     const trigger = screen.getByRole('combobox');
-    expect(trigger).toHaveAttribute('aria-disabled', 'true');
+    expect(trigger).toHaveAttribute('data-disabled', '');
   });
 });

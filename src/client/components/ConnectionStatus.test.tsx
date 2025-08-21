@@ -22,7 +22,11 @@ describe('ConnectionStatus', () => {
     render(<ConnectionStatus />);
 
     expect(screen.getByText('연결 중...')).toBeInTheDocument();
-    expect(screen.getByTestId('loader-icon') || screen.getByRole('img', { hidden: true })).toBeInTheDocument();
+    // Check for SVG loader icon (aria-hidden makes it not accessible by role)
+    const container = screen.getByText('연결 중...').parentElement;
+    const svgIcon = container?.querySelector('svg');
+    expect(svgIcon).toBeInTheDocument();
+    expect(svgIcon).toHaveClass('animate-spin');
   });
 
   it('shows connected state correctly with proper semantic colors', () => {

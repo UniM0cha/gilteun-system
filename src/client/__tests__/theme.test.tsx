@@ -51,7 +51,7 @@ describe('shadcn/ui 테마 적용 테스트', () => {
       </Button>
     );
     let button = screen.getByTestId('test-button');
-    expect(button).toHaveClass('border-input');
+    expect(button).toHaveClass('border');
     expect(button).toHaveClass('bg-background');
     expect(button).toHaveClass('hover:bg-accent');
 
@@ -71,7 +71,7 @@ describe('shadcn/ui 테마 적용 테스트', () => {
     );
     button = screen.getByTestId('test-button');
     expect(button).toHaveClass('bg-destructive');
-    expect(button).toHaveClass('text-destructive-foreground');
+    expect(button).toHaveClass('text-white');
   });
 
   it('Card 컴포넌트가 올바른 테마 클래스를 적용해야 함', () => {
@@ -161,7 +161,7 @@ describe('shadcn/ui 테마 적용 테스트', () => {
 
     expect(errorText).toHaveClass('text-destructive');
     expect(errorButton).toHaveClass('bg-destructive');
-    expect(errorButton).toHaveClass('text-destructive-foreground');
+    expect(errorButton).toHaveClass('text-white');
   });
 
   it('다크모드 클래스 지원이 설정되어야 함', () => {

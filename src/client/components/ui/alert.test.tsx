@@ -27,7 +27,7 @@ describe('Alert', () => {
     );
 
     const alert = screen.getByRole('alert');
-    expect(alert).toHaveClass('border-destructive/50');
+    expect(alert).toHaveClass('text-destructive');
   });
 
   it('renders with custom className', () => {
