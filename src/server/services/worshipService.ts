@@ -1,90 +1,111 @@
-import { getDB } from '../database/db.js';
-import type { Worship } from '#shared/types/worship';
-import type { DatabaseInterface, WorshipRow, ScoreIdRow } from '../database/types.js';
+import { getDrizzleDB } from '../database/drizzle.js';
+import { worships, worshipTypes, scores } from '../database/schema.js';
+import { eq, and, desc, asc } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
+import type { Worship } from '@shared/types/worship';
 
 export class WorshipService {
-  private db: DatabaseInterface | null = null;
+  private drizzleManager: Awaited<ReturnType<typeof getDrizzleDB>> | null = null;
 
-  private async getDatabase(): Promise<DatabaseInterface> {
-    if (!this.db) {
-      this.db = (await getDB()).getDatabase() as DatabaseInterface;
+  private async getDrizzle() {
+    if (!this.drizzleManager) {
+      this.drizzleManager = await getDrizzleDB();
     }
-    return this.db;
+    return this.drizzleManager.getDatabase();
   }
 
   // 예배 목록 조회
   async getWorships(date?: string): Promise<Worship[]> {
-    let query = `
-      SELECT w.*, wt.name as type_name
-      FROM worships w
-      JOIN worship_types wt ON w.type_id = wt.id
-      WHERE w.is_active = 1
-    `;
+    const db = await this.getDrizzle();
 
-    const params: unknown[] = [];
+    let whereCondition = eq(worships.isActive, true);
 
     if (date) {
-      query += ' AND DATE(w.date) = ?';
-      params.push(date);
+      whereCondition = and(eq(worships.isActive, true), eq(sql`DATE(${worships.date})`, date))!;
     }
 
-    query += ' ORDER BY w.date DESC, wt.name';
+    const worshipsWithTypes = await db
+      .select({
+        id: worships.id,
+        name: worships.name,
+        date: worships.date,
+        isActive: worships.isActive,
+        createdAt: worships.createdAt,
+        updatedAt: worships.updatedAt,
+        typeName: worshipTypes.name,
+      })
+      .from(worships)
+      .innerJoin(worshipTypes, eq(worships.typeId, worshipTypes.id))
+      .where(whereCondition)
+      .orderBy(desc(worships.date), asc(worshipTypes.name));
 
-    const db = await this.getDatabase();
-    const stmt = db.prepare?.(query);
-    const validParams = params.filter((p): p is string | number | boolean | null => p !== undefined);
-    const rows = (stmt?.all?.(...validParams) || []) as WorshipRow[];
-
-    return Promise.all(
-      rows.map(async (row) => ({
+    // 각 예배의 악보 ID 목록 조회
+    const result: Worship[] = [];
+    for (const row of worshipsWithTypes) {
+      const scoreIds = await this.getScoreIdsByWorshipId(row.id);
+      result.push({
         id: row.id,
-        type: row.type_name,
+        type: row.typeName,
         date: new Date(row.date),
         name: row.name,
-        scoreIds: await this.getScoreIdsByWorshipId(row.id),
-        isActive: Boolean(row.is_active),
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-      }))
-    );
+        scoreIds,
+        isActive: row.isActive,
+        createdAt: new Date(row.createdAt),
+        updatedAt: new Date(row.updatedAt),
+      });
+    }
+
+    return result;
   }
 
   // 특정 예배 조회
   async getWorshipById(id: string): Promise<Worship | null> {
-    const db = await this.getDatabase();
-    const stmt = db.prepare?.(`
-      SELECT w.*, wt.name as type_name
-      FROM worships w
-      JOIN worship_types wt ON w.type_id = wt.id
-      WHERE w.id = ?
-    `);
+    const db = await this.getDrizzle();
 
-    const row = stmt?.get?.(id) as WorshipRow | undefined;
-    if (!row) return null;
+    const result = await db
+      .select({
+        id: worships.id,
+        name: worships.name,
+        date: worships.date,
+        isActive: worships.isActive,
+        createdAt: worships.createdAt,
+        updatedAt: worships.updatedAt,
+        typeName: worshipTypes.name,
+      })
+      .from(worships)
+      .innerJoin(worshipTypes, eq(worships.typeId, worshipTypes.id))
+      .where(eq(worships.id, id))
+      .limit(1);
+
+    if (result.length === 0) return null;
+
+    const row = result[0]!;
+    const scoreIds = await this.getScoreIdsByWorshipId(row.id);
 
     return {
-      id: String(row.id),
-      type: String(row.type_name),
-      date: new Date(String(row.date)),
-      name: String(row.name),
-      scoreIds: await this.getScoreIdsByWorshipId(String(row.id)),
-      isActive: Boolean(row.is_active),
-      createdAt: new Date(String(row.created_at)),
-      updatedAt: new Date(String(row.updated_at)),
+      id: row.id,
+      type: row.typeName,
+      date: new Date(row.date),
+      name: row.name,
+      scoreIds,
+      isActive: row.isActive,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
     };
   }
 
   // 예배 생성
   async createWorship(data: { typeId: string; name: string; date: string }): Promise<string> {
     const id = `worship_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-    const db = await this.getDatabase();
+    const db = await this.getDrizzle();
 
-    const stmt = db.prepare?.(`
-      INSERT INTO worships (id, type_id, name, date)
-      VALUES (?, ?, ?, ?)
-    `);
+    await db.insert(worships).values({
+      id,
+      typeId: data.typeId,
+      name: data.name,
+      date: data.date,
+    });
 
-    stmt?.run?.(id, data.typeId, data.name, data.date);
     return id;
   }
 
@@ -97,71 +118,65 @@ export class WorshipService {
       isActive?: boolean;
     }
   ): Promise<boolean> {
-    const db = await this.getDatabase();
-    const updates: string[] = [];
-    const params: unknown[] = [];
+    const db = await this.getDrizzle();
+
+    const updateData: Partial<typeof worships.$inferInsert> = {};
 
     if (data.name !== undefined) {
-      updates.push('name = ?');
-      params.push(data.name);
+      updateData.name = data.name;
     }
 
     if (data.date !== undefined) {
-      updates.push('date = ?');
-      params.push(data.date);
+      updateData.date = data.date;
     }
 
     if (data.isActive !== undefined) {
-      updates.push('is_active = ?');
-      params.push(data.isActive ? 1 : 0);
+      updateData.isActive = data.isActive;
     }
 
-    if (updates.length === 0) return false;
+    // 업데이트할 데이터가 없으면 false 반환
+    if (Object.keys(updateData).length === 0) return false;
 
-    updates.push('updated_at = CURRENT_TIMESTAMP');
-    params.push(id);
+    // updatedAt은 자동으로 현재 시간으로 설정 (SQL 리터럴을 any로 캐스팅)
+    (updateData as Record<string, unknown>).updatedAt = sql`CURRENT_TIMESTAMP`;
 
-    const stmt = db.prepare?.(`
-      UPDATE worships 
-      SET ${updates.join(', ')}
-      WHERE id = ?
-    `);
+    const result = await db.update(worships).set(updateData).where(eq(worships.id, id));
 
-    const validParams = params.filter((p): p is string | number | boolean | null => p !== undefined);
-    const result = stmt?.run?.(...validParams) || { changes: 0 };
     return result.changes > 0;
   }
 
   // 예배 삭제 (soft delete)
   async deleteWorship(id: string): Promise<boolean> {
-    const db = await this.getDatabase();
-    const stmt = db.prepare?.('UPDATE worships SET is_active = 0 WHERE id = ?');
-    const result = stmt?.run?.(id) || { changes: 0 };
+    const db = await this.getDrizzle();
+
+    const result = await db
+      .update(worships)
+      .set({
+        isActive: false,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(eq(worships.id, id));
+
     return result.changes > 0;
   }
 
   // 예배 유형 목록 조회
   async getWorshipTypes() {
-    const db = await this.getDatabase();
-    const stmt = db.prepare?.(`
-      SELECT * FROM worship_types 
-      WHERE is_active = 1 
-      ORDER BY name
-    `);
+    const db = await this.getDrizzle();
 
-    return stmt?.all?.() || [];
+    return await db.select().from(worshipTypes).where(eq(worshipTypes.isActive, true)).orderBy(asc(worshipTypes.name));
   }
 
   // 예배에 속한 악보 ID 목록 조회
   private async getScoreIdsByWorshipId(worshipId: string): Promise<string[]> {
-    const db = await this.getDatabase();
-    const stmt = db.prepare?.(`
-      SELECT id FROM scores 
-      WHERE worship_id = ? 
-      ORDER BY order_index, created_at
-    `);
+    const db = await this.getDrizzle();
 
-    const rows = (stmt?.all?.(worshipId) || []) as ScoreIdRow[];
-    return rows.map((row) => String(row.id));
+    const result = await db
+      .select({ id: scores.id })
+      .from(scores)
+      .where(eq(scores.worshipId, worshipId))
+      .orderBy(asc(scores.orderIndex), asc(scores.createdAt));
+
+    return result.map((row) => row.id);
   }
 }

@@ -2,8 +2,10 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { adminService } from '../services/adminService.js';
-import { getDB } from '../database/db.js';
+import { adminService } from '../services/adminService';
+import { getDrizzleDB } from '../database/drizzle.js';
+import { scores } from '../database/schema.js';
+import { eq, sql } from 'drizzle-orm';
 // Score 타입은 현재 사용하지 않지만 향후 확장을 위해 준비
 // import type { Score } from '@shared/types/score';
 
@@ -84,8 +86,8 @@ router.post('/users/:socketId/disconnect', (req, res) => {
     const { socketId } = req.params;
     const { reason } = req.body;
 
-    // TODO: Socket.IO를 통해 해당 사용자 연결 해제
-    // 현재는 로그만 기록
+    // Socket.IO를 통해 해당 사용자 연결 해제
+    // 현재는 로그만 기록 (추후 Socket.IO 인스턴스 접근 시 구현)
     adminService.addLog('info', `관리자에 의한 사용자 강제 퇴장: ${socketId}`, 'AdminAPI', { reason });
 
     return res.json({
@@ -120,20 +122,26 @@ router.post('/scores/upload', upload.single('scoreFile'), async (req, res) => {
       });
     }
 
-    const db = (await getDB()).getDatabase();
+    const drizzleManager = await getDrizzleDB();
+    const db = drizzleManager.getDatabase();
     const scoreId = adminService.generateScoreId();
 
-    // 악보 정보를 데이터베이스에 저장
-    const stmt = db.prepare?.(`
-      INSERT INTO scores (id, worship_id, title, file_path, order_index, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `);
-
     // 현재 예배의 악보 개수 조회하여 order_index 설정
-    const countStmt = db.prepare?.('SELECT COUNT(*) as count FROM scores WHERE worship_id = ?');
-    const orderIndex = (countStmt?.get(worshipId) as { count: number } | undefined)?.count || 0;
+    const countResult = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(scores)
+      .where(eq(scores.worshipId, worshipId));
 
-    stmt?.run(scoreId, worshipId, title, `/uploads/scores/${req.file.filename}`, orderIndex);
+    const orderIndex = countResult[0]?.count || 0;
+
+    // 악보 정보를 데이터베이스에 저장
+    await db.insert(scores).values({
+      id: scoreId,
+      worshipId,
+      title,
+      filePath: `/uploads/scores/${req.file.filename}`,
+      orderIndex,
+    });
 
     adminService.addLog('info', `악보 업로드 완료: ${title}`, 'AdminAPI');
 
@@ -159,10 +167,13 @@ router.post('/scores/upload', upload.single('scoreFile'), async (req, res) => {
 router.delete('/scores/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const db = (await getDB()).getDatabase();
+    const drizzleManager = await getDrizzleDB();
+    const db = drizzleManager.getDatabase();
 
     // 악보 정보 조회
-    const score = db.prepare?.('SELECT * FROM scores WHERE id = ?')?.get(id);
+    const scoreResult = await db.select().from(scores).where(eq(scores.id, id)).limit(1);
+
+    const score = scoreResult[0];
 
     if (!score) {
       return res.status(404).json({
@@ -172,21 +183,15 @@ router.delete('/scores/:id', async (req, res) => {
     }
 
     // 파일 삭제
-    const filePath = path.join(
-      process.cwd(),
-      'uploads',
-      'scores',
-      path.basename((score as { file_path: string }).file_path)
-    );
+    const filePath = path.join(process.cwd(), 'uploads', 'scores', path.basename(score.filePath));
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
-    // 데이터베이스에서 삭제
-    db.prepare?.('DELETE FROM scores WHERE id = ?')?.run(id);
-    db.prepare?.('DELETE FROM score_drawings WHERE score_id = ?')?.run(id);
+    // 데이터베이스에서 삭제 (관련 드로잉도 CASCADE로 자동 삭제됨)
+    await db.delete(scores).where(eq(scores.id, id));
 
-    adminService.addLog('info', `악보 삭제 완료: ${(score as { title: string }).title}`, 'AdminAPI');
+    adminService.addLog('info', `악보 삭제 완료: ${score.title}`, 'AdminAPI');
 
     return res.json({
       success: true,
