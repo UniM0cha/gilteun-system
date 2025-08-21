@@ -3,15 +3,9 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { InstrumentSelector } from './InstrumentSelector';
-import { useProfile } from '../../hooks/useProfile';
+import { useProfile } from '@/hooks/useProfile';
 import type { UserRole } from '@shared/types/user';
 
 interface ProfileCreatorProps {
@@ -71,9 +65,7 @@ export const ProfileCreator = ({ onComplete }: ProfileCreatorProps) => {
     <Card className="max-w-md mx-auto">
       <CardHeader>
         <CardTitle className="text-center">새 프로필 생성</CardTitle>
-        <CardDescription className="text-center">
-          예배팀에서 사용할 프로필을 만들어주세요
-        </CardDescription>
+        <CardDescription className="text-center">예배팀에서 사용할 프로필을 만들어주세요</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -94,22 +86,13 @@ export const ProfileCreator = ({ onComplete }: ProfileCreatorProps) => {
           {/* 역할 선택 */}
           <div className="space-y-3">
             <Label>역할</Label>
-            <RadioGroup
-              value={role}
-              onValueChange={(value) => setRole(value as UserRole)}
-              className="space-y-2"
-            >
+            <RadioGroup value={role} onValueChange={(value) => setRole(value as UserRole)} className="space-y-2">
               {roleOptions.map((option) => (
                 <div key={option.value} className="flex items-center space-x-2">
                   <RadioGroupItem value={option.value} id={option.value} />
-                  <Label
-                    htmlFor={option.value}
-                    className="flex flex-col space-y-1 cursor-pointer"
-                  >
+                  <Label htmlFor={option.value} className="flex flex-col space-y-1 cursor-pointer">
                     <span className="font-medium">{option.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {option.description}
-                    </span>
+                    <span className="text-xs text-muted-foreground">{option.description}</span>
                   </Label>
                 </div>
               ))}
@@ -124,12 +107,7 @@ export const ProfileCreator = ({ onComplete }: ProfileCreatorProps) => {
           />
 
           {/* 제출 버튼 */}
-          <Button
-            type="submit"
-            disabled={!isFormValid || isSubmitting}
-            className="w-full"
-            size="lg"
-          >
+          <Button type="submit" disabled={!isFormValid || isSubmitting} className="w-full" size="lg">
             {isSubmitting ? '생성 중...' : '프로필 생성'}
           </Button>
         </form>

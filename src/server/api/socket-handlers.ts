@@ -25,13 +25,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
     // 사용자 입장
     socket.on(
       'user:join',
-      (data: {
-        userId: string;
-        worshipId: string;
-        scoreId?: string;
-        userName?: string;
-        instrument?: string;
-      }) => {
+      (data: { userId: string; worshipId: string; scoreId?: string; userName?: string; instrument?: string }) => {
         const userSession: UserSession = {
           userId: data.userId,
           worshipId: data.worshipId,
@@ -60,17 +54,13 @@ export function setupSocketHandlers(io: SocketIOServer): void {
         // 다른 사용자들에게 새 사용자 알림
         socket.to(`worship:${data.worshipId}`).emit(
           'users:update',
-          Array.from(connectedUsers.values()).filter(
-            (user) => user.worshipId === data.worshipId
-          )
+          Array.from(connectedUsers.values()).filter((user) => user.worshipId === data.worshipId)
         );
 
         // 기존 드로잉 데이터 전송 (scoreId가 있는 경우)
         if (data.scoreId) {
           try {
-            const existingDrawings = drawingService.getDrawingsByScore(
-              data.scoreId
-            );
+            const existingDrawings = drawingService.getDrawingsByScore(data.scoreId);
             if (existingDrawings.length > 0) {
               socket.emit('score:sync', {
                 scoreId: data.scoreId,
@@ -82,55 +72,45 @@ export function setupSocketHandlers(io: SocketIOServer): void {
           }
         }
 
-        console.log(
-          `사용자 ${data.userId}가 예배 ${data.worshipId}에 참가했습니다.`
-        );
+        console.log(`사용자 ${data.userId}가 예배 ${data.worshipId}에 참가했습니다.`);
       }
     );
 
     // 악보 페이지 변경
-    socket.on(
-      'score:page-change',
-      (data: { page: number; userId: string; scoreId?: string }) => {
-        const userSession = connectedUsers.get(socket.id);
-        if (!userSession) return;
+    socket.on('score:page-change', (data: { page: number; userId: string; scoreId?: string }) => {
+      const userSession = connectedUsers.get(socket.id);
+      if (!userSession) return;
 
-        // 사용자 세션 업데이트
-        userSession.currentPage = data.page;
-        userSession.lastSeen = new Date();
-        connectedUsers.set(socket.id, userSession);
+      // 사용자 세션 업데이트
+      userSession.currentPage = data.page;
+      userSession.lastSeen = new Date();
+      connectedUsers.set(socket.id, userSession);
 
-        const pageNavigation: PageNavigation = {
-          scoreId: data.scoreId || 'current',
-          pageNumber: data.page,
-          userId: data.userId,
-          timestamp: new Date(),
-        };
+      const pageNavigation: PageNavigation = {
+        scoreId: data.scoreId || 'current',
+        pageNumber: data.page,
+        userId: data.userId,
+        timestamp: new Date(),
+      };
 
-        // 해당 페이지의 기존 드로잉 데이터 전송
-        if (data.scoreId) {
-          try {
-            const pageDrawings = drawingService.getDrawingsByScorePage(
-              data.scoreId,
-              data.page
-            );
-            if (pageDrawings.length > 0) {
-              socket.emit('score:sync', {
-                scoreId: data.scoreId,
-                drawings: pageDrawings,
-              });
-            }
-          } catch (error) {
-            console.error('페이지 드로잉 데이터 조회 실패:', error);
+      // 해당 페이지의 기존 드로잉 데이터 전송
+      if (data.scoreId) {
+        try {
+          const pageDrawings = drawingService.getDrawingsByScorePage(data.scoreId, data.page);
+          if (pageDrawings.length > 0) {
+            socket.emit('score:sync', {
+              scoreId: data.scoreId,
+              drawings: pageDrawings,
+            });
           }
+        } catch (error) {
+          console.error('페이지 드로잉 데이터 조회 실패:', error);
         }
-
-        // 같은 예배의 다른 사용자들에게 페이지 변경 알림
-        socket
-          .to(`worship:${userSession.worshipId}`)
-          .emit('page:update', pageNavigation);
       }
-    );
+
+      // 같은 예배의 다른 사용자들에게 페이지 변경 알림
+      socket.to(`worship:${userSession.worshipId}`).emit('page:update', pageNavigation);
+    });
 
     // 드로잉 데이터 동기화
     socket.on('score:drawing', (data: DrawingEvent) => {
@@ -174,21 +154,12 @@ export function setupSocketHandlers(io: SocketIOServer): void {
 
       if (target === 'all') {
         // 전체 예배 참가자에게 전송
-        io.to(`worship:${userSession.worshipId}`).emit(
-          'command:received',
-          command
-        );
-      } else if (
-        target === 'specific' &&
-        'targetUserIds' in data &&
-        data.targetUserIds
-      ) {
+        io.to(`worship:${userSession.worshipId}`).emit('command:received', command);
+      } else if (target === 'specific' && 'targetUserIds' in data && data.targetUserIds) {
         // 특정 사용자들에게만 전송
         const targetSockets = Array.from(connectedUsers.entries())
           .filter(
-            ([, session]) =>
-              session.worshipId === userSession.worshipId &&
-              data.targetUserIds!.includes(session.userId)
+            ([, session]) => session.worshipId === userSession.worshipId && data.targetUserIds!.includes(session.userId)
           )
           .map(([socketId]) => socketId);
 
@@ -196,9 +167,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
           io.to(socketId).emit('command:received', command);
         });
 
-        console.log(
-          `특정 사용자에게 명령 전송: ${data.content} (대상: ${data.targetUserIds.length}명)`
-        );
+        console.log(`특정 사용자에게 명령 전송: ${data.content} (대상: ${data.targetUserIds.length}명)`);
       } else if (target === 'leaders' || target === 'sessions') {
         // 특정 악기 그룹에게 전송 (instrument 기반)
         // 현재는 모든 사용자에게 전송하되, 클라이언트에서 필터링하도록 함
@@ -210,9 +179,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
         console.log(`${data.target} 그룹에게 명령 전송: ${data.content}`);
       } else {
         // 기본적으로 전체에게 전송
-        socket
-          .to(`worship:${userSession.worshipId}`)
-          .emit('command:received', command);
+        socket.to(`worship:${userSession.worshipId}`).emit('command:received', command);
       }
 
       console.log(`명령 전송: ${data.content} (발신자: ${data.senderName})`);
@@ -231,9 +198,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
         // 다른 사용자들에게 사용자 퇴장 알림
         socket.to(`worship:${userSession.worshipId}`).emit(
           'users:update',
-          Array.from(connectedUsers.values()).filter(
-            (user) => user.worshipId === userSession.worshipId
-          )
+          Array.from(connectedUsers.values()).filter((user) => user.worshipId === userSession.worshipId)
         );
 
         console.log(`사용자 ${userSession.userId}가 연결을 해제했습니다.`);

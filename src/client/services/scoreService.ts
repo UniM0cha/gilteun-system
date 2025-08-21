@@ -3,9 +3,7 @@ import { apiService } from './api';
 
 export class ScoreApiService {
   async getScores(worshipId?: string): Promise<Score[]> {
-    const endpoint = worshipId
-      ? `/scores?worshipId=${encodeURIComponent(worshipId)}`
-      : '/scores';
+    const endpoint = worshipId ? `/scores?worshipId=${encodeURIComponent(worshipId)}` : '/scores';
     return apiService.get<Score[]>(endpoint);
   }
 
@@ -13,12 +11,7 @@ export class ScoreApiService {
     return apiService.get<Score>(`/scores/${id}`);
   }
 
-  async createScore(data: {
-    worshipId: string;
-    title: string;
-    filePath: string;
-    orderIndex: number;
-  }): Promise<Score> {
+  async createScore(data: { worshipId: string; title: string; filePath: string; orderIndex: number }): Promise<Score> {
     return apiService.post<Score>('/scores', data);
   }
 

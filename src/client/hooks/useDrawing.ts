@@ -1,10 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getSocketService } from '@/services/socket';
-import type {
-  DrawingEvent,
-  DrawingToolSettings,
-  ScoreViewport,
-} from '@shared/types/score';
+import type { DrawingEvent, DrawingToolSettings, ScoreViewport } from '@shared/types/score';
 
 interface UseDrawingProps {
   scoreId: string;
@@ -13,12 +9,7 @@ interface UseDrawingProps {
   isConnected: boolean;
 }
 
-export const useDrawing = ({
-  scoreId,
-  currentPage,
-  userId,
-  isConnected,
-}: UseDrawingProps) => {
+export const useDrawing = ({ scoreId, currentPage, userId, isConnected }: UseDrawingProps) => {
   const [drawingEvents, setDrawingEvents] = useState<DrawingEvent[]>([]);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [toolSettings, setToolSettings] = useState<DrawingToolSettings>({
@@ -107,9 +98,7 @@ export const useDrawing = ({
 
   // 페이지가 변경될 때 드로잉 이벤트 필터링
   const getCurrentPageDrawings = useCallback(() => {
-    return drawingEvents.filter(
-      (event) => event.scoreId === scoreId && event.pageNumber === currentPage
-    );
+    return drawingEvents.filter((event) => event.scoreId === scoreId && event.pageNumber === currentPage);
   }, [drawingEvents, scoreId, currentPage]);
 
   // 드로잉 모드 토글
@@ -118,12 +107,9 @@ export const useDrawing = ({
   }, []);
 
   // 도구 설정 업데이트
-  const updateToolSettings = useCallback(
-    (settings: Partial<DrawingToolSettings>) => {
-      setToolSettings((prev) => ({ ...prev, ...settings }));
-    },
-    []
-  );
+  const updateToolSettings = useCallback((settings: Partial<DrawingToolSettings>) => {
+    setToolSettings((prev) => ({ ...prev, ...settings }));
+  }, []);
 
   // 뷰포트 업데이트
   const updateViewport = useCallback((newViewport: Partial<ScoreViewport>) => {
@@ -133,10 +119,7 @@ export const useDrawing = ({
   // 드로잉 데이터 초기화 (페이지 변경 시)
   const clearCurrentPageDrawings = useCallback(() => {
     setDrawingEvents((prev) =>
-      prev.filter(
-        (event) =>
-          !(event.scoreId === scoreId && event.pageNumber === currentPage)
-      )
+      prev.filter((event) => !(event.scoreId === scoreId && event.pageNumber === currentPage))
     );
   }, [scoreId, currentPage]);
 

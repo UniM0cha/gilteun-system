@@ -32,10 +32,7 @@ export const formatFileSize = (bytes: number): string => {
 };
 
 // 디바운스 유틸리티
-export const debounce = <T extends (...args: unknown[]) => void>(
-  func: T,
-  wait: number
-): T => {
+export const debounce = <T extends (...args: unknown[]) => void>(func: T, wait: number): T => {
   let timeout: NodeJS.Timeout;
 
   return ((...args: Parameters<T>) => {

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,20 +11,11 @@ describe('shadcn/ui 테마 적용 테스트', () => {
     document.documentElement.style.setProperty('--background', '0 0% 100%');
     document.documentElement.style.setProperty('--foreground', '0 0% 3.9%');
     document.documentElement.style.setProperty('--primary', '0 0% 9%');
-    document.documentElement.style.setProperty(
-      '--primary-foreground',
-      '0 0% 98%'
-    );
+    document.documentElement.style.setProperty('--primary-foreground', '0 0% 98%');
     document.documentElement.style.setProperty('--muted', '0 0% 96.1%');
-    document.documentElement.style.setProperty(
-      '--muted-foreground',
-      '0 0% 45.1%'
-    );
+    document.documentElement.style.setProperty('--muted-foreground', '0 0% 45.1%');
     document.documentElement.style.setProperty('--border', '0 0% 89.8%');
-    document.documentElement.style.setProperty(
-      '--destructive',
-      '0 84.2% 60.2%'
-    );
+    document.documentElement.style.setProperty('--destructive', '0 84.2% 60.2%');
     document.documentElement.style.setProperty('--radius', '0.5rem');
   });
 
@@ -110,9 +101,7 @@ describe('shadcn/ui 테마 적용 테스트', () => {
   });
 
   it('Badge 컴포넌트가 올바른 테마 클래스를 적용해야 함', () => {
-    const { rerender } = render(
-      <Badge data-testid="theme-badge">기본 뱃지</Badge>
-    );
+    const { rerender } = render(<Badge data-testid="theme-badge">기본 뱃지</Badge>);
     let badge = screen.getByTestId('theme-badge');
     expect(badge).toHaveClass('bg-primary');
     expect(badge).toHaveClass('text-primary-foreground');

@@ -32,9 +32,7 @@ export class FileService {
       filename: (_req, file, cb) => {
         // 파일명: timestamp_원본명
         const timestamp = Date.now();
-        const originalName = Buffer.from(file.originalname, 'latin1').toString(
-          'utf8'
-        );
+        const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
         const filename = `${timestamp}_${originalName}`;
         cb(null, filename);
       },

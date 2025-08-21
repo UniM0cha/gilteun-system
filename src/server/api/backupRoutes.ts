@@ -19,9 +19,7 @@ router.get('/export', (_req, res) => {
         users: db.prepare('SELECT * FROM users').all(),
         instruments: db.prepare('SELECT * FROM instruments').all(),
         // 드로잉 데이터는 크기가 클 수 있으므로 별도로 처리
-        drawings_count: db
-          .prepare('SELECT COUNT(*) as count FROM score_drawings')
-          .get(),
+        drawings_count: db.prepare('SELECT COUNT(*) as count FROM score_drawings').get(),
         command_templates: db.prepare('SELECT * FROM command_templates').all(),
       },
     };
@@ -69,13 +67,7 @@ router.post('/import', (req, res) => {
         `);
 
         for (const item of data.data.worship_types) {
-          insertWorshipType.run(
-            item.id,
-            item.name,
-            item.is_active,
-            item.created_at,
-            item.updated_at
-          );
+          insertWorshipType.run(item.id, item.name, item.is_active, item.created_at, item.updated_at);
         }
       }
 
@@ -124,14 +116,7 @@ router.post('/import', (req, res) => {
         `);
 
         for (const item of data.data.command_templates) {
-          insertTemplate.run(
-            item.id,
-            item.title,
-            item.content,
-            item.order_index,
-            item.created_at,
-            item.updated_at
-          );
+          insertTemplate.run(item.id, item.title, item.content, item.order_index, item.created_at, item.updated_at);
         }
       }
     })();

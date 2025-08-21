@@ -53,11 +53,7 @@ export async function startApiServer(): Promise<void> {
   // 프로덕션 환경에서 SPA를 위한 fallback (React Router 지원)
   if (process.env.NODE_ENV === 'production') {
     app.get('*', (req, res) => {
-      if (
-        !req.path.startsWith('/api') &&
-        !req.path.startsWith('/uploads') &&
-        !req.path.startsWith('/socket.io')
-      ) {
+      if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads') && !req.path.startsWith('/socket.io')) {
         const clientBuildPath = path.join(__dirname, '../../public');
         res.sendFile(path.join(clientBuildPath, 'index.html'));
       }

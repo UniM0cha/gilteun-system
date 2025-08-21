@@ -1,9 +1,5 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
-import type {
-  DrawingEvent,
-  DrawingToolSettings,
-  ScoreViewport,
-} from '@shared/types/score';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { DrawingEvent, DrawingToolSettings, ScoreViewport } from '@shared/types/score';
 
 interface DrawingCanvasProps {
   width: number;
@@ -52,9 +48,7 @@ export const DrawingCanvas = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // 현재 페이지의 완료된 드로잉만 렌더링
-    const pageDrawings = drawingEvents.filter(
-      (event) => event.pageNumber === currentPage && event.isComplete
-    );
+    const pageDrawings = drawingEvents.filter((event) => event.pageNumber === currentPage && event.isComplete);
 
     pageDrawings.forEach((drawing) => {
       if (drawing.points.length < 2) return;
@@ -154,10 +148,7 @@ export const DrawingCanvas = ({
 
     const point =
       'touches' in e
-        ? getCanvasCoordinates(
-            e.touches[0]?.clientX || 0,
-            e.touches[0]?.clientY || 0
-          )
+        ? getCanvasCoordinates(e.touches[0]?.clientX || 0, e.touches[0]?.clientY || 0)
         : getCanvasCoordinates(e.clientX, e.clientY);
 
     setIsDrawing(true);
@@ -191,10 +182,7 @@ export const DrawingCanvas = ({
 
     const point =
       'touches' in e
-        ? getCanvasCoordinates(
-            e.touches[0]?.clientX || 0,
-            e.touches[0]?.clientY || 0
-          )
+        ? getCanvasCoordinates(e.touches[0]?.clientX || 0, e.touches[0]?.clientY || 0)
         : getCanvasCoordinates(e.clientX, e.clientY);
 
     const newStroke = [...currentStroke, point];

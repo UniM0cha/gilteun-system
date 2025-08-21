@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, Instrument } from '@shared/types/user';
+import type { Instrument, User } from '@shared/types/user';
 
 interface ProfileStore {
   currentUser: User | null;
@@ -62,8 +62,7 @@ export const useProfileStore = create<ProfileStore>()(
         },
       ],
       setCurrentUser: (user) => set({ currentUser: user }),
-      setAvailableInstruments: (instruments) =>
-        set({ availableInstruments: instruments }),
+      setAvailableInstruments: (instruments) => set({ availableInstruments: instruments }),
       clearCurrentUser: () => set({ currentUser: null }),
     }),
     {

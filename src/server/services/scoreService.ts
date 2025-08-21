@@ -44,12 +44,7 @@ export class ScoreService {
   }
 
   // 악보 생성
-  createScore(data: {
-    worshipId: string;
-    title: string;
-    filePath: string;
-    orderIndex?: number;
-  }): string {
+  createScore(data: { worshipId: string; title: string; filePath: string; orderIndex?: number }): string {
     const id = `score_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
     // orderIndex가 없으면 마지막 순서로 설정
@@ -117,10 +112,7 @@ export class ScoreService {
   }
 
   // 악보 순서 변경
-  reorderScores(
-    worshipId: string,
-    scoreOrders: { id: string; orderIndex: number }[]
-  ): boolean {
+  reorderScores(worshipId: string, scoreOrders: { id: string; orderIndex: number }[]): boolean {
     return getDB().transaction(() => {
       for (const { id, orderIndex } of scoreOrders) {
         const stmt = this.db.prepare(`

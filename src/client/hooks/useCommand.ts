@@ -1,10 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getSocketService } from '@/services/socket';
-import type {
-  Command,
-  CommandTarget,
-  CommandTemplate,
-} from '@shared/types/command';
+import type { Command, CommandTarget, CommandTemplate } from '@shared/types/command';
 
 interface UseCommandProps {
   userId: string;
@@ -13,16 +9,9 @@ interface UseCommandProps {
   isConnected: boolean;
 }
 
-export const useCommand = ({
-  userId,
-  userName,
-  userInstrument,
-  isConnected,
-}: UseCommandProps) => {
+export const useCommand = ({ userId, userName, userInstrument, isConnected }: UseCommandProps) => {
   const [commands, setCommands] = useState<Command[]>([]);
-  const [commandTemplates, setCommandTemplates] = useState<CommandTemplate[]>(
-    []
-  );
+  const [commandTemplates, setCommandTemplates] = useState<CommandTemplate[]>([]);
 
   const socketService = getSocketService();
 
@@ -34,8 +23,7 @@ export const useCommand = ({
       if (exists) return prev;
 
       // 최신 명령을 앞에 추가 (최대 10개까지 유지)
-      const updated = [command, ...prev].slice(0, 10);
-      return updated;
+      return [command, ...prev].slice(0, 10);
     });
   }, []);
 
@@ -52,11 +40,7 @@ export const useCommand = ({
 
   // 명령 전송
   const sendCommand = useCallback(
-    (commandData: {
-      content: string;
-      icon?: string;
-      target: CommandTarget;
-    }) => {
+    (commandData: { content: string; icon?: string; target: CommandTarget }) => {
       if (!isConnected) {
         console.warn('서버에 연결되지 않아 명령을 전송할 수 없습니다.');
         return;
@@ -108,10 +92,7 @@ export const useCommand = ({
   const saveCommandTemplates = useCallback(
     (templates: CommandTemplate[]) => {
       try {
-        localStorage.setItem(
-          `command-templates-${userId}`,
-          JSON.stringify(templates)
-        );
+        localStorage.setItem(`command-templates-${userId}`, JSON.stringify(templates));
         setCommandTemplates(templates);
       } catch (error) {
         console.error('명령 템플릿 저장 실패:', error);
@@ -122,12 +103,7 @@ export const useCommand = ({
 
   // 새 템플릿 추가
   const addCommandTemplate = useCallback(
-    (
-      template: Omit<
-        CommandTemplate,
-        'id' | 'userId' | 'createdAt' | 'updatedAt'
-      >
-    ) => {
+    (template: Omit<CommandTemplate, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
       const newTemplate: CommandTemplate = {
         ...template,
         id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -136,9 +112,7 @@ export const useCommand = ({
         updatedAt: new Date(),
       };
 
-      const updated = [...commandTemplates, newTemplate].sort(
-        (a, b) => a.order - b.order
-      );
+      const updated = [...commandTemplates, newTemplate].sort((a, b) => a.order - b.order);
       saveCommandTemplates(updated);
     },
     [userId, commandTemplates, saveCommandTemplates]
@@ -148,9 +122,7 @@ export const useCommand = ({
   const updateCommandTemplate = useCallback(
     (templateId: string, updates: Partial<CommandTemplate>) => {
       const updated = commandTemplates.map((template) =>
-        template.id === templateId
-          ? { ...template, ...updates, updatedAt: new Date() }
-          : template
+        template.id === templateId ? { ...template, ...updates, updatedAt: new Date() } : template
       );
 
       saveCommandTemplates(updated.sort((a, b) => a.order - b.order));
@@ -161,9 +133,7 @@ export const useCommand = ({
   // 템플릿 삭제
   const deleteCommandTemplate = useCallback(
     (templateId: string) => {
-      const updated = commandTemplates.filter(
-        (template) => template.id !== templateId
-      );
+      const updated = commandTemplates.filter((template) => template.id !== templateId);
       saveCommandTemplates(updated);
     },
     [commandTemplates, saveCommandTemplates]

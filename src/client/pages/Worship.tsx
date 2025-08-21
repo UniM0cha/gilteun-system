@@ -1,24 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Button } from '../components/ui/button';
-import { ConnectionStatus } from '../components/ConnectionStatus';
-import { ScoreViewer } from '../components/score/ScoreViewer';
-import { ScoreNavigation } from '../components/score/ScoreNavigation';
-import { DrawingToolbar } from '../components/score/DrawingToolbar';
-import { CommandOverlay } from '../components/command/CommandOverlay';
-import { CommandPanel } from '../components/command/CommandPanel';
-import { CommandTemplateManager } from '../components/command/CommandTemplateManager';
-import { useProfile } from '../hooks/useProfile';
-import { useSocket } from '../hooks/useSocket';
-import { useDrawing } from '../hooks/useDrawing';
-import { useCommand } from '../hooks/useCommand';
-import { useWorshipStore } from '../stores/worshipStore';
+import { Button } from '@/components/ui/button';
+import { ConnectionStatus } from '@/components/ConnectionStatus';
+import { ScoreViewer } from '@/components/score/ScoreViewer';
+import { ScoreNavigation } from '@/components/score/ScoreNavigation';
+import { DrawingToolbar } from '@/components/score/DrawingToolbar';
+import { CommandOverlay } from '@/components/command/CommandOverlay';
+import { CommandPanel } from '@/components/command/CommandPanel';
+import { CommandTemplateManager } from '@/components/command/CommandTemplateManager';
+import { useProfile } from '@/hooks/useProfile';
+import { useSocket } from '@/hooks/useSocket';
+import { useDrawing } from '@/hooks/useDrawing';
+import { useCommand } from '@/hooks/useCommand';
+import { useWorshipStore } from '@/stores/worshipStore';
 import { useNavigate } from 'react-router-dom';
 
 export const Worship = () => {
   const { currentUser, getCurrentInstrument } = useProfile();
   const { connect, socketService } = useSocket();
-  const { currentWorship, currentScore, currentPage, setCurrentPage } =
-    useWorshipStore();
+  const { currentWorship, currentScore, currentPage, setCurrentPage } = useWorshipStore();
   const navigate = useNavigate();
   const currentInstrument = getCurrentInstrument();
 
@@ -99,9 +98,7 @@ export const Worship = () => {
 
             <div className="flex items-center space-x-4">
               <ConnectionStatus />
-              {currentInstrument && (
-                <span className="text-xl">{currentInstrument.icon}</span>
-              )}
+              {currentInstrument && <span className="text-xl">{currentInstrument.icon}</span>}
               <span className="text-sm font-medium">{currentUser.name}</span>
               <Button variant="outline" size="sm" onClick={() => navigate('/')}>
                 나가기
@@ -142,15 +139,10 @@ export const Worship = () => {
                   // 템플릿 순서 변경 구현
                   const reorderedTemplates = templateIds
                     .map((id, index) => {
-                      const template = commandTemplates.find(
-                        (t) => t.id === id
-                      );
+                      const template = commandTemplates.find((t) => t.id === id);
                       return template ? { ...template, order: index } : null;
                     })
-                    .filter(
-                      (template): template is NonNullable<typeof template> =>
-                        template !== null
-                    );
+                    .filter((template): template is NonNullable<typeof template> => template !== null);
 
                   // 각 템플릿 업데이트
                   reorderedTemplates.forEach((template) => {
@@ -172,11 +164,7 @@ export const Worship = () => {
             )}
 
             {isManagingTemplates && (
-              <Button
-                variant="outline"
-                onClick={() => setIsManagingTemplates(false)}
-                className="w-full"
-              >
+              <Button variant="outline" onClick={() => setIsManagingTemplates(false)} className="w-full">
                 명령 패널로 돌아가기
               </Button>
             )}
@@ -186,13 +174,9 @@ export const Worship = () => {
           <div className="lg:col-span-3">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">
-                  {currentScore?.title || '악보를 선택하세요'}
-                </h2>
+                <h2 className="text-xl font-semibold">{currentScore?.title || '악보를 선택하세요'}</h2>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">
-                    {isDrawingMode ? '드로잉 모드' : '보기 모드'}
-                  </span>
+                  <span className="text-sm text-muted-foreground">{isDrawingMode ? '드로잉 모드' : '보기 모드'}</span>
                 </div>
               </div>
 
@@ -212,10 +196,7 @@ export const Worship = () => {
                 />
 
                 {/* 명령 오버레이 */}
-                <CommandOverlay
-                  commands={commands}
-                  onCommandExpire={expireCommand}
-                />
+                <CommandOverlay commands={commands} onCommandExpire={expireCommand} />
               </div>
             </div>
           </div>

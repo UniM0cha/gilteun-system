@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -34,17 +34,11 @@ describe('Visual Style Tests', () => {
     it('has proper focus and disabled states', () => {
       const { rerender } = render(<Button>Button</Button>);
       let button = screen.getByRole('button');
-      expect(button).toHaveClass(
-        'focus-visible:outline-none',
-        'focus-visible:ring-2'
-      );
+      expect(button).toHaveClass('focus-visible:outline-none', 'focus-visible:ring-2');
 
       rerender(<Button disabled>Disabled</Button>);
       button = screen.getByRole('button');
-      expect(button).toHaveClass(
-        'disabled:pointer-events-none',
-        'disabled:opacity-50'
-      );
+      expect(button).toHaveClass('disabled:pointer-events-none', 'disabled:opacity-50');
     });
   });
 
@@ -62,19 +56,13 @@ describe('Visual Style Tests', () => {
     it('has proper focus states', () => {
       render(<Input />);
       const input = screen.getByRole('textbox');
-      expect(input).toHaveClass(
-        'focus-visible:outline-none',
-        'focus-visible:ring-2'
-      );
+      expect(input).toHaveClass('focus-visible:outline-none', 'focus-visible:ring-2');
     });
 
     it('has proper disabled styling', () => {
       render(<Input disabled />);
       const input = screen.getByRole('textbox');
-      expect(input).toHaveClass(
-        'disabled:cursor-not-allowed',
-        'disabled:opacity-50'
-      );
+      expect(input).toHaveClass('disabled:cursor-not-allowed', 'disabled:opacity-50');
     });
   });
 
@@ -89,12 +77,7 @@ describe('Visual Style Tests', () => {
     });
 
     it('maintains consistent padding across variants', () => {
-      const variants = [
-        'default',
-        'secondary',
-        'outline',
-        'destructive',
-      ] as const;
+      const variants = ['default', 'secondary', 'outline', 'destructive'] as const;
 
       variants.forEach((variant) => {
         const { unmount } = render(<Badge variant={variant}>Badge</Badge>);
@@ -140,19 +123,10 @@ describe('Visual Style Tests', () => {
       const secondaryBadge = screen.getByText('Secondary Badge');
 
       // 기본 색상 일관성 확인
-      expect(primaryButton).toHaveClass(
-        'bg-primary',
-        'text-primary-foreground'
-      );
-      expect(secondaryButton).toHaveClass(
-        'bg-secondary',
-        'text-secondary-foreground'
-      );
+      expect(primaryButton).toHaveClass('bg-primary', 'text-primary-foreground');
+      expect(secondaryButton).toHaveClass('bg-secondary', 'text-secondary-foreground');
       expect(primaryBadge).toHaveClass('bg-primary', 'text-primary-foreground');
-      expect(secondaryBadge).toHaveClass(
-        'bg-secondary',
-        'text-secondary-foreground'
-      );
+      expect(secondaryBadge).toHaveClass('bg-secondary', 'text-secondary-foreground');
     });
   });
 });

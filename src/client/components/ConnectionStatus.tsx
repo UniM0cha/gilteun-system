@@ -1,6 +1,6 @@
-import { useSocket } from '../hooks/useSocket';
+import { useSocket } from '@/hooks/useSocket';
 import { Button } from './ui/button';
-import { WifiOff, Wifi, Loader2 } from 'lucide-react';
+import { Loader2, Wifi, WifiOff } from 'lucide-react';
 
 export const ConnectionStatus = () => {
   const { isConnected, isConnecting, error, connect, disconnect } = useSocket();
@@ -29,9 +29,7 @@ export const ConnectionStatus = () => {
   return (
     <div className="flex items-center space-x-2 text-destructive">
       <WifiOff className="h-4 w-4" />
-      <span className="text-sm">
-        {error ? `연결 실패: ${error}` : '연결되지 않음'}
-      </span>
+      <span className="text-sm">{error ? `연결 실패: ${error}` : '연결되지 않음'}</span>
       <Button variant="outline" size="sm" onClick={connect}>
         다시 연결
       </Button>

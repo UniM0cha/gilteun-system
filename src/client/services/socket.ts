@@ -1,10 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import type { Command } from '@shared/types/command';
-import type {
-  DrawingData,
-  DrawingEvent,
-  PageNavigation,
-} from '@shared/types/score';
+import type { DrawingData, DrawingEvent, PageNavigation } from '@shared/types/score';
 
 // Socket.io 이벤트 타입 정의
 interface SocketEvents {
@@ -13,9 +9,7 @@ interface SocketEvents {
   'score:page-change': (data: { page: number; userId: string }) => void;
   'score:drawing': (data: DrawingData) => void;
   'drawing:event': (data: DrawingEvent) => void;
-  'command:send': (
-    data: Omit<Command, 'id' | 'timestamp' | 'expiresAt'>
-  ) => void;
+  'command:send': (data: Omit<Command, 'id' | 'timestamp' | 'expiresAt'>) => void;
 
   // 서버 → 클라이언트
   'command:received': (data: Command) => void;
@@ -103,9 +97,7 @@ export class SocketService {
     this.on('command:received', callback);
   }
 
-  onScoreSync(
-    callback: (data: { scoreId: string; drawings: DrawingData[] }) => void
-  ): void {
+  onScoreSync(callback: (data: { scoreId: string; drawings: DrawingData[] }) => void): void {
     this.on('score:sync', callback);
   }
 
@@ -126,9 +118,7 @@ export class SocketService {
     this.off('command:received', callback);
   }
 
-  offScoreSync(
-    callback: (data: { scoreId: string; drawings: DrawingData[] }) => void
-  ): void {
+  offScoreSync(callback: (data: { scoreId: string; drawings: DrawingData[] }) => void): void {
     this.off('score:sync', callback);
   }
 
@@ -150,10 +140,7 @@ export class SocketService {
   }
 
   // Private 헬퍼 메서드
-  private emit<K extends keyof SocketEvents>(
-    event: K,
-    data: Parameters<SocketEvents[K]>[0]
-  ): void {
+  private emit<K extends keyof SocketEvents>(event: K, data: Parameters<SocketEvents[K]>[0]): void {
     if (this.socket?.connected) {
       this.socket.emit(event, data);
     } else {
@@ -161,17 +148,11 @@ export class SocketService {
     }
   }
 
-  private on<K extends keyof SocketEvents>(
-    event: K,
-    callback: SocketEvents[K]
-  ): void {
+  private on<K extends keyof SocketEvents>(event: K, callback: SocketEvents[K]): void {
     this.socket?.on(event as string, callback as (...args: unknown[]) => void);
   }
 
-  private off<K extends keyof SocketEvents>(
-    event: K,
-    callback: SocketEvents[K]
-  ): void {
+  private off<K extends keyof SocketEvents>(event: K, callback: SocketEvents[K]): void {
     this.socket?.off(event as string, callback as (...args: unknown[]) => void);
   }
 }

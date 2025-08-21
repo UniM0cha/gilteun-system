@@ -1,11 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  act,
-} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CommandOverlay } from './CommandOverlay';
 import type { Command } from '@shared/types/command';
 
@@ -35,9 +29,7 @@ const createMockCommand = (overrides?: Partial<Command>): Command => ({
 describe('CommandOverlay Component', () => {
   it('renders without commands', () => {
     const onCommandExpire = vi.fn();
-    const { container } = render(
-      <CommandOverlay commands={[]} onCommandExpire={onCommandExpire} />
-    );
+    const { container } = render(<CommandOverlay commands={[]} onCommandExpire={onCommandExpire} />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -45,9 +37,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand();
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     expect(screen.getByText('다음 곡으로 넘어갑니다')).toBeInTheDocument();
     expect(screen.getByText('김인도')).toBeInTheDocument();
@@ -71,9 +61,7 @@ describe('CommandOverlay Component', () => {
       }),
     ];
 
-    render(
-      <CommandOverlay commands={commands} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={commands} onCommandExpire={onCommandExpire} />);
 
     // 두 명령 모두 표시되는지 확인
     expect(screen.getByText('첫 번째 명령')).toBeInTheDocument();
@@ -84,9 +72,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand();
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     const progressBar = document.querySelector('[style*="width: 100%"]');
     expect(progressBar).toBeInTheDocument();
@@ -96,9 +82,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand();
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     // 1초 후 진행바가 줄어들어야 함
     await act(async () => {
@@ -115,9 +99,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand();
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     const closeButton = screen.getByLabelText('명령 닫기');
     fireEvent.click(closeButton);
@@ -136,9 +118,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand();
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     // 3.5초 후 자동 만료
     vi.advanceTimersByTime(3600); // 3600ms = 3.6초
@@ -152,9 +132,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand({ target: 'leaders' });
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     expect(screen.getByText('인도자만')).toBeInTheDocument();
   });
@@ -163,9 +141,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand({ target: 'all' });
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     expect(screen.queryByText('전체')).not.toBeInTheDocument();
   });
@@ -174,9 +150,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand();
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     // 2.6초 후 (만료 500ms 전)
     vi.advanceTimersByTime(2600);
@@ -195,12 +169,7 @@ describe('CommandOverlay Component', () => {
       timestamp: new Date(mockNow - 60000),
     });
 
-    const { rerender } = render(
-      <CommandOverlay
-        commands={[oneMinuteAgo]}
-        onCommandExpire={onCommandExpire}
-      />
-    );
+    const { rerender } = render(<CommandOverlay commands={[oneMinuteAgo]} onCommandExpire={onCommandExpire} />);
     expect(screen.getByText('1분 전')).toBeInTheDocument();
 
     // 1시간 전 명령
@@ -208,12 +177,7 @@ describe('CommandOverlay Component', () => {
       timestamp: new Date(mockNow - 3600000),
     });
 
-    rerender(
-      <CommandOverlay
-        commands={[oneHourAgo]}
-        onCommandExpire={onCommandExpire}
-      />
-    );
+    rerender(<CommandOverlay commands={[oneHourAgo]} onCommandExpire={onCommandExpire} />);
     expect(screen.getByText('09:00')).toBeInTheDocument(); // 시:분 형태
   });
 
@@ -221,9 +185,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand({ senderInstrument: undefined });
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     expect(screen.getByText('김인도')).toBeInTheDocument();
     expect(screen.queryByText('🎹')).not.toBeInTheDocument();
@@ -233,9 +195,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand({ icon: undefined });
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     expect(screen.getByText('다음 곡으로 넘어갑니다')).toBeInTheDocument();
     expect(screen.queryByText('▶️')).not.toBeInTheDocument();
@@ -246,11 +206,7 @@ describe('CommandOverlay Component', () => {
     const command = createMockCommand();
 
     const { container } = render(
-      <CommandOverlay
-        commands={[command]}
-        onCommandExpire={onCommandExpire}
-        className="custom-overlay"
-      />
+      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} className="custom-overlay" />
     );
 
     expect(container.firstChild).toHaveClass('custom-overlay');
@@ -263,9 +219,7 @@ describe('CommandOverlay Component', () => {
       createMockCommand({ id: 'cmd-2', content: '두 번째' }),
     ];
 
-    render(
-      <CommandOverlay commands={commands} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={commands} onCommandExpire={onCommandExpire} />);
 
     const cards = document.querySelectorAll('[style*="animation-delay"]');
     expect(cards[0]).toHaveStyle('animation-delay: 0ms');
@@ -276,9 +230,7 @@ describe('CommandOverlay Component', () => {
     const onCommandExpire = vi.fn();
     const command = createMockCommand();
 
-    render(
-      <CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />
-    );
+    render(<CommandOverlay commands={[command]} onCommandExpire={onCommandExpire} />);
 
     const closeButton = screen.getByLabelText('명령 닫기');
     expect(closeButton).toBeInTheDocument();

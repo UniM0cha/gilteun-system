@@ -5,9 +5,7 @@ let JsonDatabase: any;
 try {
   Database = require('better-sqlite3');
 } catch {
-  console.warn(
-    'better-sqlite3 not available, using JSON database for development'
-  );
+  console.warn('better-sqlite3 not available, using JSON database for development');
   try {
     JsonDatabase = require('./jsonDb').default;
   } catch (jsonError) {

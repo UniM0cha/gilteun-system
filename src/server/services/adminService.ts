@@ -76,11 +76,7 @@ class AdminService {
   // 연결된 사용자 관리
   addConnectedUser(socketId: string, userSession: UserSession): void {
     this.connectedUsers.set(socketId, userSession);
-    this.addLog(
-      'info',
-      `사용자 연결: ${userSession.name} (${userSession.instrument})`,
-      'UserManager'
-    );
+    this.addLog('info', `사용자 연결: ${userSession.name} (${userSession.instrument})`, 'UserManager');
   }
 
   removeConnectedUser(socketId: string): void {
@@ -103,12 +99,7 @@ class AdminService {
   }
 
   // 로그 관리
-  addLog(
-    level: SystemLog['level'],
-    message: string,
-    component?: string,
-    details?: any
-  ): void {
+  addLog(level: SystemLog['level'], message: string, component?: string, details?: any): void {
     const log: SystemLog = {
       id: this.generateId(),
       level,
@@ -168,9 +159,7 @@ class AdminService {
         )
       `);
 
-      const settings = db
-        .prepare('SELECT key, value FROM system_settings')
-        .all();
+      const settings = db.prepare('SELECT key, value FROM system_settings').all();
       const settingsObj: Record<string, any> = {};
 
       settings.forEach((setting: any) => {
@@ -209,12 +198,7 @@ class AdminService {
       this.addLog('info', `시스템 설정 업데이트: ${key}`, 'AdminService');
       return true;
     } catch (error) {
-      this.addLog(
-        'error',
-        `시스템 설정 업데이트 실패: ${key}`,
-        'AdminService',
-        error
-      );
+      this.addLog('error', `시스템 설정 업데이트 실패: ${key}`, 'AdminService', error);
       return false;
     }
   }
@@ -225,29 +209,16 @@ class AdminService {
 
     try {
       const stats = {
-        worships:
-          db.prepare('SELECT COUNT(*) as count FROM worships').get()?.count ||
-          0,
-        scores:
-          db.prepare('SELECT COUNT(*) as count FROM scores').get()?.count || 0,
-        drawings:
-          db.prepare('SELECT COUNT(*) as count FROM score_drawings').get()
-            ?.count || 0,
-        templates:
-          db.prepare('SELECT COUNT(*) as count FROM command_templates').get()
-            ?.count || 0,
-        users:
-          db.prepare('SELECT COUNT(*) as count FROM users').get()?.count || 0,
+        worships: db.prepare('SELECT COUNT(*) as count FROM worships').get()?.count || 0,
+        scores: db.prepare('SELECT COUNT(*) as count FROM scores').get()?.count || 0,
+        drawings: db.prepare('SELECT COUNT(*) as count FROM score_drawings').get()?.count || 0,
+        templates: db.prepare('SELECT COUNT(*) as count FROM command_templates').get()?.count || 0,
+        users: db.prepare('SELECT COUNT(*) as count FROM users').get()?.count || 0,
       };
 
       return stats;
     } catch (error) {
-      this.addLog(
-        'error',
-        '데이터베이스 통계 조회 실패',
-        'AdminService',
-        error
-      );
+      this.addLog('error', '데이터베이스 통계 조회 실패', 'AdminService', error);
       return {
         worships: 0,
         scores: 0,

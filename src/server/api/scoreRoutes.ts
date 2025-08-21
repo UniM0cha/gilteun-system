@@ -45,46 +45,42 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/scores - 악보 업로드
-router.post(
-  '/',
-  fileService.getScoreUploadConfig().single('scoreFile'),
-  (req, res) => {
-    try {
-      const { worshipId, title, orderIndex } = req.body;
-      const file = req.file;
+router.post('/', fileService.getScoreUploadConfig().single('scoreFile'), (req, res) => {
+  try {
+    const { worshipId, title, orderIndex } = req.body;
+    const file = req.file;
 
-      if (!worshipId || !title) {
-        return res.status(400).json({
-          success: false,
-          error: '예배 ID와 제목이 필요합니다.',
-        });
-      }
-
-      if (!file) {
-        return res.status(400).json({
-          success: false,
-          error: '악보 파일이 필요합니다.',
-        });
-      }
-
-      const scoreId = scoreService.createScore({
-        worshipId,
-        title,
-        filePath: fileService.getScoreRelativePath(file.filename),
-        orderIndex: orderIndex ? parseInt(orderIndex) : undefined,
-      });
-
-      const score = scoreService.getScoreById(scoreId);
-      return res.status(201).json({ success: true, data: score });
-    } catch (error) {
-      console.error('악보 업로드 오류:', error);
-      return res.status(500).json({
+    if (!worshipId || !title) {
+      return res.status(400).json({
         success: false,
-        error: '악보를 업로드할 수 없습니다.',
+        error: '예배 ID와 제목이 필요합니다.',
       });
     }
+
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        error: '악보 파일이 필요합니다.',
+      });
+    }
+
+    const scoreId = scoreService.createScore({
+      worshipId,
+      title,
+      filePath: fileService.getScoreRelativePath(file.filename),
+      orderIndex: orderIndex ? parseInt(orderIndex) : undefined,
+    });
+
+    const score = scoreService.getScoreById(scoreId);
+    return res.status(201).json({ success: true, data: score });
+  } catch (error) {
+    console.error('악보 업로드 오류:', error);
+    return res.status(500).json({
+      success: false,
+      error: '악보를 업로드할 수 없습니다.',
+    });
   }
-);
+});
 
 // PUT /api/scores/:id - 악보 정보 수정
 router.put('/:id', (req, res) => {

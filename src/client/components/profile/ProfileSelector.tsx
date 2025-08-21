@@ -1,22 +1,13 @@
 import { Button } from '../ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../ui/card';
-import { useProfile } from '../../hooks/useProfile';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { useProfile } from '@/hooks/useProfile';
 
 interface ProfileSelectorProps {
   onCreateNew: () => void;
   onContinue: () => void;
 }
 
-export const ProfileSelector = ({
-  onCreateNew,
-  onContinue,
-}: ProfileSelectorProps) => {
+export const ProfileSelector = ({ onCreateNew, onContinue }: ProfileSelectorProps) => {
   const { currentUser, getCurrentInstrument, clearProfile } = useProfile();
   const currentInstrument = getCurrentInstrument();
 
@@ -24,9 +15,7 @@ export const ProfileSelector = ({
     return (
       <Card className="max-w-md mx-auto">
         <CardHeader>
-          <CardTitle className="text-center">
-            길튼 시스템에 오신 것을 환영합니다
-          </CardTitle>
+          <CardTitle className="text-center">길튼 시스템에 오신 것을 환영합니다</CardTitle>
           <CardDescription className="text-center">
             찬양팀 예배 진행을 지원하는 앱입니다. 먼저 프로필을 생성해주세요.
           </CardDescription>
@@ -48,9 +37,7 @@ export const ProfileSelector = ({
       <CardContent className="space-y-6">
         <div className="p-4 border rounded-lg bg-muted">
           <div className="flex items-center space-x-3">
-            {currentInstrument && (
-              <span className="text-3xl">{currentInstrument.icon}</span>
-            )}
+            {currentInstrument && <span className="text-3xl">{currentInstrument.icon}</span>}
             <div>
               <p className="font-semibold text-lg">{currentUser.name}</p>
               <p className="text-sm text-muted-foreground">

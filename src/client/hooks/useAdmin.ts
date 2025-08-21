@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 export interface SystemStatus {
   isOnline: boolean;
@@ -53,41 +53,36 @@ export const useAdmin = () => {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [userSessions, setUserSessions] = useState<UserSession[]>([]);
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
-  const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(
-    null
-  );
+  const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // API 호출 헬퍼 함수
-  const apiCall = useCallback(
-    async (endpoint: string, options?: RequestInit) => {
-      try {
-        const response = await fetch(`/api/admin${endpoint}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers,
-          },
-          ...options,
-        });
+  const apiCall = useCallback(async (endpoint: string, options?: RequestInit) => {
+    try {
+      const response = await fetch(`/api/admin${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        ...options,
+      });
 
-        if (!response.ok) {
-          throw new Error(`API 오류: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!data.success) {
-          throw new Error(data.error || 'API 호출 실패');
-        }
-
-        return data.data;
-      } catch (error) {
-        console.error('API 호출 오류:', error);
-        throw error;
+      if (!response.ok) {
+        throw new Error(`API 오류: ${response.status}`);
       }
-    },
-    []
-  );
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'API 호출 실패');
+      }
+
+      return data.data;
+    } catch (error) {
+      console.error('API 호출 오류:', error);
+      throw error;
+    }
+  }, []);
 
   // 시스템 상태 조회
   const fetchSystemStatus = useCallback(async () => {
@@ -194,41 +189,38 @@ export const useAdmin = () => {
   );
 
   // 악보 업로드
-  const uploadScore = useCallback(
-    async (file: File, title: string, worshipId: string) => {
-      try {
-        setIsLoading(true);
-        const formData = new FormData();
-        formData.append('scoreFile', file);
-        formData.append('title', title);
-        formData.append('worshipId', worshipId);
+  const uploadScore = useCallback(async (file: File, title: string, worshipId: string) => {
+    try {
+      setIsLoading(true);
+      const formData = new FormData();
+      formData.append('scoreFile', file);
+      formData.append('title', title);
+      formData.append('worshipId', worshipId);
 
-        const response = await fetch('/api/admin/scores/upload', {
-          method: 'POST',
-          body: formData,
-        });
+      const response = await fetch('/api/admin/scores/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-        if (!response.ok) {
-          throw new Error(`업로드 실패: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!data.success) {
-          throw new Error(data.error || '업로드 실패');
-        }
-
-        setError(null);
-        return data.data;
-      } catch (error) {
-        setError('악보 업로드에 실패했습니다.');
-        console.error('악보 업로드 실패:', error);
-        throw error;
-      } finally {
-        setIsLoading(false);
+      if (!response.ok) {
+        throw new Error(`업로드 실패: ${response.status}`);
       }
-    },
-    []
-  );
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || '업로드 실패');
+      }
+
+      setError(null);
+      return data.data;
+    } catch (error) {
+      setError('악보 업로드에 실패했습니다.');
+      console.error('악보 업로드 실패:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   // 악보 삭제
   const deleteScore = useCallback(
@@ -285,8 +277,7 @@ export const useAdmin = () => {
 
       // JSON 파일로 다운로드
       const dataStr = JSON.stringify(backupData, null, 2);
-      const dataUri =
-        'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
 
       const exportFileDefaultName = `gilteun-backup-${new Date().toISOString().slice(0, 10)}.json`;
 
@@ -361,12 +352,7 @@ export const useAdmin = () => {
     fetchUserSessions();
     fetchSystemSettings();
     fetchSystemLogs();
-  }, [
-    fetchSystemStatus,
-    fetchUserSessions,
-    fetchSystemSettings,
-    fetchSystemLogs,
-  ]);
+  }, [fetchSystemStatus, fetchUserSessions, fetchSystemSettings, fetchSystemLogs]);
 
   // 주기적으로 시스템 상태 업데이트
   useEffect(() => {
