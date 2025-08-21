@@ -39,14 +39,13 @@
     "noUnusedParameters": true
   },
   "include": [
-    "src/**/*",
-    "vite.config.ts",
-    "vitest.config.ts"
+    "src/server/**/*",
+    "src/shared/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "packages",
+    "src/client/**/*",
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/**/__tests__/**/*"
