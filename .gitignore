@@ -10,3 +10,4 @@ dist
 .env.production.local
 worktree
 release
+gilteun-system.db

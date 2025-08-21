@@ -10,7 +10,7 @@
     "#shared/utils": "./dist/shared/utils/index.js"
   },
   "scripts": {
-    "dev": "concurrently \"tsc --watch\" \"vite\" \"wait-on dist/server/main/main.js && wait-on tcp:5174 && nodemon --watch dist/server --exec 'NODE_ENV=development electron .'\"",
+    "dev": "concurrently \"tsc src --watch\" \"vite\" \"wait-on dist/server/main/main.js && wait-on tcp:5174 && nodemon --watch dist/server --exec 'NODE_ENV=development electron .'\"",
     "build": "npm run typecheck && tsc && vite build && electron-builder",
     "build:dir": "npm run typecheck && tsc && vite build && electron-builder --dir",
     "build:mac": "npm run typecheck && tsc && vite build && electron-builder --mac",
