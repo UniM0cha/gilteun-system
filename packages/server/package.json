@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "concurrently \"npm run build:watch\" \"npm run electron:dev\"",
     "dev:api": "concurrently \"npm run build:watch\" \"npm run api:dev\"",
+    "dev:electron": "wait-on dist/main/main.js && NODE_ENV=development electron .",
     "api:dev": "wait-on dist/api/standalone.js && node dist/api/standalone.js",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "electron:dev": "wait-on dist/main/main.js && electron .",
+    "electron:dev": "wait-on dist/main/main.js && NODE_ENV=development electron .",
     "build:electron": "pnpm build && electron-builder",
     "start:electron": "electron .",
     "electron:pack": "electron-builder",
@@ -33,7 +34,6 @@
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
     "@gilteun/shared": "workspace:*",
-    "better-sqlite3": "^12.2.0",
     "cors": "^2.8.5",
     "electron": "^37.3.1",
     "express": "^5.1.0",

@@ -13,16 +13,25 @@ class ElectronApp {
 
   private init(): void {
     // 앱이 준비되면 창 생성
-    app.whenReady().then(() => {
-      this.createWindow();
-      this.setupMenu();
-      this.startServer();
+    app.whenReady().then(async () => {
+      console.log('Electron 앱이 준비되었습니다.');
+      console.log('NODE_ENV:', process.env.NODE_ENV);
+      
+      try {
+        this.createWindow();
+        this.setupMenu();
+        await this.startServer();
+      } catch (error) {
+        console.error('앱 초기화 중 오류:', error);
+      }
 
       app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
           this.createWindow();
         }
       });
+    }).catch(error => {
+      console.error('앱 준비 중 오류:', error);
     });
 
     // 모든 창이 닫히면 앱 종료 (macOS 제외)
@@ -30,6 +39,15 @@ class ElectronApp {
       if (process.platform !== 'darwin') {
         app.quit();
       }
+    });
+
+    // 예외 처리
+    process.on('uncaughtException', (error) => {
+      console.error('처리되지 않은 예외:', error);
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('처리되지 않은 Promise 거부:', reason, 'at', promise);
     });
   }
 
@@ -50,7 +68,7 @@ class ElectronApp {
 
     // 관리자 UI 로드 (개발 시에는 React 개발 서버, 프로덕션에서는 빌드된 파일)
     if (isDev) {
-      this.mainWindow.loadURL('http://localhost:3001'); // 관리자 UI 개발 서버
+      this.mainWindow.loadURL('http://localhost:5173/admin'); // 클라이언트 개발 서버의 Admin 페이지
     } else {
       this.mainWindow.loadFile(path.join(__dirname, '../public/index.html'));
     }
@@ -130,6 +148,14 @@ class ElectronApp {
       console.log('길튼 시스템 서버가 시작되었습니다.');
     } catch (error) {
       console.error('서버 시작 중 오류 발생:', error);
+      // API 서버 실패 시에도 Electron 창은 유지
+      if (this.mainWindow) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.mainWindow.webContents.executeJavaScript(`
+          console.error('API 서버 연결 실패:', ${JSON.stringify(errorMessage)});
+          alert('API 서버 연결에 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');
+        `);
+      }
     }
   }
 }

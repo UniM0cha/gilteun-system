@@ -5,44 +5,35 @@ import { Input } from '../../components/ui/input'
 
 describe('Computed Style Tests', () => {
   describe('Button Computed Styles', () => {
-    it('has correct computed styles for default variant', () => {
+    it('has correct CSS classes for default variant', () => {
       render(<Button>Test Button</Button>)
       const button = screen.getByRole('button')
-      const computedStyle = window.getComputedStyle(button)
       
-      // 높이 확인 (h-10 = 2.5rem = 40px)
-      expect(computedStyle.height).toBe('40px')
-      
-      // 패딩 확인 (px-4 = 1rem, py-2 = 0.5rem)
-      expect(computedStyle.paddingLeft).toBe('16px')
-      expect(computedStyle.paddingRight).toBe('16px')
-      expect(computedStyle.paddingTop).toBe('8px')
-      expect(computedStyle.paddingBottom).toBe('8px')
-      
-      // 테두리 반지름 확인 (rounded-md = 0.375rem)
-      expect(computedStyle.borderRadius).toBe('6px')
-      
-      // 폰트 관련 확인
-      expect(computedStyle.fontWeight).toBe('500') // font-medium
-      expect(computedStyle.fontSize).toBe('14px') // text-sm
+      // CSS 클래스 확인 (jsdom에서는 computed style이 제대로 작동하지 않으므로)
+      expect(button).toHaveClass('h-10') // 높이
+      expect(button).toHaveClass('px-4', 'py-2') // 패딩
+      expect(button).toHaveClass('rounded-md') // 테두리 반지름
+      expect(button).toHaveClass('font-medium') // 폰트 굵기
+      expect(button).toHaveClass('text-sm') // 폰트 크기
+      expect(button).toHaveClass('bg-primary', 'text-primary-foreground') // 색상
     })
 
-    it('has consistent computed styles across sizes', () => {
+    it('has consistent CSS classes across sizes', () => {
       const sizes = [
-        { size: 'sm' as const, expectedHeight: '36px' },
-        { size: 'default' as const, expectedHeight: '40px' },
-        { size: 'lg' as const, expectedHeight: '44px' },
-        { size: 'icon' as const, expectedHeight: '40px', expectedWidth: '40px' },
+        { size: 'sm' as const, expectedClass: 'h-9' },
+        { size: 'default' as const, expectedClass: 'h-10' },
+        { size: 'lg' as const, expectedClass: 'h-11' },
+        { size: 'icon' as const, expectedClasses: ['h-10', 'w-10'] },
       ]
       
-      sizes.forEach(({ size, expectedHeight, expectedWidth }) => {
+      sizes.forEach(({ size, expectedClass, expectedClasses }) => {
         const { unmount } = render(<Button size={size}>Button</Button>)
         const button = screen.getByRole('button')
-        const computedStyle = window.getComputedStyle(button)
         
-        expect(computedStyle.height).toBe(expectedHeight)
-        if (expectedWidth) {
-          expect(computedStyle.width).toBe(expectedWidth)
+        if (expectedClasses) {
+          expectedClasses.forEach(cls => expect(button).toHaveClass(cls))
+        } else if (expectedClass) {
+          expect(button).toHaveClass(expectedClass)
         }
         
         unmount()

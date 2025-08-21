@@ -23,8 +23,18 @@ pnpm dev
 # 개별 실행
 pnpm dev:api        # Express + Socket.io API 서버만
 pnpm dev:client     # React 클라이언트만 
-pnpm dev:server     # Electron 데스크탑 앱
+
+# 접속 URL (개발 모드)
+# - 클라이언트: http://localhost:5173
+# - 관리자 페이지: http://localhost:5173/admin
+# - API 서버: http://localhost:3001
 ```
+
+### 현재 상태
+- ✅ API 서버: JSON 데이터베이스로 정상 동작
+- ✅ 클라이언트: React 개발 서버 정상 동작  
+- ⚠️ Electron: 네이티브 모듈 설치 이슈로 임시 비활성화
+- 🔧 관리자 기능은 브라우저에서 `/admin` 경로로 접속 가능
 
 ### 빌드 및 배포
 ```bash

@@ -50,10 +50,12 @@ describe('Input Component', () => {
 
   it('handles different input types', () => {
     const { rerender } = render(<Input type="password" />)
-    expect(screen.getByRole('textbox', { hidden: true })).toHaveAttribute('type', 'password')
+    const passwordInput = screen.getByDisplayValue('')
+    expect(passwordInput).toHaveAttribute('type', 'password')
 
     rerender(<Input type="email" />)
-    expect(screen.getByRole('textbox')).toHaveAttribute('type', 'email')
+    const emailInput = screen.getByDisplayValue('')
+    expect(emailInput).toHaveAttribute('type', 'email')
   })
 
   it('focuses on click', async () => {
