@@ -3,11 +3,11 @@ import { worshipRoutes } from './worshipRoutes';
 import { scoreRoutes } from './scoreRoutes';
 import { backupRoutes } from './backupRoutes';
 import { adminRoutes } from './adminRoutes';
-import { getDB } from '../database/db';
+import { getDrizzleDB } from '../database/drizzle.js';
 
 export async function setupRoutes(app: Express): Promise<void> {
   // 데이터베이스 초기화
-  await getDB();
+  await getDrizzleDB();
 
   // 정적 파일 서빙 (업로드된 파일들)
   app.use('/uploads', express.static('uploads'));
