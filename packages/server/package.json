@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm run build:watch\" \"npm run electron:dev\"",
     "dev:api": "concurrently \"npm run build:watch\" \"npm run api:dev\"",
-    "dev:electron": "wait-on tcp:5173 && wait-on tcp:3001 && NODE_ENV=development electron .",
+    "dev:electron": "wait-on tcp:5174 && wait-on tcp:3001 && NODE_ENV=development electron .",
     "api:dev": "wait-on dist/api/standalone.js && node dist/api/standalone.js",
     "build": "tsc",
     "postbuild": "rm -rf dist/public && cp -r ../client/dist dist/public",

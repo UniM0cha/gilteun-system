@@ -68,7 +68,7 @@ class ElectronApp {
 
     // 관리자 UI 로드 (개발 시에는 React 개발 서버, 프로덕션에서는 빌드된 파일)
     if (isDev) {
-      this.mainWindow.loadURL('http://localhost:5173/admin'); // 클라이언트 개발 서버의 Admin 페이지
+      this.mainWindow.loadURL('http://localhost:5174/admin'); // 클라이언트 개발 서버의 Admin 페이지
     } else {
       this.mainWindow.loadFile(path.join(__dirname, '../public/index.html'));
     }

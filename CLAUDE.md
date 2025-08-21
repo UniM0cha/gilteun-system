@@ -17,24 +17,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # 전체 의존성 설치
 pnpm install
 
-# 개발 서버 실행 (API 서버 + 클라이언트 동시 실행)
+# 개발 서버 실행 (Electron 앱 + 클라이언트 동시 실행)
 pnpm dev
 
 # 개별 실행
-pnpm dev:api        # Express + Socket.io API 서버만
-pnpm dev:client     # React 클라이언트만 
+pnpm dev:api        # Express + Socket.io API 서버만 (별도 실행 시)
+pnpm dev:client     # React 클라이언트만
+pnpm dev:electron   # Electron 앱만 (API 서버 포함) 
 
 # 접속 URL (개발 모드)
-# - 클라이언트: http://localhost:5173
-# - 관리자 페이지: http://localhost:5173/admin
+# - 클라이언트: http://localhost:5174
+# - 관리자 페이지: http://localhost:5174/admin
 # - API 서버: http://localhost:3001
+# - 프로덕션: http://localhost:80
 ```
 
 ### 현재 상태
-- ✅ API 서버: JSON 데이터베이스로 정상 동작
-- ✅ 클라이언트: React 개발 서버 정상 동작  
-- ⚠️ Electron: 네이티브 모듈 설치 이슈로 임시 비활성화
+- ✅ Electron 앱: 내장 API 서버와 함께 정상 동작 
+- ✅ 클라이언트: React 개발 서버 정상 동작
+- ✅ API 서버: Electron 앱에 내장되어 실행 (포트 3001)
 - 🔧 관리자 기능은 브라우저에서 `/admin` 경로로 접속 가능
+
+### 개발 모드 실행 방식
+- `pnpm dev`: Electron 앱(내장 API 서버) + React 클라이언트 동시 실행
+- `pnpm dev:api`: API 서버만 별도 실행 (Electron 없이 테스트 시)
+- `pnpm dev:web`: API 서버 + React 클라이언트 (Electron 없이)
 
 ### 빌드 및 배포
 ```bash
