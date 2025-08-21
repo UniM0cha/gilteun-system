@@ -74,7 +74,7 @@ export const WorshipSelector = ({ onSelect }: WorshipSelectorProps) => {
               <Button
                 key={worship.id}
                 variant={selectedWorshipId === worship.id ? 'default' : 'outline'}
-                className="w-full p-4 h-auto justify-start hover:shadow-md transition-shadow"
+                className="w-full p-4 h-auto justify-start"
                 onClick={() => setSelectedWorshipId(worship.id)}
               >
                 <div className="text-left">
