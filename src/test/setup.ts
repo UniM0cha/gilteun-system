@@ -31,15 +31,15 @@ global.ResizeObserver = class ResizeObserver {
   constructor(_cb: ResizeObserverCallback) {
     // Mock implementation
   }
-  
+
   observe() {
     return null;
   }
-  
+
   unobserve() {
     return null;
   }
-  
+
   disconnect() {
     return null;
   }
@@ -50,23 +50,23 @@ global.ResizeObserver = class ResizeObserver {
   root = null;
   rootMargin = '';
   thresholds = [];
-  
+
   constructor(_cb: IntersectionObserverCallback) {
     // Mock implementation
   }
-  
+
   observe() {
     return null;
   }
-  
+
   unobserve() {
     return null;
   }
-  
+
   disconnect() {
     return null;
   }
-  
+
   takeRecords() {
     return [];
   }

@@ -1,12 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 
 describe('Select', () => {
   it('renders select trigger correctly', () => {
@@ -29,7 +23,7 @@ describe('Select', () => {
 
   it('handles value change', () => {
     const onValueChange = vi.fn();
-    
+
     render(
       <Select onValueChange={onValueChange}>
         <SelectTrigger className="w-[180px]">
@@ -44,7 +38,7 @@ describe('Select', () => {
 
     const trigger = screen.getByRole('combobox');
     fireEvent.click(trigger);
-    
+
     // Note: This test may need adjustment based on how Radix Select works
     // In a real scenario, you'd need to test the actual selection behavior
     expect(onValueChange).not.toHaveBeenCalled(); // Adjust based on actual behavior

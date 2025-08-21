@@ -38,14 +38,14 @@ describe('ConnectionStatus', () => {
     render(<ConnectionStatus />);
 
     expect(screen.getByText('연결됨')).toBeInTheDocument();
-    
+
     // Check for semantic color classes (emerald-600 instead of green-500)
     const container = screen.getByText('연결됨').closest('div');
     expect(container).toHaveClass('text-emerald-600');
 
     const disconnectButton = screen.getByText('연결 해제');
     expect(disconnectButton).toBeInTheDocument();
-    
+
     fireEvent.click(disconnectButton);
     expect(mockDisconnect).toHaveBeenCalled();
   });
@@ -63,14 +63,14 @@ describe('ConnectionStatus', () => {
     render(<ConnectionStatus />);
 
     expect(screen.getByText('연결되지 않음')).toBeInTheDocument();
-    
+
     // Check for semantic destructive color
     const container = screen.getByText('연결되지 않음').closest('div');
     expect(container).toHaveClass('text-destructive');
 
     const connectButton = screen.getByText('다시 연결');
     expect(connectButton).toBeInTheDocument();
-    
+
     fireEvent.click(connectButton);
     expect(mockConnect).toHaveBeenCalled();
   });
