@@ -46,7 +46,7 @@ global.ResizeObserver = class ResizeObserver {
 };
 
 // Mock IntersectionObserver for components that use it
-(global as any).IntersectionObserver = class IntersectionObserver {
+(global as typeof globalThis).IntersectionObserver = class IntersectionObserver {
   root = null;
   rootMargin = '';
   thresholds = [];
