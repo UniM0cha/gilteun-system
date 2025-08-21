@@ -1,26 +1,39 @@
 import { Router } from 'express';
-import { getDB } from '../database/db.js';
+import { getDrizzleDB } from '../database/drizzle.js';
+import * as schema from '../database/schema.js';
+import { sql } from 'drizzle-orm';
 
 const router = Router();
 
 // GET /api/backup/export - 전체 데이터 백업
 router.get('/export', async (_req, res) => {
   try {
-    const db = (await getDB()).getDatabase();
+    const drizzleManager = await getDrizzleDB();
+    const db = drizzleManager.getDatabase();
 
     // 모든 테이블의 데이터 백업
+    const [worshipTypes, worships, scores, users, instruments, drawingsCount] = await Promise.all([
+      db.select().from(schema.worshipTypes),
+      db.select().from(schema.worships),
+      db.select().from(schema.scores),
+      db.select().from(schema.users),
+      db.select().from(schema.instruments),
+      db.select({ count: sql<number>`COUNT(*)` }).from(schema.scoreDrawings),
+    ]);
+
     const backup = {
       timestamp: new Date().toISOString(),
       version: '1.0',
       data: {
-        worship_types: db.prepare?.('SELECT * FROM worship_types')?.all() || [],
-        worships: db.prepare?.('SELECT * FROM worships')?.all() || [],
-        scores: db.prepare?.('SELECT * FROM scores')?.all() || [],
-        users: db.prepare?.('SELECT * FROM users')?.all() || [],
-        instruments: db.prepare?.('SELECT * FROM instruments')?.all() || [],
+        worship_types: worshipTypes,
+        worships: worships,
+        scores: scores,
+        users: users,
+        instruments: instruments,
         // 드로잉 데이터는 크기가 클 수 있으므로 별도로 처리
-        drawings_count: db.prepare?.('SELECT COUNT(*) as count FROM score_drawings')?.get() || { count: 0 },
-        command_templates: db.prepare?.('SELECT * FROM command_templates')?.all() || [],
+        drawings_count: drawingsCount[0] || { count: 0 },
+        // TODO: command_templates 테이블이 없으므로 빈 배열로 설정
+        command_templates: [],
       },
     };
 
@@ -49,77 +62,86 @@ router.post('/import', async (req, res) => {
       });
     }
 
-    const db = (await getDB()).getDatabase();
+    const drizzleManager = await getDrizzleDB();
+    const db = drizzleManager.getDatabase();
 
     // 트랜잭션으로 데이터 복원
-    const runTransaction = db.transaction || ((fn: () => void) => fn());
-    runTransaction(() => {
+    await drizzleManager.transaction(async () => {
       // 기존 데이터 삭제 (외래키 제약조건 고려한 순서)
-      db.exec?.('DELETE FROM score_drawings');
-      db.exec?.('DELETE FROM command_templates');
-      db.exec?.('DELETE FROM scores');
-      db.exec?.('DELETE FROM worships');
+      // CASCADE 설정으로 인해 연관 데이터가 자동 삭제됨
+      await db.delete(schema.scoreDrawings);
+      await db.delete(schema.scores);
+      await db.delete(schema.worships);
 
       // 데이터 복원
-      if (data.data.worship_types) {
-        const insertWorshipType = db.prepare?.(`
-          INSERT INTO worship_types (id, name, is_active, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?)
-        `);
-
-        for (const item of data.data.worship_types) {
-          insertWorshipType?.run(item.id, item.name, item.is_active, item.created_at, item.updated_at);
-        }
+      if (data.data.worship_types?.length) {
+        await db.insert(schema.worshipTypes).values(
+          data.data.worship_types.map(
+            (item: { id: string; name: string; is_active: number; created_at: string; updated_at: string }) => ({
+              id: item.id,
+              name: item.name,
+              isActive: Boolean(item.is_active),
+              createdAt: item.created_at,
+              updatedAt: item.updated_at,
+            })
+          )
+        );
       }
 
-      if (data.data.worships) {
-        const insertWorship = db.prepare?.(`
-          INSERT INTO worships (id, type_id, name, date, is_active, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        for (const item of data.data.worships) {
-          insertWorship?.run(
-            item.id,
-            item.type_id,
-            item.name,
-            item.date,
-            item.is_active,
-            item.created_at,
-            item.updated_at
-          );
-        }
+      if (data.data.worships?.length) {
+        await db.insert(schema.worships).values(
+          data.data.worships.map(
+            (item: {
+              id: string;
+              type_id: string;
+              name: string;
+              date: string;
+              is_active: number;
+              created_at: string;
+              updated_at: string;
+            }) => ({
+              id: item.id,
+              typeId: item.type_id,
+              name: item.name,
+              date: item.date,
+              isActive: Boolean(item.is_active),
+              createdAt: item.created_at,
+              updatedAt: item.updated_at,
+            })
+          )
+        );
       }
 
-      if (data.data.scores) {
-        const insertScore = db.prepare?.(`
-          INSERT INTO scores (id, worship_id, title, file_path, order_index, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        for (const item of data.data.scores) {
-          insertScore?.run(
-            item.id,
-            item.worship_id,
-            item.title,
-            item.file_path,
-            item.order_index,
-            item.created_at,
-            item.updated_at
-          );
-        }
+      if (data.data.scores?.length) {
+        await db.insert(schema.scores).values(
+          data.data.scores.map(
+            (item: {
+              id: string;
+              worship_id: string;
+              title: string;
+              file_path: string;
+              order_index: number;
+              created_at: string;
+              updated_at: string;
+            }) => ({
+              id: item.id,
+              worshipId: item.worship_id,
+              title: item.title,
+              filePath: item.file_path,
+              orderIndex: item.order_index,
+              createdAt: item.created_at,
+              updatedAt: item.updated_at,
+            })
+          )
+        );
       }
 
-      if (data.data.command_templates) {
-        const insertTemplate = db.prepare?.(`
-          INSERT INTO command_templates (id, title, content, order_index, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `);
-
-        for (const item of data.data.command_templates) {
-          insertTemplate?.run(item.id, item.title, item.content, item.order_index, item.created_at, item.updated_at);
-        }
-      }
+      // TODO: command_templates 테이블이 아직 없으므로 주석 처리
+      // if (data.data.command_templates?.length) {
+      //   await db.insert(schema.commandTemplates).values(
+      //     data.data.command_templates.map((item: any) => ({...}))
+      //   );
+      // }
     });
 
     return res.json({
@@ -136,3 +158,5 @@ router.post('/import', async (req, res) => {
 });
 
 export { router as backupRoutes };
+
+// TODO: command_templates 테이블 스키마 정의 완료 후 백업/복원 기능 완성 필요
