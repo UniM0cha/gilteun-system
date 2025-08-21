@@ -23,7 +23,7 @@ export const InstrumentSelector = ({
             <Button
               key={instrument.id}
               variant={selectedInstrumentId === instrument.id ? 'default' : 'outline'}
-              className="h-20 flex-col space-y-2 text-base"
+              className="h-20 flex-col space-y-2 text-base hover:shadow-md transition-shadow"
               onClick={() => onSelect(instrument.id)}
             >
               <span className="text-2xl">{instrument.icon}</span>

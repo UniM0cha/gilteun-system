@@ -239,7 +239,7 @@ export const CommandPanel = ({
                   key={template.id}
                   variant="outline"
                   onClick={() => handleTemplateClick(template)}
-                  className="h-12 flex flex-col items-center justify-center space-y-1 text-xs"
+                  className="h-12 flex flex-col items-center justify-center space-y-1 text-xs hover:shadow-md transition-shadow"
                 >
                   {template.icon && (
                     <span className="text-base">{template.icon}</span>

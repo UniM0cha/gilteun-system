@@ -2,6 +2,7 @@ import { Express } from 'express';
 import { worshipRoutes } from './worshipRoutes';
 import { scoreRoutes } from './scoreRoutes';
 import { backupRoutes } from './backupRoutes';
+import { adminRoutes } from './adminRoutes';
 import { getDB } from '../database/db';
 
 export function setupRoutes(app: Express): void {
@@ -15,6 +16,7 @@ export function setupRoutes(app: Express): void {
   app.use('/api/worships', worshipRoutes);
   app.use('/api/scores', scoreRoutes);
   app.use('/api/backup', backupRoutes);
+  app.use('/api/admin', adminRoutes);
 
   // 악기 목록 API (개발용 하드코딩)
   app.get('/api/instruments', (_req, res) => {

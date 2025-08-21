@@ -143,7 +143,7 @@ export const DrawingToolbar = ({
                       variant="outline"
                       size="sm"
                       onClick={() => handleColorChange(color)}
-                      className="h-8 p-0 relative"
+                      className="h-8 p-0 relative hover:scale-110 transition-transform"
                       style={{ backgroundColor: color }}
                       disabled={!isDrawingMode}
                     >
