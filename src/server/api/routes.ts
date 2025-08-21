@@ -1,9 +1,9 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
-import { worshipRoutes } from './worshipRoutes';
-import { scoreRoutes } from './scoreRoutes';
-import { backupRoutes } from './backupRoutes';
-import { adminRoutes } from './adminRoutes';
-import { getDB } from '../database/db';
+import { worshipRoutes } from './worshipRoutes.js';
+import { scoreRoutes } from './scoreRoutes.js';
+import { backupRoutes } from './backupRoutes.js';
+import { adminRoutes } from './adminRoutes.js';
+import { getDB } from '../database/db.js';
 
 export async function setupRoutes(app: Express): Promise<void> {
   // 데이터베이스 초기화

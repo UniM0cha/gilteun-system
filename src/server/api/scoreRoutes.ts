@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { ScoreService } from '../services/scoreService';
-import { FileService } from '../services/fileService';
+import { ScoreService } from '../services/scoreService.js';
+import { FileService } from '../services/fileService.js';
 
 const router = Router();
 const scoreService = new ScoreService();

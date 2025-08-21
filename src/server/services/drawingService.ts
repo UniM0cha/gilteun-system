@@ -1,6 +1,6 @@
-import { getDB } from '../database/db';
-import type { DrawingEvent } from '@shared/types/score';
-import type { DatabaseInterface, DrawingRow } from '../database/types';
+import { getDB } from '../database/db.js';
+import type { DrawingEvent } from '#shared/types/score';
+import type { DatabaseInterface, DrawingRow } from '../database/types.js';
 
 export class DrawingService {
   private db: DatabaseInterface | null = null;

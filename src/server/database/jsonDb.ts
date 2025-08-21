@@ -1,10 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { Worship } from '@shared/types/worship';
-import type { User } from '@shared/types/user';
-import type { Score, DrawingData } from '@shared/types/score';
-import type { CommandTemplate } from '@shared/types/command';
-import type { JsonDrawingData } from './types';
+import type { Worship } from '#shared/types/worship';
+import type { User } from '#shared/types/user';
+import type { Score, DrawingData } from '#shared/types/score';
+import type { CommandTemplate } from '#shared/types/command';
+import type { JsonDrawingData } from './types.js';
 
 interface Database {
   worships: Worship[];

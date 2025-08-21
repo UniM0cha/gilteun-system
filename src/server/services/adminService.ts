@@ -1,4 +1,4 @@
-import { getDB } from '../database/db';
+import { getDB } from '../database/db.js';
 
 export interface SystemStatus {
   isOnline: boolean;

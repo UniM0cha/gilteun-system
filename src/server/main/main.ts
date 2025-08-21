@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Menu, shell } from 'electron';
 import path from 'path';
-import { startApiServer } from '../api/server';
+import { startApiServer } from '../api/server.js';
 
 const isDev = process.env.NODE_ENV === 'development';
 

@@ -1,6 +1,6 @@
-import { getDB } from '../database/db';
-import type { Worship } from '@shared/types/worship';
-import type { DatabaseInterface, WorshipRow, ScoreIdRow } from '../database/types';
+import { getDB } from '../database/db.js';
+import type { Worship } from '#shared/types/worship';
+import type { DatabaseInterface, WorshipRow, ScoreIdRow } from '../database/types.js';
 
 export class WorshipService {
   private db: DatabaseInterface | null = null;

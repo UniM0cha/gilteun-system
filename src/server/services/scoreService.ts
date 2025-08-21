@@ -1,6 +1,6 @@
-import { getDB } from '../database/db';
-import type { Score } from '@shared/types/score';
-import type { DatabaseInterface, ScoreRow, MaxOrderRow } from '../database/types';
+import { getDB } from '../database/db.js';
+import type { Score } from '#shared/types/score';
+import type { DatabaseInterface, ScoreRow, MaxOrderRow } from '../database/types.js';
 
 export class ScoreService {
   private db: DatabaseInterface | null = null;

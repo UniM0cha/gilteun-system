@@ -4,6 +4,11 @@
   "description": "교회 찬양팀 예배 진행 지원 PWA 애플리케이션",
   "main": "dist/src/server/main/main.js",
   "type": "module",
+  "imports": {
+    "#shared/constants": "./dist/src/shared/constants/index.js",
+    "#shared/types/*": "./dist/src/shared/types/*.js",
+    "#shared/utils": "./dist/src/shared/utils/index.js"
+  },
   "scripts": {
     "dev": "concurrently \"tsc --watch\" \"vite\" \"wait-on dist/src/server/main/main.js && wait-on tcp:5174 && nodemon --watch dist/src/server --exec 'NODE_ENV=development electron .'\"",
     "build": "npm run typecheck && tsc && vite build && electron-builder",

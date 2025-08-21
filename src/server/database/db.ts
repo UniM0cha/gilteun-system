@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import type Database from 'better-sqlite3';
-import type { DatabaseInterface, JsonDatabaseInterface } from './types';
+import type { DatabaseInterface, JsonDatabaseInterface } from './types.js';
 
 // Development fallback - use JSON database if better-sqlite3 is not available
 let BetterSqlite3: typeof Database | null = null;

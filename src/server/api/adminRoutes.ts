@@ -2,8 +2,8 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { adminService } from '../services/adminService';
-import { getDB } from '../database/db';
+import { adminService } from '../services/adminService.js';
+import { getDB } from '../database/db.js';
 // Score 타입은 현재 사용하지 않지만 향후 확장을 위해 준비
 // import type { Score } from '@shared/types/score';
 
