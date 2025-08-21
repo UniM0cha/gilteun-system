@@ -1,0 +1,9 @@
+dist/
+node_modules/
+*.min.js
+*.min.css
+package-lock.json
+.git
+.vscode
+public/manifest.json
+public/sw.js
