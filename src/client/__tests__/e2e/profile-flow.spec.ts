@@ -9,7 +9,7 @@ test.describe('Profile Creation Flow with shadcn/ui Components', () => {
     // Should start with profile selector card
     const welcomeCard = page.locator('.max-w-md').first();
     await expect(welcomeCard).toBeVisible();
-    
+
     // Click create new profile button
     const createButton = page.getByRole('button', { name: /새 프로필 생성/ });
     await expect(createButton).toBeVisible();
@@ -17,7 +17,7 @@ test.describe('Profile Creation Flow with shadcn/ui Components', () => {
 
     // Should navigate to profile creation form
     await expect(page.getByText('새 프로필 생성')).toBeVisible();
-    
+
     // Fill out the form using shadcn/ui components
     const nameInput = page.locator('input[type="text"]');
     await expect(nameInput).toBeVisible();
@@ -31,7 +31,7 @@ test.describe('Profile Creation Flow with shadcn/ui Components', () => {
     // Select instrument (assuming there's an instrument selector)
     const instrumentButtons = page.getByRole('button').filter({ hasText: /기타|드럼|베이스|키보드/ });
     const instrumentCount = await instrumentButtons.count();
-    
+
     if (instrumentCount > 0) {
       await instrumentButtons.first().click();
     }
@@ -52,7 +52,7 @@ test.describe('Profile Creation Flow with shadcn/ui Components', () => {
 
     // Try to submit without filling required fields
     const submitButton = page.getByRole('button', { name: /프로필 생성/ });
-    
+
     // Button should be disabled when form is invalid
     const isDisabled = await submitButton.isDisabled();
     expect(isDisabled).toBe(true);
@@ -60,7 +60,7 @@ test.describe('Profile Creation Flow with shadcn/ui Components', () => {
     // Fill name and check if button becomes enabled
     const nameInput = page.locator('input[type="text"]');
     await nameInput.fill('Test User');
-    
+
     // May still be disabled until all required fields are filled
     // This depends on the validation logic
   });
@@ -90,7 +90,7 @@ test.describe('Profile Creation Flow with shadcn/ui Components', () => {
     for (let i = 0; i < Math.min(buttonCount, 5); i++) {
       const button = buttons.nth(i);
       const classes = await button.getAttribute('class');
-      
+
       // Should use shadcn/ui button classes
       expect(classes).toContain('inline-flex');
       expect(classes).toMatch(/bg-primary|bg-secondary|bg-destructive|hover:bg-/);
@@ -104,7 +104,7 @@ test.describe('Profile Creation Flow with shadcn/ui Components', () => {
 
     // Fill out form
     await page.fill('input[type="text"]', 'Loading Test User');
-    
+
     const sessionRole = page.locator('input[value="session"]');
     await sessionRole.click();
 
