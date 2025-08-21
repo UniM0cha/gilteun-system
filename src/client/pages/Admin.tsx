@@ -1,39 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ScoreUploadDialog } from '@/components/admin/ScoreUploadDialog';
+import { ScoreListDialog } from '@/components/admin/ScoreListDialog';
+import { useAdmin } from '@/hooks/useAdmin';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '../components/ui/tabs';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { ScoreUploadDialog } from '../components/admin/ScoreUploadDialog';
-import { ScoreListDialog } from '../components/admin/ScoreListDialog';
-import { useAdmin } from '../hooks/useAdmin';
-import {
-  Settings,
-  Users,
-  FileText,
   Activity,
-  Server,
-  Wifi,
-  WifiOff,
-  Download,
-  Trash2,
-  Upload,
-  RefreshCw,
   AlertTriangle,
   Clock,
+  Download,
+  FileText,
   HardDrive,
+  RefreshCw,
+  Server,
+  Settings,
+  Trash2,
+  Upload,
+  Users,
+  Wifi,
+  WifiOff,
   X,
 } from 'lucide-react';
 
@@ -104,24 +93,13 @@ export const Admin = () => {
         {/* 헤더 */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              길튼 시스템 관리
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              시스템 모니터링 및 설정 관리
-            </p>
+            <h1 className="text-3xl font-bold text-foreground">길튼 시스템 관리</h1>
+            <p className="text-muted-foreground mt-1">시스템 모니터링 및 설정 관리</p>
           </div>
 
           <div className="flex items-center space-x-3">
-            <Badge
-              variant={systemStatus?.isOnline ? 'default' : 'destructive'}
-              className="flex items-center space-x-1"
-            >
-              {systemStatus?.isOnline ? (
-                <Wifi className="h-3 w-3" />
-              ) : (
-                <WifiOff className="h-3 w-3" />
-              )}
+            <Badge variant={systemStatus?.isOnline ? 'default' : 'destructive'} className="flex items-center space-x-1">
+              {systemStatus?.isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               <span>{systemStatus?.isOnline ? '온라인' : '오프라인'}</span>
             </Badge>
           </div>
@@ -133,12 +111,8 @@ export const Admin = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    연결된 사용자
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {systemStatus?.connectedUsers || 0}
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground">연결된 사용자</p>
+                  <p className="text-2xl font-bold">{systemStatus?.connectedUsers || 0}</p>
                 </div>
                 <Users className="h-8 w-8 text-blue-500" />
               </div>
@@ -149,12 +123,8 @@ export const Admin = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    서버 포트
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {systemStatus?.serverPort || 3001}
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground">서버 포트</p>
+                  <p className="text-2xl font-bold">{systemStatus?.serverPort || 3001}</p>
                 </div>
                 <Server className="h-8 w-8 text-green-500" />
               </div>
@@ -165,12 +135,8 @@ export const Admin = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    업타임
-                  </p>
-                  <p className="text-lg font-bold">
-                    {systemStatus?.uptime || '0분'}
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground">업타임</p>
+                  <p className="text-lg font-bold">{systemStatus?.uptime || '0분'}</p>
                 </div>
                 <Clock className="h-8 w-8 text-orange-500" />
               </div>
@@ -181,13 +147,9 @@ export const Admin = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    메모리 사용량
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground">메모리 사용량</p>
                   <p className="text-lg font-bold">
-                    {systemStatus?.memoryUsage
-                      ? formatBytes(systemStatus.memoryUsage.heapUsed)
-                      : '0 MB'}
+                    {systemStatus?.memoryUsage ? formatBytes(systemStatus.memoryUsage.heapUsed) : '0 MB'}
                   </p>
                 </div>
                 <HardDrive className="h-8 w-8 text-purple-500" />
@@ -213,9 +175,7 @@ export const Admin = () => {
                   <Users className="h-5 w-5" />
                   <span>활성 사용자 세션</span>
                 </CardTitle>
-                <CardDescription>
-                  현재 시스템에 연결된 사용자들을 관리합니다
-                </CardDescription>
+                <CardDescription>현재 시스템에 연결된 사용자들을 관리합니다</CardDescription>
               </CardHeader>
               <CardContent>
                 {userSessions.length === 0 ? (
@@ -240,24 +200,18 @@ export const Admin = () => {
                               {user.instrument} • {user.joinedAt}
                             </p>
                             {user.worshipId && (
-                              <p className="text-xs text-muted-foreground">
-                                예배 ID: {user.worshipId}
-                              </p>
+                              <p className="text-xs text-muted-foreground">예배 ID: {user.worshipId}</p>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Badge
-                            variant={user.isActive ? 'default' : 'secondary'}
-                          >
+                          <Badge variant={user.isActive ? 'default' : 'secondary'}>
                             {user.isActive ? '활성' : '비활성'}
                           </Badge>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                              disconnectUser(user.id, '관리자에 의한 연결 해제')
-                            }
+                            onClick={() => disconnectUser(user.id, '관리자에 의한 연결 해제')}
                             disabled={isLoading}
                           >
                             연결 해제
@@ -279,9 +233,7 @@ export const Admin = () => {
                   <FileText className="h-5 w-5" />
                   <span>악보 및 미디어 관리</span>
                 </CardTitle>
-                <CardDescription>
-                  악보 파일과 미디어 리소스를 관리합니다
-                </CardDescription>
+                <CardDescription>악보 파일과 미디어 리소스를 관리합니다</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -314,33 +266,23 @@ export const Admin = () => {
                 {systemStatus?.databaseStats && (
                   <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                     <div className="p-3 bg-muted rounded">
-                      <p className="text-lg font-bold">
-                        {systemStatus.databaseStats.worships}
-                      </p>
+                      <p className="text-lg font-bold">{systemStatus.databaseStats.worships}</p>
                       <p className="text-xs text-muted-foreground">예배</p>
                     </div>
                     <div className="p-3 bg-muted rounded">
-                      <p className="text-lg font-bold">
-                        {systemStatus.databaseStats.scores}
-                      </p>
+                      <p className="text-lg font-bold">{systemStatus.databaseStats.scores}</p>
                       <p className="text-xs text-muted-foreground">악보</p>
                     </div>
                     <div className="p-3 bg-muted rounded">
-                      <p className="text-lg font-bold">
-                        {systemStatus.databaseStats.drawings}
-                      </p>
+                      <p className="text-lg font-bold">{systemStatus.databaseStats.drawings}</p>
                       <p className="text-xs text-muted-foreground">드로잉</p>
                     </div>
                     <div className="p-3 bg-muted rounded">
-                      <p className="text-lg font-bold">
-                        {systemStatus.databaseStats.templates}
-                      </p>
+                      <p className="text-lg font-bold">{systemStatus.databaseStats.templates}</p>
                       <p className="text-xs text-muted-foreground">템플릿</p>
                     </div>
                     <div className="p-3 bg-muted rounded">
-                      <p className="text-lg font-bold">
-                        {systemStatus.databaseStats.users}
-                      </p>
+                      <p className="text-lg font-bold">{systemStatus.databaseStats.users}</p>
                       <p className="text-xs text-muted-foreground">사용자</p>
                     </div>
                   </div>
@@ -367,9 +309,7 @@ export const Admin = () => {
                         id="autoBackup"
                         type="checkbox"
                         checked={(localSettings as any)?.autoBackup || false}
-                        onChange={(e) =>
-                          handleSettingsChange('autoBackup', e.target.checked)
-                        }
+                        onChange={(e) => handleSettingsChange('autoBackup', e.target.checked)}
                         className="rounded"
                       />
                     </div>
@@ -379,9 +319,7 @@ export const Admin = () => {
                         id="dataSync"
                         type="checkbox"
                         checked={(localSettings as any)?.dataSync !== false}
-                        onChange={(e) =>
-                          handleSettingsChange('dataSync', e.target.checked)
-                        }
+                        onChange={(e) => handleSettingsChange('dataSync', e.target.checked)}
                         className="rounded"
                       />
                     </div>
@@ -390,15 +328,8 @@ export const Admin = () => {
                       <input
                         id="securityEnabled"
                         type="checkbox"
-                        checked={
-                          (localSettings as any)?.securityEnabled || false
-                        }
-                        onChange={(e) =>
-                          handleSettingsChange(
-                            'securityEnabled',
-                            e.target.checked
-                          )
-                        }
+                        checked={(localSettings as any)?.securityEnabled || false}
+                        onChange={(e) => handleSettingsChange('securityEnabled', e.target.checked)}
                         className="rounded"
                       />
                     </div>
@@ -408,22 +339,13 @@ export const Admin = () => {
                         id="maxUsers"
                         type="number"
                         value={(localSettings as any)?.maxUsers || 50}
-                        onChange={(e) =>
-                          handleSettingsChange(
-                            'maxUsers',
-                            parseInt(e.target.value)
-                          )
-                        }
+                        onChange={(e) => handleSettingsChange('maxUsers', parseInt(e.target.value))}
                         min="1"
                         max="200"
                       />
                     </div>
                     {settingsChanged && (
-                      <Button
-                        onClick={handleSaveSettings}
-                        disabled={isLoading}
-                        className="w-full"
-                      >
+                      <Button onClick={handleSaveSettings} disabled={isLoading} className="w-full">
                         설정 저장
                       </Button>
                     )}
@@ -436,11 +358,7 @@ export const Admin = () => {
                   <CardTitle>데이터 관리</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Button
-                    onClick={exportData}
-                    disabled={isLoading}
-                    className="w-full flex items-center space-x-2"
-                  >
+                  <Button onClick={exportData} disabled={isLoading} className="w-full flex items-center space-x-2">
                     <Download className="h-4 w-4" />
                     <span>데이터 백업</span>
                   </Button>
@@ -479,9 +397,7 @@ export const Admin = () => {
                   <Activity className="h-5 w-5" />
                   <span>시스템 로그</span>
                 </CardTitle>
-                <CardDescription>
-                  시스템 활동과 오류 로그를 확인합니다
-                </CardDescription>
+                <CardDescription>시스템 활동과 오류 로그를 확인합니다</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="bg-card border rounded-lg font-mono text-sm h-64 overflow-y-auto p-4">
@@ -506,17 +422,9 @@ export const Admin = () => {
                           }`}
                         >
                           <span className="text-muted-foreground">
-                            [
-                            {new Date(log.timestamp).toLocaleTimeString(
-                              'ko-KR'
-                            )}
-                            ]
+                            [{new Date(log.timestamp).toLocaleTimeString('ko-KR')}]
                           </span>
-                          {log.component && (
-                            <span className="text-blue-500 ml-1">
-                              [{log.component}]
-                            </span>
-                          )}
+                          {log.component && <span className="text-blue-500 ml-1">[{log.component}]</span>}
                           <span className="ml-1">{log.message}</span>
                         </div>
                       ))}
@@ -535,12 +443,7 @@ export const Admin = () => {
           <div className="flex items-center space-x-2">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             <p className="text-sm text-destructive">{error}</p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearError}
-              className="ml-auto p-1 h-auto"
-            >
+            <Button variant="ghost" size="sm" onClick={clearError} className="ml-auto p-1 h-auto">
               <X className="h-3 w-3" />
             </Button>
           </div>

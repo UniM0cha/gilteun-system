@@ -84,12 +84,7 @@ router.post('/users/:socketId/disconnect', (req, res) => {
 
     // TODO: Socket.IO를 통해 해당 사용자 연결 해제
     // 현재는 로그만 기록
-    adminService.addLog(
-      'info',
-      `관리자에 의한 사용자 강제 퇴장: ${socketId}`,
-      'AdminAPI',
-      { reason }
-    );
+    adminService.addLog('info', `관리자에 의한 사용자 강제 퇴장: ${socketId}`, 'AdminAPI', { reason });
 
     return res.json({
       success: true,
@@ -133,18 +128,10 @@ router.post('/scores/upload', upload.single('scoreFile'), (req, res) => {
     `);
 
     // 현재 예배의 악보 개수 조회하여 order_index 설정
-    const countStmt = db.prepare(
-      'SELECT COUNT(*) as count FROM scores WHERE worship_id = ?'
-    );
+    const countStmt = db.prepare('SELECT COUNT(*) as count FROM scores WHERE worship_id = ?');
     const orderIndex = (countStmt.get(worshipId) as any)?.count || 0;
 
-    stmt.run(
-      scoreId,
-      worshipId,
-      title,
-      `/uploads/scores/${req.file.filename}`,
-      orderIndex
-    );
+    stmt.run(scoreId, worshipId, title, `/uploads/scores/${req.file.filename}`, orderIndex);
 
     adminService.addLog('info', `악보 업로드 완료: ${title}`, 'AdminAPI');
 
@@ -183,12 +170,7 @@ router.delete('/scores/:id', (req, res) => {
     }
 
     // 파일 삭제
-    const filePath = path.join(
-      process.cwd(),
-      'uploads',
-      'scores',
-      path.basename((score as any).file_path)
-    );
+    const filePath = path.join(process.cwd(), 'uploads', 'scores', path.basename((score as any).file_path));
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
@@ -197,11 +179,7 @@ router.delete('/scores/:id', (req, res) => {
     db.prepare('DELETE FROM scores WHERE id = ?').run(id);
     db.prepare('DELETE FROM score_drawings WHERE score_id = ?').run(id);
 
-    adminService.addLog(
-      'info',
-      `악보 삭제 완료: ${(score as any).title}`,
-      'AdminAPI'
-    );
+    adminService.addLog('info', `악보 삭제 완료: ${(score as any).title}`, 'AdminAPI');
 
     return res.json({
       success: true,
@@ -253,11 +231,7 @@ router.put('/settings', (req, res) => {
       }
     }
 
-    adminService.addLog(
-      'info',
-      `시스템 설정 업데이트: ${updatedKeys.join(', ')}`,
-      'AdminAPI'
-    );
+    adminService.addLog('info', `시스템 설정 업데이트: ${updatedKeys.join(', ')}`, 'AdminAPI');
 
     return res.json({
       success: true,
@@ -265,12 +239,7 @@ router.put('/settings', (req, res) => {
       updatedKeys,
     });
   } catch (error) {
-    adminService.addLog(
-      'error',
-      '시스템 설정 업데이트 실패',
-      'AdminAPI',
-      error
-    );
+    adminService.addLog('error', '시스템 설정 업데이트 실패', 'AdminAPI', error);
     return res.status(500).json({
       success: false,
       error: '시스템 설정 업데이트에 실패했습니다.',
@@ -282,10 +251,7 @@ router.put('/settings', (req, res) => {
 router.get('/logs', (_req, res) => {
   try {
     const { limit = 100, level } = _req.query;
-    const logs = adminService.getLogs(
-      parseInt(limit as string) || 100,
-      level as any
-    );
+    const logs = adminService.getLogs(parseInt(limit as string) || 100, level as any);
 
     return res.json({
       success: true,

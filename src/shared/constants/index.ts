@@ -8,13 +8,7 @@ export const DEFAULT_INSTRUMENTS = [
 ] as const;
 
 // 기본 예배 유형
-export const DEFAULT_WORSHIP_TYPES = [
-  '주일 1부예배',
-  '주일 2부예배',
-  '주일 3부예배',
-  '청년예배',
-  '수요예배',
-] as const;
+export const DEFAULT_WORSHIP_TYPES = ['주일 1부예배', '주일 2부예배', '주일 3부예배', '청년예배', '수요예배'] as const;
 
 // 기본 명령 템플릿
 export const DEFAULT_COMMANDS = [

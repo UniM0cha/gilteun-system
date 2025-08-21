@@ -18,11 +18,7 @@ interface DisplayCommand extends Command {
 const COMMAND_DURATION = 3000; // 3초
 const UPDATE_INTERVAL = 100; // 100ms마다 업데이트
 
-export const CommandOverlay = ({
-  commands,
-  onCommandExpire,
-  className,
-}: CommandOverlayProps) => {
+export const CommandOverlay = ({ commands, onCommandExpire, className }: CommandOverlayProps) => {
   const [displayCommands, setDisplayCommands] = useState<DisplayCommand[]>([]);
 
   // 새 명령이 추가될 때 표시 상태로 변환
@@ -85,9 +81,7 @@ export const CommandOverlay = ({
   // 수동으로 명령 닫기
   const handleDismiss = (commandId: string) => {
     setDisplayCommands((prev) =>
-      prev.map((cmd) =>
-        cmd.id === commandId ? { ...cmd, isVisible: false, timeLeft: 0 } : cmd
-      )
+      prev.map((cmd) => (cmd.id === commandId ? { ...cmd, isVisible: false, timeLeft: 0 } : cmd))
     );
 
     // 즉시 만료 처리
@@ -107,9 +101,7 @@ export const CommandOverlay = ({
           <Card
             key={command.id}
             className={`p-4 shadow-lg transition-all duration-300 ${
-              command.isVisible
-                ? 'opacity-100 transform translate-x-0'
-                : 'opacity-0 transform translate-x-full'
+              command.isVisible ? 'opacity-100 transform translate-x-0' : 'opacity-0 transform translate-x-full'
             }`}
             style={{
               animationDelay: `${index * 100}ms`,
@@ -122,24 +114,16 @@ export const CommandOverlay = ({
                   <Badge variant="outline" className="text-xs">
                     {command.senderName}
                     {command.senderInstrument && (
-                      <span className="ml-1">
-                        {getInstrumentIcon(command.senderInstrument)}
-                      </span>
+                      <span className="ml-1">{getInstrumentIcon(command.senderInstrument)}</span>
                     )}
                   </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {formatTime(command.timestamp)}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{formatTime(command.timestamp)}</span>
                 </div>
 
                 {/* 명령 내용 */}
                 <div className="flex items-center space-x-2">
-                  {command.icon && (
-                    <span className="text-lg">{command.icon}</span>
-                  )}
-                  <p className="text-sm font-medium break-words">
-                    {command.content}
-                  </p>
+                  {command.icon && <span className="text-lg">{command.icon}</span>}
+                  <p className="text-sm font-medium break-words">{command.content}</p>
                 </div>
 
                 {/* 대상 정보 */}

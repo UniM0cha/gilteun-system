@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { useWorshipStore } from '../../stores/worshipStore';
+import { useWorshipStore } from '@/stores/worshipStore';
 import type { Worship } from '@shared/types/worship';
 
 interface WorshipSelectorProps {
@@ -38,9 +38,7 @@ export const WorshipSelector = ({ onSelect }: WorshipSelectorProps) => {
     return (
       <Card className="max-w-md mx-auto">
         <CardContent className="pt-6">
-          <h3 className="text-xl font-semibold text-center">
-            예배 목록 로딩 중...
-          </h3>
+          <h3 className="text-xl font-semibold text-center">예배 목록 로딩 중...</h3>
         </CardContent>
       </Card>
     );
@@ -70,16 +68,12 @@ export const WorshipSelector = ({ onSelect }: WorshipSelectorProps) => {
       <CardContent className="space-y-6">
         <div className="space-y-3">
           {worships.length === 0 ? (
-            <p className="text-muted-foreground text-center">
-              현재 진행 중인 예배가 없습니다.
-            </p>
+            <p className="text-muted-foreground text-center">현재 진행 중인 예배가 없습니다.</p>
           ) : (
             worships.map((worship) => (
               <Button
                 key={worship.id}
-                variant={
-                  selectedWorshipId === worship.id ? 'default' : 'outline'
-                }
+                variant={selectedWorshipId === worship.id ? 'default' : 'outline'}
                 className="w-full p-4 h-auto justify-start hover:shadow-md transition-shadow"
                 onClick={() => setSelectedWorshipId(worship.id)}
               >

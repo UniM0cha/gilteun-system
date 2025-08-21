@@ -2,24 +2,14 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Send, Plus, Settings } from 'lucide-react';
+import { Plus, Send, Settings } from 'lucide-react';
 import type { CommandTarget, CommandTemplate } from '@shared/types/command';
 
 interface CommandPanelProps {
   userRole: 'session' | 'leader' | 'admin';
-  onSendCommand: (command: {
-    content: string;
-    icon?: string;
-    target: CommandTarget;
-  }) => void;
+  onSendCommand: (command: { content: string; icon?: string; target: CommandTarget }) => void;
   commandTemplates: CommandTemplate[];
   onManageTemplates?: () => void;
   className?: string;
@@ -135,10 +125,9 @@ export const CommandPanel = ({
   }
 
   // 사용할 템플릿 (기본 + 사용자 정의)
-  const allTemplates = [
-    ...DEFAULT_TEMPLATES,
-    ...commandTemplates.filter((template) => !template.isGlobal),
-  ].sort((a, b) => a.order - b.order);
+  const allTemplates = [...DEFAULT_TEMPLATES, ...commandTemplates.filter((template) => !template.isGlobal)].sort(
+    (a, b) => a.order - b.order
+  );
 
   const handleTemplateClick = (template: CommandTemplate) => {
     onSendCommand({
@@ -172,17 +161,10 @@ export const CommandPanel = ({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg">명령 전송</CardTitle>
-            <CardDescription>
-              팀원들에게 실시간으로 지시사항을 전달하세요
-            </CardDescription>
+            <CardDescription>팀원들에게 실시간으로 지시사항을 전달하세요</CardDescription>
           </div>
           {onManageTemplates && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onManageTemplates}
-              className="p-2"
-            >
+            <Button variant="ghost" size="sm" onClick={onManageTemplates} className="p-2">
               <Settings className="h-4 w-4" />
             </Button>
           )}
@@ -253,9 +235,7 @@ export const CommandPanel = ({
                   onClick={() => handleTemplateClick(template)}
                   className="h-12 flex flex-col items-center justify-center space-y-1 text-xs hover:shadow-md transition-shadow"
                 >
-                  {template.icon && (
-                    <span className="text-base">{template.icon}</span>
-                  )}
+                  {template.icon && <span className="text-base">{template.icon}</span>}
                   <span>{template.name}</span>
                 </Button>
               ))}
@@ -274,30 +254,18 @@ export const CommandPanel = ({
                 maxLength={100}
                 className="flex-1"
               />
-              <Button
-                onClick={handleCustomSend}
-                disabled={!customCommand.trim()}
-                size="sm"
-                className="px-3"
-              >
+              <Button onClick={handleCustomSend} disabled={!customCommand.trim()} size="sm" className="px-3">
                 <Send className="h-4 w-4" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Enter를 눌러서 전송하거나 전송 버튼을 클릭하세요
-            </p>
+            <p className="text-xs text-muted-foreground">Enter를 눌러서 전송하거나 전송 버튼을 클릭하세요</p>
           </div>
         )}
 
         {/* 사용자 정의 템플릿 추가 */}
         {onManageTemplates && (
           <div className="pt-4 border-t">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onManageTemplates}
-              className="w-full"
-            >
+            <Button variant="ghost" size="sm" onClick={onManageTemplates} className="w-full">
               <Plus className="h-4 w-4 mr-2" />
               사용자 정의 명령 관리
             </Button>

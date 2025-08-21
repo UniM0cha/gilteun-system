@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { getSocketService } from '../services/socket';
+import { useCallback, useEffect, useState } from 'react';
+import { getSocketService } from '@/services/socket';
 import type { Command } from '@shared/types/command';
 import type { DrawingData, PageNavigation } from '@shared/types/score';
 
@@ -74,9 +74,7 @@ export const useCommandReceived = (callback: (command: Command) => void) => {
   }, [socketService, callback]);
 };
 
-export const useScoreSync = (
-  callback: (data: { scoreId: string; drawings: DrawingData[] }) => void
-) => {
+export const useScoreSync = (callback: (data: { scoreId: string; drawings: DrawingData[] }) => void) => {
   const socketService = getSocketService();
 
   useEffect(() => {
@@ -94,9 +92,7 @@ export const useUsersUpdate = (callback: (users: unknown[]) => void) => {
   }, [socketService, callback]);
 };
 
-export const usePageUpdate = (
-  callback: (navigation: PageNavigation) => void
-) => {
+export const usePageUpdate = (callback: (navigation: PageNavigation) => void) => {
   const socketService = getSocketService();
 
   useEffect(() => {

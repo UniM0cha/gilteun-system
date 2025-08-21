@@ -3,9 +3,7 @@ import { apiService } from './api';
 
 export class WorshipApiService {
   async getWorships(date?: string): Promise<Worship[]> {
-    const endpoint = date
-      ? `/worships?date=${encodeURIComponent(date)}`
-      : '/worships';
+    const endpoint = date ? `/worships?date=${encodeURIComponent(date)}` : '/worships';
     return apiService.get<Worship[]>(endpoint);
   }
 
@@ -13,11 +11,7 @@ export class WorshipApiService {
     return apiService.get<Worship>(`/worships/${id}`);
   }
 
-  async createWorship(data: {
-    typeId: string;
-    name: string;
-    date: string;
-  }): Promise<Worship> {
+  async createWorship(data: { typeId: string; name: string; date: string }): Promise<Worship> {
     return apiService.post<Worship>('/worships', data);
   }
 

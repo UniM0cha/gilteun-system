@@ -153,8 +153,7 @@ class ElectronApp {
       console.error('서버 시작 중 오류 발생:', error);
       // API 서버 실패 시에도 Electron 창은 유지
       if (this.mainWindow) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         this.mainWindow.webContents.executeJavaScript(`
           console.error('API 서버 연결 실패:', ${JSON.stringify(errorMessage)});
           alert('API 서버 연결에 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');

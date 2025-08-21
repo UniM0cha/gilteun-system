@@ -2,18 +2,11 @@ import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Card, CardContent } from '../ui/card';
-import { Upload, X, FileImage } from 'lucide-react';
-import { useAdmin } from '../../hooks/useAdmin';
-import { useWorshipStore } from '../../stores/worshipStore';
+import { FileImage, Upload, X } from 'lucide-react';
+import { useAdmin } from '@/hooks/useAdmin';
+import { useWorshipStore } from '@/stores/worshipStore';
 
 interface ScoreUploadDialogProps {
   open: boolean;
@@ -21,11 +14,7 @@ interface ScoreUploadDialogProps {
   onSuccess?: () => void;
 }
 
-export const ScoreUploadDialog = ({
-  open,
-  onOpenChange,
-  onSuccess,
-}: ScoreUploadDialogProps) => {
+export const ScoreUploadDialog = ({ open, onOpenChange, onSuccess }: ScoreUploadDialogProps) => {
   const { uploadScore, isLoading } = useAdmin();
   const { worships } = useWorshipStore();
 
@@ -111,9 +100,7 @@ export const ScoreUploadDialog = ({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>악보 업로드</DialogTitle>
-          <DialogDescription>
-            새로운 악보 파일을 업로드합니다.
-          </DialogDescription>
+          <DialogDescription>새로운 악보 파일을 업로드합니다.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -122,9 +109,7 @@ export const ScoreUploadDialog = ({
             <Label>악보 이미지</Label>
             <Card
               className={`border-2 border-dashed transition-colors ${
-                dragOver
-                  ? 'border-primary bg-primary/5'
-                  : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-muted-foreground/50'
               }`}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -137,11 +122,7 @@ export const ScoreUploadDialog = ({
                 {selectedFile && previewUrl ? (
                   <div className="space-y-3">
                     <div className="relative">
-                      <img
-                        src={previewUrl}
-                        alt="미리보기"
-                        className="w-full h-32 object-cover rounded border"
-                      />
+                      <img src={previewUrl} alt="미리보기" className="w-full h-32 object-cover rounded border" />
                       <Button
                         type="button"
                         variant="destructive"
@@ -158,21 +139,15 @@ export const ScoreUploadDialog = ({
                     </div>
                     <div className="text-sm">
                       <p className="font-medium">{selectedFile.name}</p>
-                      <p className="text-muted-foreground">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
+                      <p className="text-muted-foreground">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center space-y-3">
                     <FileImage className="h-12 w-12 mx-auto text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">
-                        이미지를 드래그하거나 클릭하여 선택
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        PNG, JPG 파일 (최대 10MB)
-                      </p>
+                      <p className="text-sm font-medium">이미지를 드래그하거나 클릭하여 선택</p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG 파일 (최대 10MB)</p>
                     </div>
                     <Button
                       type="button"
@@ -183,8 +158,7 @@ export const ScoreUploadDialog = ({
                         input.type = 'file';
                         input.accept = 'image/*';
                         input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement)
-                            .files?.[0];
+                          const file = (e.target as HTMLInputElement).files?.[0];
                           if (file) handleFileSelect(file);
                         };
                         input.click();
@@ -224,35 +198,20 @@ export const ScoreUploadDialog = ({
               <option value="">예배를 선택하세요</option>
               {worships.map((worship) => (
                 <option key={worship.id} value={worship.id}>
-                  {worship.name} (
-                  {new Date(worship.date).toLocaleDateString('ko-KR')})
+                  {worship.name} ({new Date(worship.date).toLocaleDateString('ko-KR')})
                 </option>
               ))}
             </select>
           </div>
 
           {/* 오류 메시지 */}
-          {uploadError && (
-            <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
-              {uploadError}
-            </div>
-          )}
+          {uploadError && <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">{uploadError}</div>}
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>
               취소
             </Button>
-            <Button
-              type="submit"
-              disabled={
-                !selectedFile || !title || !selectedWorshipId || isLoading
-              }
-            >
+            <Button type="submit" disabled={!selectedFile || !title || !selectedWorshipId || isLoading}>
               {isLoading ? '업로드 중...' : '업로드'}
             </Button>
           </DialogFooter>

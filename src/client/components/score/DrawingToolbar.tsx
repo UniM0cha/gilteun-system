@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Pen, Highlighter, Eraser, Palette, Eye, EyeOff } from 'lucide-react';
+import { Eraser, Eye, EyeOff, Highlighter, Palette, Pen } from 'lucide-react';
 import type { DrawingTool, DrawingToolSettings } from '@shared/types/score';
 
 interface DrawingToolbarProps {
@@ -94,11 +94,7 @@ export const DrawingToolbar = ({
               onClick={() => onDrawingModeChange(!isDrawingMode)}
               className="flex items-center space-x-2"
             >
-              {isDrawingMode ? (
-                <Eye className="h-4 w-4" />
-              ) : (
-                <EyeOff className="h-4 w-4" />
-              )}
+              {isDrawingMode ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               <span>{isDrawingMode ? '활성화' : '비활성화'}</span>
             </Button>
           </div>
@@ -180,12 +176,8 @@ export const DrawingToolbar = ({
           {/* 굵기 설정 */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">
-                {currentToolConfig.name} 굵기
-              </Label>
-              <span className="text-sm text-muted-foreground">
-                {toolSettings.strokeWidth}px
-              </span>
+              <Label className="text-sm font-medium">{currentToolConfig.name} 굵기</Label>
+              <span className="text-sm text-muted-foreground">{toolSettings.strokeWidth}px</span>
             </div>
             <Slider
               value={[toolSettings.strokeWidth]}
@@ -207,10 +199,7 @@ export const DrawingToolbar = ({
                 style={{
                   width: `${toolSettings.strokeWidth}px`,
                   height: `${toolSettings.strokeWidth}px`,
-                  backgroundColor:
-                    toolSettings.tool === 'eraser'
-                      ? '#666'
-                      : toolSettings.color,
+                  backgroundColor: toolSettings.tool === 'eraser' ? '#666' : toolSettings.color,
                   opacity: toolSettings.tool === 'highlighter' ? 0.3 : 1,
                 }}
               />

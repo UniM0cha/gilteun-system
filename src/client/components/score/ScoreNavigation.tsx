@@ -1,13 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  ChevronLeft,
-  ChevronRight,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import type { ScoreViewport } from '@shared/types/score';
 
 interface ScoreNavigationProps {
@@ -73,12 +67,7 @@ export const ScoreNavigation = ({
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium">페이지 이동</h3>
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousPage}
-                disabled={currentPage <= 1}
-              >
+              <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage <= 1}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
 
@@ -91,17 +80,10 @@ export const ScoreNavigation = ({
                   onChange={handlePageInput}
                   className="w-12 h-8 text-center text-sm"
                 />
-                <span className="text-sm text-muted-foreground">
-                  / {totalPages}
-                </span>
+                <span className="text-sm text-muted-foreground">/ {totalPages}</span>
               </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage >= totalPages}
-              >
+              <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -109,9 +91,7 @@ export const ScoreNavigation = ({
 
           {/* 페이지 목록 (작은 썸네일) */}
           <div className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground">
-              전체 페이지
-            </h4>
+            <h4 className="text-xs font-medium text-muted-foreground">전체 페이지</h4>
             <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
               {Array.from({ length: totalPages }, (_, index) => {
                 const pageNum = index + 1;
@@ -134,40 +114,21 @@ export const ScoreNavigation = ({
 
           {/* 줌 컨트롤 */}
           <div className="space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground">
-              확대/축소
-            </h4>
+            <h4 className="text-xs font-medium text-muted-foreground">확대/축소</h4>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleZoomOut}
-                  disabled={viewport.zoom <= 0.1}
-                >
+                <Button variant="outline" size="sm" onClick={handleZoomOut} disabled={viewport.zoom <= 0.1}>
                   <ZoomOut className="h-4 w-4" />
                 </Button>
 
-                <span className="text-sm font-mono min-w-[4rem] text-center">
-                  {Math.round(viewport.zoom * 100)}%
-                </span>
+                <span className="text-sm font-mono min-w-[4rem] text-center">{Math.round(viewport.zoom * 100)}%</span>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleZoomIn}
-                  disabled={viewport.zoom >= 3}
-                >
+                <Button variant="outline" size="sm" onClick={handleZoomIn} disabled={viewport.zoom >= 3}>
                   <ZoomIn className="h-4 w-4" />
                 </Button>
               </div>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetView}
-                title="원래 크기로 복원"
-              >
+              <Button variant="ghost" size="sm" onClick={handleResetView} title="원래 크기로 복원">
                 <RotateCcw className="h-4 w-4" />
               </Button>
             </div>
@@ -175,9 +136,7 @@ export const ScoreNavigation = ({
 
           {/* 키보드 단축키 안내 */}
           <div className="space-y-2 pt-2 border-t">
-            <h4 className="text-xs font-medium text-muted-foreground">
-              단축키
-            </h4>
+            <h4 className="text-xs font-medium text-muted-foreground">단축키</h4>
             <div className="text-xs text-muted-foreground space-y-1">
               <div>← → : 페이지 이동</div>
               <div>Ctrl + 마우스휠 : 확대/축소</div>

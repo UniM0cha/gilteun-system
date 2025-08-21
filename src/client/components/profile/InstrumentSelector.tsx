@@ -7,11 +7,7 @@ interface InstrumentSelectorProps {
   onSelect: (instrumentId: string) => void;
 }
 
-export const InstrumentSelector = ({
-  instruments,
-  selectedInstrumentId,
-  onSelect,
-}: InstrumentSelectorProps) => {
+export const InstrumentSelector = ({ instruments, selectedInstrumentId, onSelect }: InstrumentSelectorProps) => {
   return (
     <div className="space-y-3">
       <h3 className="text-lg font-semibold">악기 선택</h3>
@@ -22,9 +18,7 @@ export const InstrumentSelector = ({
           .map((instrument) => (
             <Button
               key={instrument.id}
-              variant={
-                selectedInstrumentId === instrument.id ? 'default' : 'outline'
-              }
+              variant={selectedInstrumentId === instrument.id ? 'default' : 'outline'}
               className="h-20 flex-col space-y-2 text-base hover:shadow-md transition-shadow"
               onClick={() => onSelect(instrument.id)}
             >

@@ -2,31 +2,23 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Edit2, Trash2, GripVertical, Save } from 'lucide-react';
+import { Edit2, GripVertical, Plus, Save, Trash2 } from 'lucide-react';
 import type { CommandTemplate } from '@shared/types/command';
 
 interface CommandTemplateManagerProps {
   templates: CommandTemplate[];
-  onAdd: (
-    template: Omit<CommandTemplate, 'id' | 'userId' | 'createdAt' | 'updatedAt'>
-  ) => void;
+  onAdd: (template: Omit<CommandTemplate, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
   onUpdate: (templateId: string, updates: Partial<CommandTemplate>) => void;
   onDelete: (templateId: string) => void;
   onReorder: (templateIds: string[]) => void;
@@ -75,8 +67,7 @@ export const CommandTemplateManager = ({
   onReorder,
 }: CommandTemplateManagerProps) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] =
-    useState<CommandTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<CommandTemplate | null>(null);
   const [formData, setFormData] = useState<TemplateFormData>({
     name: '',
     content: '',
@@ -122,8 +113,7 @@ export const CommandTemplateManager = ({
   };
 
   const handleUpdate = () => {
-    if (!editingTemplate || !formData.name.trim() || !formData.content.trim())
-      return;
+    if (!editingTemplate || !formData.name.trim() || !formData.content.trim()) return;
 
     onUpdate(editingTemplate.id, {
       name: formData.name.trim(),
@@ -157,9 +147,7 @@ export const CommandTemplateManager = ({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg">명령 템플릿 관리</CardTitle>
-            <CardDescription>
-              자주 사용하는 명령을 템플릿으로 저장하고 관리하세요
-            </CardDescription>
+            <CardDescription>자주 사용하는 명령을 템플릿으로 저장하고 관리하세요</CardDescription>
           </div>
 
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -172,9 +160,7 @@ export const CommandTemplateManager = ({
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>새 명령 템플릿 추가</DialogTitle>
-                <DialogDescription>
-                  자주 사용할 명령을 템플릿으로 저장하세요
-                </DialogDescription>
+                <DialogDescription>자주 사용할 명령을 템플릿으로 저장하세요</DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
@@ -184,9 +170,7 @@ export const CommandTemplateManager = ({
                     id="template-name"
                     placeholder="예: 1절로"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, name: e.target.value }))
-                    }
+                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                     maxLength={20}
                   />
                 </div>
@@ -214,9 +198,7 @@ export const CommandTemplateManager = ({
                       <Button
                         key={emoji}
                         type="button"
-                        variant={
-                          formData.icon === emoji ? 'default' : 'outline'
-                        }
+                        variant={formData.icon === emoji ? 'default' : 'outline'}
                         size="sm"
                         className="h-8 w-8 p-0"
                         onClick={() => handleIconSelect(emoji)}
@@ -228,9 +210,7 @@ export const CommandTemplateManager = ({
                   <Input
                     placeholder="또는 직접 입력"
                     value={formData.icon}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, icon: e.target.value }))
-                    }
+                    onChange={(e) => setFormData((prev) => ({ ...prev, icon: e.target.value }))}
                     maxLength={2}
                     className="text-center"
                   />
@@ -241,10 +221,7 @@ export const CommandTemplateManager = ({
                 <Button variant="outline" onClick={handleCancel}>
                   취소
                 </Button>
-                <Button
-                  onClick={handleAdd}
-                  disabled={!formData.name.trim() || !formData.content.trim()}
-                >
+                <Button onClick={handleAdd} disabled={!formData.name.trim() || !formData.content.trim()}>
                   <Save className="h-4 w-4 mr-2" />
                   저장
                 </Button>
@@ -258,9 +235,7 @@ export const CommandTemplateManager = ({
         {userTemplates.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <p className="mb-2">사용자 정의 템플릿이 없습니다</p>
-            <p className="text-sm">
-              위의 추가 버튼을 클릭하여 새 템플릿을 만들어보세요
-            </p>
+            <p className="text-sm">위의 추가 버튼을 클릭하여 새 템플릿을 만들어보세요</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -272,18 +247,12 @@ export const CommandTemplateManager = ({
                       className="h-4 w-4 text-muted-foreground cursor-grab"
                       onClick={() => {
                         // 간단한 순서 변경 (위로 이동)
-                        const currentIndex = userTemplates.findIndex(
-                          (t) => t.id === template.id
-                        );
+                        const currentIndex = userTemplates.findIndex((t) => t.id === template.id);
                         if (currentIndex > 0) {
                           const reordered = [...userTemplates];
-                          if (
-                            reordered[currentIndex] &&
-                            reordered[currentIndex - 1]
-                          ) {
+                          if (reordered[currentIndex] && reordered[currentIndex - 1]) {
                             const temp = reordered[currentIndex - 1]!;
-                            reordered[currentIndex - 1] =
-                              reordered[currentIndex]!;
+                            reordered[currentIndex - 1] = reordered[currentIndex]!;
                             reordered[currentIndex] = temp;
                             onReorder(reordered.map((t) => t.id));
                           }
@@ -292,14 +261,10 @@ export const CommandTemplateManager = ({
                     />
 
                     <div className="flex items-center space-x-2">
-                      {template.icon && (
-                        <span className="text-lg">{template.icon}</span>
-                      )}
+                      {template.icon && <span className="text-lg">{template.icon}</span>}
                       <div>
                         <h4 className="font-medium">{template.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {template.content}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{template.content}</p>
                       </div>
                     </div>
                   </div>
@@ -311,12 +276,7 @@ export const CommandTemplateManager = ({
                       </Badge>
                     )}
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEdit(template)}
-                      className="p-1"
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(template)} className="p-1">
                       <Edit2 className="h-4 w-4" />
                     </Button>
 
@@ -337,10 +297,7 @@ export const CommandTemplateManager = ({
       </CardContent>
 
       {/* 편집 다이얼로그 */}
-      <Dialog
-        open={editingTemplate !== null}
-        onOpenChange={(open) => !open && handleCancel()}
-      >
+      <Dialog open={editingTemplate !== null} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>템플릿 편집</DialogTitle>
@@ -353,9 +310,7 @@ export const CommandTemplateManager = ({
               <Input
                 id="edit-template-name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 maxLength={20}
               />
             </div>
@@ -365,9 +320,7 @@ export const CommandTemplateManager = ({
               <Input
                 id="edit-template-content"
                 value={formData.content}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, content: e.target.value }))
-                }
+                onChange={(e) => setFormData((prev) => ({ ...prev, content: e.target.value }))}
                 maxLength={50}
               />
             </div>
@@ -391,9 +344,7 @@ export const CommandTemplateManager = ({
               <Input
                 placeholder="또는 직접 입력"
                 value={formData.icon}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, icon: e.target.value }))
-                }
+                onChange={(e) => setFormData((prev) => ({ ...prev, icon: e.target.value }))}
                 maxLength={2}
                 className="text-center"
               />
@@ -404,10 +355,7 @@ export const CommandTemplateManager = ({
             <Button variant="outline" onClick={handleCancel}>
               취소
             </Button>
-            <Button
-              onClick={handleUpdate}
-              disabled={!formData.name.trim() || !formData.content.trim()}
-            >
+            <Button onClick={handleUpdate} disabled={!formData.name.trim() || !formData.content.trim()}>
               <Save className="h-4 w-4 mr-2" />
               저장
             </Button>

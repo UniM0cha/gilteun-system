@@ -68,9 +68,7 @@ class JsonDatabase {
       },
       get: (...params: any[]) => {
         const result = this.executeQuery(sql, params);
-        return result.rows && result.rows.length > 0
-          ? result.rows[0]
-          : undefined;
+        return result.rows && result.rows.length > 0 ? result.rows[0] : undefined;
       },
       all: (...params: any[]) => {
         const result = this.executeQuery(sql, params);
@@ -79,10 +77,7 @@ class JsonDatabase {
     };
   }
 
-  private executeQuery(
-    sql: string,
-    params: any[] = []
-  ): { changes?: number; rows?: any[] } {
+  private executeQuery(sql: string, params: any[] = []): { changes?: number; rows?: any[] } {
     const sqlLower = sql.toLowerCase().trim();
 
     // INSERT operations
@@ -148,22 +143,14 @@ class JsonDatabase {
       if (sql.includes('WHERE score_id = ?') && params.length > 0) {
         filteredRows = filteredRows.filter((row) => row.score_id === params[0]);
       }
-      if (
-        sql.includes('WHERE score_id = ? AND page_number = ?') &&
-        params.length > 1
-      ) {
-        filteredRows = filteredRows.filter(
-          (row) => row.score_id === params[0] && row.page_number === params[1]
-        );
+      if (sql.includes('WHERE score_id = ? AND page_number = ?') && params.length > 1) {
+        filteredRows = filteredRows.filter((row) => row.score_id === params[0] && row.page_number === params[1]);
       }
     }
 
     // Sort by created_at if specified
     if (sql.includes('ORDER BY created_at ASC')) {
-      filteredRows.sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
+      filteredRows.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     }
 
     return { rows: filteredRows };
@@ -181,26 +168,17 @@ class JsonDatabase {
     // Basic WHERE filtering
     if (tableName === 'score_drawings') {
       if (sql.includes('WHERE id = ?') && params.length > 0) {
+        this.data[tableName as keyof Database] = table.filter((row) => row.id !== params[0]);
+      } else if (sql.includes('WHERE score_id = ? AND page_number = ?') && params.length > 1) {
         this.data[tableName as keyof Database] = table.filter(
-          (row) => row.id !== params[0]
-        );
-      } else if (
-        sql.includes('WHERE score_id = ? AND page_number = ?') &&
-        params.length > 1
-      ) {
-        this.data[tableName as keyof Database] = table.filter(
-          (row) =>
-            !(row.score_id === params[0] && row.page_number === params[1])
+          (row) => !(row.score_id === params[0] && row.page_number === params[1])
         );
       } else if (sql.includes('WHERE score_id = ?') && params.length > 0) {
-        this.data[tableName as keyof Database] = table.filter(
-          (row) => row.score_id !== params[0]
-        );
+        this.data[tableName as keyof Database] = table.filter((row) => row.score_id !== params[0]);
       }
     }
 
-    const changes =
-      originalLength - this.data[tableName as keyof Database].length;
+    const changes = originalLength - this.data[tableName as keyof Database].length;
     if (changes > 0) {
       this.saveData();
     }

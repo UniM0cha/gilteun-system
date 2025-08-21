@@ -1,12 +1,7 @@
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { DrawingCanvas } from './DrawingCanvas';
-import type {
-  Score,
-  ScoreViewport,
-  DrawingEvent,
-  DrawingToolSettings,
-} from '@shared/types/score';
+import type { DrawingEvent, DrawingToolSettings, Score, ScoreViewport } from '@shared/types/score';
 
 interface ScoreViewerProps {
   score?: Score;
@@ -107,11 +102,7 @@ export const ScoreViewer = ({
 
   return (
     <Card className="relative overflow-hidden">
-      <div
-        ref={containerRef}
-        className="relative w-full h-96 md:h-[600px] lg:h-[800px]"
-        onWheel={handleWheel}
-      >
+      <div ref={containerRef} className="relative w-full h-96 md:h-[600px] lg:h-[800px]" onWheel={handleWheel}>
         {/* 악보 이미지 */}
         <img
           ref={imageRef}

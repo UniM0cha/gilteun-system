@@ -118,9 +118,7 @@ export class WorshipService {
 
   // 예배 삭제 (soft delete)
   deleteWorship(id: string): boolean {
-    const stmt = this.db.prepare(
-      'UPDATE worships SET is_active = 0 WHERE id = ?'
-    );
+    const stmt = this.db.prepare('UPDATE worships SET is_active = 0 WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
   }

@@ -1,22 +1,12 @@
 import { useCallback } from 'react';
-import { useProfileStore } from '../stores/profileStore';
+import { useProfileStore } from '@/stores/profileStore';
 import type { User, UserRole } from '@shared/types/user';
 
 export const useProfile = () => {
-  const {
-    currentUser,
-    availableInstruments,
-    setCurrentUser,
-    clearCurrentUser,
-  } = useProfileStore();
+  const { currentUser, availableInstruments, setCurrentUser, clearCurrentUser } = useProfileStore();
 
   const createProfile = useCallback(
-    (
-      name: string,
-      role: UserRole,
-      instrumentId: string,
-      customCommands: string[] = []
-    ) => {
+    (name: string, role: UserRole, instrumentId: string, customCommands: string[] = []) => {
       const newUser: User = {
         id: `user_${Date.now()}_${Math.random().toString(36).substring(2)}`,
         name,
@@ -51,9 +41,7 @@ export const useProfile = () => {
 
   const getInstrument = useCallback(
     (instrumentId: string) => {
-      return availableInstruments.find(
-        (instrument) => instrument.id === instrumentId
-      );
+      return availableInstruments.find((instrument) => instrument.id === instrumentId);
     },
     [availableInstruments]
   );
