@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 
 // 테스트용 환경 변수 설정
 beforeAll(() => {

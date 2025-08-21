@@ -39,15 +39,13 @@
     "noUnusedParameters": true
   },
   "include": [
-    "src/server/**/*",
-    "src/shared/**/*"
+    "src/**/*"
   ],
   "exclude": [
-    "node_modules",
-    "dist",
     "src/client/**/*",
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
-    "src/**/__tests__/**/*"
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx"
   ]
 }
