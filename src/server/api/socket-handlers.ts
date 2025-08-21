@@ -1,9 +1,9 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { drawingService } from '../services/drawingService';
-import { adminService } from '../services/adminService';
-import type { Command } from '@shared/types/command';
-import type { DrawingEvent, PageNavigation } from '@shared/types/score';
-import type { UserSession } from '@shared/types/user';
+import { drawingService } from '../services/drawingService.js';
+import { adminService } from '../services/adminService.js';
+import type { Command } from '#shared/types/command';
+import type { DrawingEvent, PageNavigation } from '#shared/types/score';
+import type { UserSession } from '#shared/types/user';
 
 // Socket.IO 이벤트 리스트 (문서화)
 // - user:join: 사용자 예배 참가

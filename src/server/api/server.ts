@@ -3,9 +3,9 @@ import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
-import { SYSTEM_CONFIG } from '@shared/constants';
-import { setupSocketHandlers } from './socket-handlers';
-import { setupRoutes } from './routes';
+import { SYSTEM_CONFIG } from '#shared/constants';
+import { setupSocketHandlers } from './socket-handlers.js';
+import { setupRoutes } from './routes.js';
 
 export async function startApiServer(): Promise<void> {
   const app = express();

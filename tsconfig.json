@@ -21,7 +21,10 @@
     "paths": {
       "@/*": ["./src/client/*"],
       "@shared/*": ["./src/shared/*"],
-      "@server/*": ["./src/server/*"]
+      "@server/*": ["./src/server/*"],
+      "#shared/constants": ["./src/shared/constants/index"],
+      "#shared/types/*": ["./src/shared/types/*"],
+      "#shared/utils": ["./src/shared/utils/index"]
     },
     
     /* Linting */
