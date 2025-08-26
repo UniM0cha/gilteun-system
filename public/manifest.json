@@ -1,0 +1,61 @@
+{
+  "name": "길튼 시스템",
+  "short_name": "길튼",
+  "description": "교회 찬양팀을 위한 실시간 협업 예배 지원 플랫폼",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#2563eb",
+  "background_color": "#f9fafb",
+  "categories": [
+    "music",
+    "productivity",
+    "education"
+  ],
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "새 예배 만들기",
+      "short_name": "새 예배",
+      "description": "새로운 예배를 생성합니다",
+      "url": "/admin",
+      "icons": [
+        {
+          "src": "/shortcut-admin.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-1.png",
+      "sizes": "1668x2388",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "메인 화면"
+    }
+  ],
+  "prefer_related_applications": false,
+  "protocol_handlers": [
+    {
+      "protocol": "web+gilteun",
+      "url": "/?connect=%s"
+    }
+  ]
+}

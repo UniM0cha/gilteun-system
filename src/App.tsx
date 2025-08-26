@@ -1,34 +1,32 @@
-import { useState } from 'react';
-import reactLogo from './assets/react.svg';
-import viteLogo from '/electron-vite.animate.svg';
-import './App.css';
+import React from 'react';
+import { HashRouter } from 'react-router-dom';
+import { QueryProvider } from './providers/QueryProvider';
+import { AppInitializer, StoreProvider } from './store/StoreProvider';
+import { AppRouter } from './components/AppRouter';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastContainer } from './components/Toast';
 
+/**
+ * 길튼 시스템 메인 App 컴포넌트
+ * PWA 구조로 iPad 최적화
+ * HashRouter 사용 (Electron file:// 프로토콜 호환)
+ */
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
-    <>
-      <div>
-        <a href="https://electron-vite.github.io" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <HashRouter>
+      <QueryProvider>
+        <StoreProvider>
+          <ErrorBoundary>
+            <AppInitializer>
+              <div className="app-container fullscreen-portrait">
+                <AppRouter />
+                <ToastContainer />
+              </div>
+            </AppInitializer>
+          </ErrorBoundary>
+        </StoreProvider>
+      </QueryProvider>
+    </HashRouter>
   );
 }
 

@@ -1,9 +1,9 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  "appId": "com.solstice.giltuen_system",
   "asar": true,
-  "productName": "YourAppName",
+  "productName": "길튼 시스템",
   "directories": {
     "output": "release/${version}"
   },
@@ -13,7 +13,10 @@
   ],
   "mac": {
     "target": [
-      "dmg"
+      {
+        "target": "dmg",
+        "arch": "universal"
+      }
     ],
     "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
   },
