@@ -1,272 +1,119 @@
+import { Music, Wifi } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Users, Wifi } from 'lucide-react';
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input } from '../components/ui';
 import { useAppStore } from '../store/appStore';
 import type { User } from '../types';
 
 /**
- * 프로필 선택 페이지 (첫 화면)
- * - 사용자 이름 입력
- * - 서버 연결 설정
- * - 사용자 프로필 초기화
+ * 프로필 선택 페이지
+ * - 서버는 동일 컴퓨터에서 실행되므로 기본 주소로 자동 연결
+ * - 프로필을 선택하면 예배 목록 페이지로 이동
  */
 export const ProfileSelectPage: React.FC = () => {
   const navigate = useNavigate();
+  const { setCurrentUser, updateSettings, setServerInfo, setLoading } = useAppStore();
 
-  // 스토어 상태 및 액션
-  const { settings, serverInfo, isLoading, setCurrentUser, updateSettings, setServerInfo, setLoading } = useAppStore();
-
-  // 폼 상태
-  const [userName, setUserName] = useState(settings.userName || '');
-  const [serverUrl, setServerUrl] = useState(settings.serverUrl || 'http://localhost:3001');
-  const [isConnecting, setIsConnecting] = useState(false);
+  const defaultServerUrl = 'http://localhost:3001';
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  // 유효성 검사
-  const [errors, setErrors] = useState<{
-    userName?: string;
-    serverUrl?: string;
-  }>({});
-
-  // 폼 초기값 설정
+  // 앱 시작 시 서버 연결 확인
   useEffect(() => {
-    if (settings.userName) setUserName(settings.userName);
-    if (settings.serverUrl) setServerUrl(settings.serverUrl);
-  }, [settings]);
-
-  // 입력값 유효성 검사
-  const validateForm = (): boolean => {
-    const newErrors: typeof errors = {};
-
-    // 사용자 이름 검증
-    if (!userName.trim()) {
-      newErrors.userName = '사용자 이름을 입력해주세요';
-    } else if (userName.trim().length < 2) {
-      newErrors.userName = '사용자 이름은 2자 이상이어야 합니다';
-    } else if (userName.trim().length > 20) {
-      newErrors.userName = '사용자 이름은 20자 이하여야 합니다';
-    }
-
-    // 서버 URL 검증
-    if (!serverUrl.trim()) {
-      newErrors.serverUrl = '서버 주소를 입력해주세요';
-    } else {
+    const testConnection = async () => {
+      setLoading(true, '서버 연결 중...');
       try {
-        new URL(serverUrl);
-      } catch {
-        newErrors.serverUrl = '올바른 서버 주소를 입력해주세요 (예: http://localhost:3001)';
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // 서버 연결 테스트
-  const testServerConnection = async (): Promise<boolean> => {
-    try {
-      const response = await fetch(`${serverUrl}/health`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // timeout은 fetch API에서 직접 지원하지 않음
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setServerInfo({
-          url: serverUrl,
-          status: 'connected',
-          connectedUsers: data.connectedUsers || 0,
-          lastPing: Date.now(),
-          version: data.version || '1.0.0',
+        const response = await fetch(`${defaultServerUrl}/health`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
         });
-        return true;
-      } else {
-        throw new Error(`서버 응답 오류 (${response.status})`);
+        if (response.ok) {
+          const data = await response.json();
+          setServerInfo({
+            url: defaultServerUrl,
+            status: 'connected',
+            connectedUsers: data.connectedUsers || 0,
+            lastPing: Date.now(),
+            version: data.version || '1.0.0',
+          });
+          updateSettings({ serverUrl: defaultServerUrl, autoConnect: true });
+          setConnectionError(null);
+        } else {
+          throw new Error(`서버 응답 오류 (${response.status})`);
+        }
+      } catch (error) {
+        console.error('서버 연결 실패:', error);
+        setConnectionError(
+          error instanceof Error ? `서버 연결에 실패했습니다: ${error.message}` : '서버에 연결할 수 없습니다.',
+        );
+        setServerInfo(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('서버 연결 실패:', error);
-      setConnectionError(
-        error instanceof Error
-          ? `서버 연결에 실패했습니다: ${error.message}`
-          : '서버에 연결할 수 없습니다. 서버 주소를 확인해주세요.',
-      );
-      return false;
-    }
-  };
+    };
 
-  // 프로필 설정 완료
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+    testConnection();
+  }, [defaultServerUrl, setServerInfo, setLoading, updateSettings]);
 
-    if (!validateForm()) {
-      return;
-    }
+  const profiles = [
+    { id: 'leader', name: '김찬양', role: '인도자', icon: '👨‍🎤', color: '#3b82f6' },
+    { id: 'piano', name: '이피아노', role: '반주자', icon: '🎹', color: '#22c55e' },
+    { id: 'guitar', name: '박기타', role: '기타리스트', icon: '🎸', color: '#a855f7' },
+    { id: 'drum', name: '최드럼', role: '드러머', icon: '🥁', color: '#f97316' },
+  ];
 
-    setIsConnecting(true);
-    setConnectionError(null);
-    setLoading(true, '서버 연결 중...');
+  const handleProfileSelect = (profile: (typeof profiles)[number]) => {
+    const user: User = {
+      id: profile.id,
+      name: profile.name,
+      color: profile.color,
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+    };
 
-    try {
-      // 서버 연결 테스트
-      const isConnected = await testServerConnection();
-
-      if (!isConnected) {
-        return;
-      }
-
-      // 사용자 정보 업데이트
-      const trimmedUserName = userName.trim();
-      const user: User = {
-        id: settings.userId || `user-${Date.now()}`,
-        name: trimmedUserName,
-        color:
-          '#' +
-          Math.floor(Math.random() * 16777215)
-            .toString(16)
-            .padStart(6, '0'),
-        createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString(),
-      };
-
-      // 설정 저장
-      updateSettings({
-        userName: trimmedUserName,
-        serverUrl: serverUrl,
-        autoConnect: true, // 성공적으로 연결되면 자동 연결 활성화
-      });
-
-      // 현재 사용자 설정
-      setCurrentUser(user);
-
-      // 예배 목록 페이지로 이동
-      navigate('/worship');
-    } catch (error) {
-      console.error('프로필 설정 실패:', error);
-      setConnectionError('프로필 설정 중 오류가 발생했습니다.');
-    } finally {
-      setIsConnecting(false);
-      setLoading(false);
-    }
-  };
-
-  // 서버 설정 페이지로 이동
-  const handleAdvancedSettings = () => {
-    navigate('/settings');
+    setCurrentUser(user);
+    updateSettings({ userName: profile.name });
+    navigate('/worship');
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4" data-testid="profile-select">
-      <div className="w-full max-w-md space-y-6">
-        {/* 헤더 */}
-        <div className="text-center">
-          <div className="mb-4 flex justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-600">
-              <Users className="h-8 w-8 text-white" />
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6" data-testid="profile-select">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-12 text-center">
+          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg">
+            <Music className="h-12 w-12 text-white" />
           </div>
-          <h1 className="mb-2 text-2xl font-bold text-gray-900">길튼 시스템</h1>
-          <p className="text-gray-600">찬양팀 실시간 협업 플랫폼</p>
+          <h1 className="mb-3 text-4xl font-bold text-slate-800">길튼 시스템</h1>
+          <p className="text-lg text-slate-600">교회 찬양팀 예배 지원 시스템</p>
         </div>
 
-        {/* 프로필 설정 카드 */}
-        <Card shadow="md">
-          <CardHeader>
-            <CardTitle>사용자 정보 설정</CardTitle>
-          </CardHeader>
+        {connectionError && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3">
+            <div className="flex items-start gap-2">
+              <Wifi className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+              <p className="text-sm text-red-700">{connectionError}</p>
+            </div>
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              {/* 사용자 이름 입력 */}
-              <Input
-                label="사용자 이름"
-                placeholder="홍길동"
-                data-testid="user-name-input"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                error={errors.userName}
-                helper="찬양팀에서 사용할 이름을 입력하세요"
-                maxLength={20}
-                autoComplete="name"
-                disabled={isConnecting || isLoading}
-              />
-
-              {/* 서버 주소 입력 */}
-              <Input
-                label="서버 주소"
-                placeholder="http://localhost:3001"
-                value={serverUrl}
-                onChange={(e) => setServerUrl(e.target.value)}
-                error={errors.serverUrl}
-                helper="길튼 서버의 주소를 입력하세요"
-                autoComplete="url"
-                disabled={isConnecting || isLoading}
-              />
-
-              {/* 연결 에러 표시 */}
-              {connectionError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                  <div className="flex items-start gap-2">
-                    <Wifi className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
-                    <p className="text-sm text-red-700">{connectionError}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* 서버 연결 정보 (연결 성공 시) */}
-              {serverInfo?.status === 'connected' && (
-                <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-                  <div className="flex items-center gap-2">
-                    <Wifi className="h-5 w-5 text-green-500" />
-                    <div>
-                      <p className="text-sm font-medium text-green-700">서버 연결 성공</p>
-                      <p className="text-xs text-green-600">현재 접속자: {serverInfo.connectedUsers}명</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-
-            <CardFooter className="space-y-3">
-              {/* 연결 및 시작 버튼 */}
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="w-full"
-                data-testid="continue-button"
-                loading={isConnecting || isLoading}
-                disabled={!userName.trim() || !serverUrl.trim()}
+        <div className="mb-8">
+          <h2 className="mb-6 text-2xl font-semibold text-slate-700">프로필 선택</h2>
+          <div className="mb-6 grid grid-cols-2 gap-6 lg:grid-cols-3">
+            {profiles.map((profile) => (
+              <div
+                key={profile.id}
+                onClick={() => handleProfileSelect(profile)}
+                className="cursor-pointer rounded-2xl border-2 border-transparent bg-white p-6 shadow-lg transition-all duration-200 hover:border-blue-300 hover:shadow-xl"
               >
-                {isConnecting || isLoading ? '연결 중...' : '시작하기'}
-              </Button>
-
-              {/* 고급 설정 버튼 */}
-              <Button
-                type="button"
-                variant="ghost"
-                size="md"
-                className="w-full"
-                onClick={handleAdvancedSettings}
-                disabled={isConnecting || isLoading}
-              >
-                <Settings className="mr-2 h-4 w-4" />
-                고급 설정
-              </Button>
-            </CardFooter>
-          </form>
-        </Card>
-
-        {/* 도움말 */}
-        <div className="text-center">
-          <p className="text-sm text-gray-500">
-            길튼 서버가 실행 중인지 확인하고
-            <br />
-            올바른 서버 주소를 입력해주세요
-          </p>
+                <div
+                  className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl text-2xl"
+                  style={{ backgroundColor: profile.color }}
+                >
+                  {profile.icon}
+                </div>
+                <h3 className="text-center text-lg font-semibold text-slate-800">{profile.name}</h3>
+                <p className="mt-1 text-center text-sm text-slate-600">{profile.role}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
