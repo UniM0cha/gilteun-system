@@ -79,7 +79,7 @@ export const ProfileSelectPage: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        timeout: 5000, // 5초 타임아웃
+        // timeout은 fetch API에서 직접 지원하지 않음
       });
 
       if (response.ok) {
@@ -87,9 +87,9 @@ export const ProfileSelectPage: React.FC = () => {
         setServerInfo({
           url: serverUrl,
           status: 'connected',
-          version: data.version || '1.0.0',
           connectedUsers: data.connectedUsers || 0,
           lastPing: Date.now(),
+          version: data.version || '1.0.0',
         });
         return true;
       } else {
@@ -131,6 +131,7 @@ export const ProfileSelectPage: React.FC = () => {
       const user: User = {
         id: settings.userId || `user-${Date.now()}`,
         name: trimmedUserName,
+        color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
       };
@@ -188,6 +189,7 @@ export const ProfileSelectPage: React.FC = () => {
               <Input
                 label="사용자 이름"
                 placeholder="홍길동"
+                data-testid="user-name-input"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 error={errors.userName}
@@ -242,6 +244,7 @@ export const ProfileSelectPage: React.FC = () => {
                 variant="primary"
                 size="lg"
                 className="w-full"
+                data-testid="continue-button"
                 loading={isConnecting || isLoading}
                 disabled={!userName.trim() || !serverUrl.trim()}
               >

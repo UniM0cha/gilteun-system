@@ -82,7 +82,7 @@ export class GilteunWebSocketHandler {
     await this.updateUserInDatabase(userId, userName);
 
     // 환영 메시지 전송
-    await this.sendWelcomeMessage(ws, clientInfo);
+    await this.sendWelcomeMessage(ws);
 
     // 다른 클라이언트들에게 새 사용자 접속 알림
     await this.broadcastUserConnect(clientInfo);
@@ -355,7 +355,7 @@ export class GilteunWebSocketHandler {
   /**
    * 환영 메시지 전송
    */
-  private async sendWelcomeMessage(ws: WebSocket, client: ClientInfo): Promise<void> {
+  private async sendWelcomeMessage(ws: WebSocket): Promise<void> {
     const welcomeMessage = {
       type: 'welcome',
       message: '길튼 시스템에 연결되었습니다',
@@ -470,7 +470,7 @@ export class GilteunWebSocketHandler {
    * 하트비트 체크
    */
   private heartbeatCheck(): void {
-    this.clients.forEach((client, ws) => {
+    this.clients.forEach((_, ws) => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.ping();
       } else {

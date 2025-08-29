@@ -11,3 +11,4 @@ export {
 export { LoadingSpinner, LoadingOverlay } from './LoadingSpinner';
 export { FileUpload } from './FileUpload';
 export type { FileUploadProps, FileUploadFile } from './FileUpload';
+export { PerformanceMonitor } from './PerformanceMonitor';

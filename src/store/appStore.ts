@@ -168,6 +168,7 @@ export const useAppStore = create<AppState>()(
               currentUser: {
                 id: updatedSettings.userId,
                 name: updatedSettings.userName,
+                color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
                 createdAt: new Date().toISOString(),
                 lastActiveAt: new Date().toISOString(),
               },

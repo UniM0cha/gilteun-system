@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text, real, index } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // 예배 정보
@@ -23,18 +23,32 @@ export const songs = sqliteTable('songs', {
   createdAt: text('created_at').default(sql`datetime('now')`),
 });
 
-// 주석 데이터 (벡터 기반)
+// 주석 데이터 (SVG 벡터 기반)
 export const annotations = sqliteTable('annotations', {
   id: integer('id').primaryKey(),
-  songId: integer('song_id').references(() => songs.id),
+  songId: integer('song_id').references(() => songs.id).notNull(),
   userId: text('user_id').notNull(),       // "user-123"
   userName: text('user_name').notNull(),   // "김찬양"
   layer: text('layer').notNull(),          // "김찬양의 주석"
-  svgPath: text('svg_path').notNull(),     // SVG 패스 데이터
-  color: text('color'),                    // "#ff0000"
-  tool: text('tool'),                      // "pen" | "highlighter" | "eraser"
+  svgPath: text('svg_path').notNull(),     // SVG 패스 데이터 (압축됨)
+  color: text('color').notNull(),          // "#ff0000"
+  tool: text('tool').notNull(),            // "pen" | "highlighter" | "eraser"
+  strokeWidth: real('stroke_width'),       // 선 두께
+  opacity: real('opacity').default(1.0),  // 투명도 (0.0 - 1.0)
+  isVisible: integer('is_visible', { mode: 'boolean' }).default(true), // 가시성 플래그
+  version: integer('version').default(1),  // 버전 관리
+  compressedSize: integer('compressed_size'), // 압축된 데이터 크기 (바이트)
+  checksum: text('checksum'),              // 무결성 체크용 해시
+  deletedAt: text('deleted_at'),           // Soft delete (null이면 활성)
+  updatedAt: text('updated_at').default(sql`datetime('now')`),
   createdAt: text('created_at').default(sql`datetime('now')`),
-});
+}, (table) => ({
+  // 성능 최적화를 위한 인덱스들
+  songUserIdx: index('idx_annotations_song_user').on(table.songId, table.userId),
+  songActiveIdx: index('idx_annotations_song_active').on(table.songId, table.deletedAt),
+  userActiveIdx: index('idx_annotations_user_active').on(table.userId, table.deletedAt),
+  createdAtIdx: index('idx_annotations_created_at').on(table.createdAt),
+}));
 
 // 사용자 정보 (세션용)
 export const users = sqliteTable('users', {

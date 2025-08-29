@@ -20,9 +20,9 @@ router.get('/', async (req, res) => {
 
     const db = getDatabase();
 
-    // 기본 쿼리 빌더
-    let query = db.select().from(songs);
-
+    // WHERE 조건 구성
+    const whereConditions = [];
+    
     // 예배 ID 필터링
     if (worshipId) {
       const worshipIdNum = Number(worshipId);
@@ -32,27 +32,28 @@ router.get('/', async (req, res) => {
           message: '유효하지 않은 예배 ID입니다',
         });
       }
-      query = query.where(eq(songs.worshipId, worshipIdNum));
+      whereConditions.push(eq(songs.worshipId, worshipIdNum));
     }
 
-    // 정렬 및 페이징 (순서대로, 생성일시 순)
-    const songsList = await query
+    // 쿼리 실행
+    const songsList = await db
+      .select()
+      .from(songs)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(songs.order, desc(songs.createdAt))
       .limit(Number(limit))
       .offset(Number(offset));
 
     // 전체 개수 조회 (페이징용)
-    const conditions = [];
+    const countConditions = [];
     if (worshipId) {
-      conditions.push(eq(songs.worshipId, Number(worshipId)));
+      countConditions.push(eq(songs.worshipId, Number(worshipId)));
     }
 
-    let countQuery = db.select({ count: songs.id }).from(songs);
-    if (conditions.length > 0) {
-      countQuery = countQuery.where(and(...conditions));
-    }
-
-    const totalResult = await countQuery;
+    const totalResult = await db
+      .select({ count: songs.id })
+      .from(songs)
+      .where(countConditions.length > 0 ? and(...countConditions) : undefined);
     const total = totalResult.length;
 
     res.json({

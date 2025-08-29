@@ -32,6 +32,18 @@ interface WebSocketState {
     startTime: number;
   }>;
 
+  // 실시간 커서 위치 (Figma 스타일)
+  activeCursors: Map<string, {
+    userId: string;
+    userName: string;
+    x: number;
+    y: number;
+    isDrawing: boolean;
+    tool: string;
+    color: string;
+    lastUpdate: number;
+  }>;
+
   // 연결 관리
   connect: (serverUrl: string, userId: string, userName: string) => Promise<void>;
   disconnect: () => void;
@@ -43,10 +55,13 @@ interface WebSocketState {
   sendAnnotationStart: (songId: number, tool: string, color: string, layer: string) => boolean;
   sendAnnotationUpdate: (songId: number, svgPath: string, tool: string, color: string) => boolean;
   sendAnnotationComplete: (songId: number, svgPath: string, tool: string, color: string, layer: string) => boolean;
+  sendCursorMove: (songId: number, x: number, y: number, isDrawing: boolean, tool: string) => boolean;
 
   // 상태 관리
   clearMessages: () => void;
   removeActiveAnnotation: (userId: string) => void;
+  removeActiveCursor: (userId: string) => void;
+  updateCursorPosition: (userId: string, userName: string, x: number, y: number, isDrawing: boolean, tool: string, color: string) => void;
   updateConnectionStatus: (status: ConnectionStatus) => void;
   handleMessage: (message: WebSocketMessage) => void;
 }
@@ -68,6 +83,7 @@ export const useWebSocketStore = create<WebSocketState>()(
       recentCommands: [],
       recentAnnotations: [],
       activeAnnotations: new Map(),
+      activeCursors: new Map(),
 
       // WebSocket 연결
       connect: async (serverUrl, userId, userName) => {
@@ -174,6 +190,7 @@ export const useWebSocketStore = create<WebSocketState>()(
           recentCommands: [],
           recentAnnotations: [],
           activeAnnotations: new Map(),
+          activeCursors: new Map(),
         });
       },
 
@@ -196,7 +213,7 @@ export const useWebSocketStore = create<WebSocketState>()(
 
         // 앱 스토어에서 서버 정보와 사용자 정보 가져오기
         const appState = useAppStore.getState();
-        const serverUrl = `http://${appState.serverInfo?.host}:${appState.serverInfo?.port}`;
+        const serverUrl = appState.serverInfo?.url || '';
         const userId = appState.currentUser?.id || '';
         const userName = appState.currentUser?.name || '';
 
@@ -272,6 +289,18 @@ export const useWebSocketStore = create<WebSocketState>()(
         });
       },
 
+      // 커서 이동 (실시간)
+      sendCursorMove: (songId, x, y, isDrawing, tool) => {
+        return get().sendMessage({
+          type: 'cursor:move',
+          songId,
+          x,
+          y,
+          isDrawing,
+          tool,
+        });
+      },
+
       // 메시지 처리
       handleMessage: (message: WebSocketMessage) => {
         console.log('WebSocket 메시지 수신:', message);
@@ -288,6 +317,7 @@ export const useWebSocketStore = create<WebSocketState>()(
           case 'user:disconnect':
             // 사용자 연결 해제 알림
             get().removeActiveAnnotation(message.userId || '');
+            get().removeActiveCursor(message.userId || '');
             break;
 
           case 'server:status':
@@ -351,6 +381,21 @@ export const useWebSocketStore = create<WebSocketState>()(
             }
             break;
 
+          case 'cursor:move':
+            // 실시간 커서 위치 업데이트
+            if (message.userId && message.userId !== useAppStore.getState().currentUser?.id) {
+              get().updateCursorPosition(
+                message.userId,
+                message.userName || '알 수 없음',
+                message.x || 0,
+                message.y || 0,
+                message.isDrawing || false,
+                message.tool || 'pen',
+                message.color || '#000000'
+              );
+            }
+            break;
+
           case 'command:broadcast':
             // 새 명령 수신
             if (message.commandId) {
@@ -398,6 +443,7 @@ export const useWebSocketStore = create<WebSocketState>()(
           recentCommands: [],
           recentAnnotations: [],
           activeAnnotations: new Map(),
+          activeCursors: new Map(),
         });
       },
 
@@ -405,6 +451,27 @@ export const useWebSocketStore = create<WebSocketState>()(
         const activeAnnotations = new Map(get().activeAnnotations);
         activeAnnotations.delete(userId);
         set({ activeAnnotations });
+      },
+
+      removeActiveCursor: (userId) => {
+        const activeCursors = new Map(get().activeCursors);
+        activeCursors.delete(userId);
+        set({ activeCursors });
+      },
+
+      updateCursorPosition: (userId, userName, x, y, isDrawing, tool, color) => {
+        const activeCursors = new Map(get().activeCursors);
+        activeCursors.set(userId, {
+          userId,
+          userName,
+          x,
+          y,
+          isDrawing,
+          tool,
+          color,
+          lastUpdate: Date.now(),
+        });
+        set({ activeCursors });
       },
 
       updateConnectionStatus: (status) => {
@@ -426,3 +493,4 @@ export const useConnectedUsers = () => useWebSocketStore((state) => ({
 export const useRecentCommands = () => useWebSocketStore((state) => state.recentCommands);
 export const useRecentAnnotations = () => useWebSocketStore((state) => state.recentAnnotations);
 export const useActiveAnnotations = () => useWebSocketStore((state) => state.activeAnnotations);
+export const useActiveCursors = () => useWebSocketStore((state) => state.activeCursors);

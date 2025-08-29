@@ -21,8 +21,8 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
       gcTime: 10 * 60 * 1000, // 10분간 캐시 유지 (구 cacheTime)
       refetchOnWindowFocus: false, // 윈도우 포커스 시 자동 갱신 비활성화
-      refetchOnMount: 'if-stale', // 마운트 시 stale한 경우만 갱신
-      refetchOnReconnect: 'if-stale', // 재연결 시 stale한 경우만 갱신
+      refetchOnMount: true, // 마운트 시 stale한 경우만 갱신  
+      refetchOnReconnect: true, // 재연결 시 stale한 경우만 갱신
     },
     mutations: {
       // 기본 뮤테이션 옵션
@@ -42,8 +42,8 @@ const queryClient = new QueryClient({
  * React Query 에러 처리 이벤트 리스너
  */
 queryClient.getQueryCache().subscribe((event) => {
-  if (event.type === 'error') {
-    const error = event.error as any;
+  if (event.type === 'updated' && 'error' in event.query.state && event.query.state.error) {
+    const error = event.query.state.error as any;
 
     // 개발 환경에서만 콘솔 로그
     if (import.meta.env.DEV) {
@@ -62,8 +62,8 @@ queryClient.getQueryCache().subscribe((event) => {
 });
 
 queryClient.getMutationCache().subscribe((event) => {
-  if (event.type === 'error') {
-    const error = event.error as any;
+  if (event.type === 'updated' && 'error' in event.mutation.state && event.mutation.state.error) {
+    const error = event.mutation.state.error as any;
 
     // 개발 환경에서만 콘솔 로그
     if (import.meta.env.DEV) {
@@ -94,14 +94,7 @@ export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
       {import.meta.env.DEV && (
         <ReactQueryDevtools
           initialIsOpen={false}
-          position="bottom-right"
-          toggleButtonProps={{
-            style: {
-              marginLeft: '5px',
-              transform: 'scale(0.8)',
-              transformOrigin: 'bottom right',
-            },
-          }}
+          buttonPosition="bottom-right"
         />
       )}
     </QueryClientProvider>

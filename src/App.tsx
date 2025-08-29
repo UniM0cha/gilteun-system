@@ -1,4 +1,3 @@
-import React from 'react';
 import { HashRouter } from 'react-router-dom';
 import { QueryProvider } from './providers/QueryProvider';
 import { AppInitializer, StoreProvider } from './store/StoreProvider';

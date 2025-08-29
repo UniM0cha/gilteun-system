@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
+  Activity,
   ArrowLeft,
   Edit3,
   Eye,
@@ -13,10 +14,22 @@ import {
   Users,
   ZoomIn,
   ZoomOut,
+  Palette,
+  Highlighter,
+  Pencil,
+  Eraser,
+  Save,
 } from 'lucide-react';
 import { Button, LoadingOverlay, LoadingSpinner } from '../components/ui';
 import { useAppStore } from '../store/appStore';
 import { useSong, useWorship } from '../hooks/useApi';
+import { AnnotationEngine, AnnotationEngineRef, PerformanceMetrics } from '../components/drawing/AnnotationEngine';
+import { RealTimeCursors, RealTimeDrawingPaths } from '../components/drawing/RealTimeCursors';
+import { LayerManager, LayerVisibility } from '../components/drawing/LayerManager';
+import { AnnotationStorage, AnnotationStorageRef } from '../components/drawing/AnnotationStorage';
+import { PerformanceMonitor } from '../components/ui/PerformanceMonitor';
+import { useWebSocketStore } from '../store/websocketStore';
+import { Annotation } from '../types';
 
 /**
  * 악보 뷰어 페이지
@@ -35,6 +48,7 @@ export const ScoreViewerPage: React.FC = () => {
   const {
     currentWorship,
     currentSong,
+    currentUser,
     setCurrentWorship,
     setCurrentSong,
     isLoading,
@@ -48,9 +62,41 @@ export const ScoreViewerPage: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [lastTouch, setLastTouch] = useState<{ x: number; y: number } | null>(null);
 
+  // Phase 2: 주석 관련 상태
+  const [isAnnotationMode, setIsAnnotationMode] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen');
+  const [strokeThickness, setStrokeThickness] = useState(3);
+  const [showToolbar, setShowToolbar] = useState(false);
+
+  // Phase 2: 레이어 관리 상태
+  const [layerVisibility, setLayerVisibility] = useState<LayerVisibility>({});
+  const [showAllLayers, setShowAllLayers] = useState(true);
+  const [showLayerManager, setShowLayerManager] = useState(false);
+
   // 참조
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const annotationEngineRef = useRef<AnnotationEngineRef>(null);
+  const annotationStorageRef = useRef<AnnotationStorageRef>(null);
+
+  // Phase 2: 로드된 주석 데이터 콜백용 setter
+  const setLoadedAnnotations = useState<Annotation[]>([])[1];
+
+  // Phase 2: 성능 모니터링 상태
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
+    inputLatency: 0,
+    fps: 60,
+    memoryUsage: 0,
+    performanceScore: 100,
+  });
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
+
+  // WebSocket 스토어
+  const {
+    sendAnnotationUpdate,
+    sendAnnotationComplete,
+    sendCursorMove,
+  } = useWebSocketStore();
 
   // API 훅
   const {
@@ -80,10 +126,198 @@ export const ScoreViewerPage: React.FC = () => {
     }
   }, [song, currentSong, setCurrentSong]);
 
+  // AnnotationEngine에서 발생하는 커서 이벤트 리스너
+  useEffect(() => {
+    const handleCursorMove = (e: CustomEvent) => {
+      if (!songIdNum || !currentUser) return;
+      
+      const { x, y, isDrawing } = e.detail;
+      sendCursorMove(songIdNum, x, y, isDrawing, selectedTool);
+    };
+
+    // AnnotationEngine의 root element에 이벤트 리스너 추가
+    if (annotationEngineRef.current) {
+      const editor = annotationEngineRef.current.getEditor?.();
+      if (editor) {
+        const rootElement = editor.getRootElement();
+        rootElement.addEventListener('cursorMove', handleCursorMove as EventListener);
+        
+        return () => {
+          rootElement.removeEventListener('cursorMove', handleCursorMove as EventListener);
+        };
+      }
+    }
+  }, [songIdNum, currentUser, selectedTool, sendCursorMove]);
+
   // 뒤로 가기
   const handleGoBack = () => {
     navigate(`/worship/${worshipId}`);
   };
+
+  // Phase 2: 주석 관련 핸들러 - 데이터베이스 저장과 실시간 동기화
+  const handleAnnotationComplete = useCallback(async (svgPath: string, tool: string, color: string) => {
+    if (songIdNum && currentUser && annotationStorageRef.current) {
+      try {
+        // 1. 데이터베이스에 저장 (AnnotationStorage 사용)
+        await annotationStorageRef.current.saveAnnotation(
+          svgPath,
+          tool as 'pen' | 'highlighter' | 'eraser',
+          color,
+          {
+            autoSave: false, // 즉시 저장
+            compress: true,  // SVG 압축
+            layer: `${currentUser.name}의 주석`
+          }
+        );
+
+        // 2. 실시간 동기화를 위해 WebSocket으로 전송
+        sendAnnotationComplete(
+          songIdNum,
+          svgPath,
+          tool,
+          color,
+          `${currentUser.name}의 주석`
+        );
+      } catch (error) {
+        console.error('주석 저장 실패:', error);
+        // 저장 실패 시에도 실시간 동기화는 유지
+        sendAnnotationComplete(
+          songIdNum,
+          svgPath,
+          tool,
+          color,
+          `${currentUser.name}의 주석`
+        );
+      }
+    }
+  }, [songIdNum, currentUser, sendAnnotationComplete]);
+
+  const handleAnnotationUpdate = useCallback((svgPath: string, isComplete: boolean) => {
+    if (songIdNum && currentUser && !isComplete) {
+      // 실시간 동기화를 위해 WebSocket으로 전송 (Figma 스타일)
+      sendAnnotationUpdate(songIdNum, svgPath, selectedTool, currentUser.color || '#2563eb');
+    }
+  }, [songIdNum, currentUser, selectedTool, sendAnnotationUpdate]);
+
+  // Phase 2: 커서 위치 추적 및 실시간 전송
+  const handleCursorMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (!songIdNum || !currentUser || !imageRef.current) return;
+    
+    // 이벤트에 따라 좌표 추출
+    let clientX: number, clientY: number;
+    if (e.type.startsWith('touch')) {
+      const touchEvent = e as React.TouchEvent;
+      if (touchEvent.touches.length === 0) return;
+      clientX = touchEvent.touches[0].clientX;
+      clientY = touchEvent.touches[0].clientY;
+    } else {
+      const mouseEvent = e as React.MouseEvent;
+      clientX = mouseEvent.clientX;
+      clientY = mouseEvent.clientY;
+    }
+    
+    // 이미지 상대좌표로 변환
+    const rect = imageRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    // 이미지 영역 내부에 있을 때만 전송
+    if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+      sendCursorMove(songIdNum, x, y, isAnnotationMode, selectedTool);
+    }
+  }, [songIdNum, currentUser, isAnnotationMode, selectedTool, sendCursorMove]);
+
+  const toggleAnnotationMode = useCallback(() => {
+    setIsAnnotationMode(!isAnnotationMode);
+    if (!isAnnotationMode) {
+      setShowToolbar(true);
+    }
+  }, [isAnnotationMode]);
+
+  const handleToolChange = useCallback((tool: 'pen' | 'highlighter' | 'eraser') => {
+    setSelectedTool(tool);
+  }, []);
+
+  // Phase 2: 레이어 관리 핸들러
+  const handleLayerVisibilityChange = useCallback((visibility: LayerVisibility) => {
+    setLayerVisibility(visibility);
+  }, []);
+
+  const handleToggleAllLayers = useCallback((show: boolean) => {
+    setShowAllLayers(show);
+    if (!show) {
+      // 모든 레이어 숨김
+      const allHidden: LayerVisibility = {};
+      Object.keys(layerVisibility).forEach(userId => {
+        allHidden[userId] = false;
+      });
+      setLayerVisibility(allHidden);
+    } else {
+      // 모든 레이어 표시
+      const allVisible: LayerVisibility = {};
+      Object.keys(layerVisibility).forEach(userId => {
+        allVisible[userId] = true;
+      });
+      setLayerVisibility(allVisible);
+    }
+  }, [layerVisibility]);
+
+  // Phase 2: AnnotationStorage 콜백들
+  const handleAnnotationsLoaded = useCallback(async (annotations: Annotation[]) => {
+    console.log(`기존 주석 ${annotations.length}개 로드됨`);
+    setLoadedAnnotations(annotations);
+    
+    // AnnotationEngine에 기존 주석들 로드
+    if (annotationEngineRef.current && annotations.length > 0) {
+      try {
+        // 모든 주석을 하나의 SVG로 병합하여 로드
+        const combinedSVG = `
+          <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+            ${annotations.map((annotation) => `
+              <g data-annotation-id="${annotation.id}" data-user-id="${annotation.userId}" opacity="${annotation.opacity || 1.0}">
+                ${annotation.svgPath}
+              </g>
+            `).join('')}
+          </svg>
+        `;
+        
+        await annotationEngineRef.current.loadAnnotationData(combinedSVG);
+      } catch (error) {
+        console.error('기존 주석 로드 실패:', error);
+      }
+    }
+  }, []);
+
+  const handleAnnotationSaved = useCallback((annotation: Annotation) => {
+    console.log('주석 저장 완료:', annotation.id);
+    // 로드된 주석 목록 업데이트
+    setLoadedAnnotations(prev => [...prev, annotation]);
+  }, []);
+
+  const handleSaveError = useCallback((error: Error) => {
+    console.error('주석 저장 오류:', error);
+    // 사용자에게 오류 알림 (추후 토스트 등으로 구현)
+  }, []);
+
+  // Phase 2: 성능 모니터링 콜백
+  const handlePerformanceUpdate = useCallback((metrics: PerformanceMetrics) => {
+    setPerformanceMetrics(metrics);
+    
+    // 성능 점수가 낮을 때 경고 로그
+    if (metrics.performanceScore < 60) {
+      console.warn('성능 저하 감지:', {
+        inputLatency: `${metrics.inputLatency.toFixed(1)}ms`,
+        fps: `${metrics.fps}fps`,
+        memoryUsage: `${metrics.memoryUsage}MB`,
+        score: metrics.performanceScore
+      });
+    }
+    
+    // Apple Pencil 지연시간 목표 달성 체크
+    if (metrics.inputLatency > 16 && isAnnotationMode) {
+      console.warn(`Apple Pencil 지연시간 목표 초과: ${metrics.inputLatency.toFixed(1)}ms (목표: <16ms)`);
+    }
+  }, [isAnnotationMode]);
 
   // 줌 제어
   const handleZoomIn = useCallback(() => {
@@ -158,7 +392,12 @@ export const ScoreViewerPage: React.FC = () => {
       // 핀치 줌 (기본 브라우저 핀치 줌 사용)
       // 추가 구현은 Phase 2에서 진행
     }
-  }, [isDragging, lastTouch]);
+    
+    // 커서 위치 실시간 전송 (드래그 중이 아닐 때)
+    if (!isDragging && e.touches.length === 1) {
+      handleCursorMove(e);
+    }
+  }, [isDragging, lastTouch, handleCursorMove]);
 
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
@@ -185,7 +424,12 @@ export const ScoreViewerPage: React.FC = () => {
 
       setLastTouch({ x: e.clientX, y: e.clientY });
     }
-  }, [isDragging, lastTouch]);
+    
+    // 커서 위치 실시간 전송 (드래그 중이 아닐 때)
+    if (!isDragging) {
+      handleCursorMove(e);
+    }
+  }, [isDragging, lastTouch, handleCursorMove]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -246,7 +490,7 @@ export const ScoreViewerPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white" data-testid="score-viewer">
       {/* 헤더 (전체화면이 아닐 때만 표시) */}
       {!isFullscreen && (
         <div className="bg-gray-900 border-b border-gray-700 px-4 py-3">
@@ -284,22 +528,45 @@ export const ScoreViewerPage: React.FC = () => {
                   {showAnnotations ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                 </Button>
 
-                {/* 주석 레이어 */}
+                {/* 주석 레이어 관리 */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-800"
+                  onClick={() => setShowLayerManager(!showLayerManager)}
+                  className={`min-w-[44px] min-h-[44px] text-white hover:bg-gray-800 ${
+                    showLayerManager ? 'bg-blue-600 hover:bg-blue-700' : ''
+                  }`}
+                  title="레이어 관리"
+                  data-testid="layer-manager-button"
                 >
                   <Layers className="w-4 h-4" />
                 </Button>
 
-                {/* 편집 모드 (Phase 2) */}
+                {/* 주석 모드 토글 (Phase 2) */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-800"
+                  onClick={toggleAnnotationMode}
+                  data-testid="draw-mode-button"
+                  className={`min-w-[44px] min-h-[44px] text-white hover:bg-gray-800 ${
+                    isAnnotationMode ? 'bg-blue-600 hover:bg-blue-700' : ''
+                  }`}
+                  title="주석 모드 토글"
                 >
                   <Edit3 className="w-4 h-4" />
+                </Button>
+
+                {/* 성능 모니터링 토글 */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPerformanceMonitor(!showPerformanceMonitor)}
+                  className={`min-w-[44px] min-h-[44px] text-white hover:bg-gray-800 ${
+                    showPerformanceMonitor ? 'bg-green-600 hover:bg-green-700' : ''
+                  }`}
+                  title="성능 모니터링"
+                >
+                  <Activity className="w-4 h-4" />
                 </Button>
 
                 <Button
@@ -453,11 +720,52 @@ export const ScoreViewerPage: React.FC = () => {
                   }}
                 />
 
-                {/* 주석 레이어 - Phase 2에서 구현 */}
-                {showAnnotations && (
-                  <div className="absolute inset-0 pointer-events-none">
-                    {/* SVG 주석들이 여기에 렌더링됩니다 */}
-                  </div>
+                {/* 주석 레이어 - js-draw 기반 실시간 협업 주석 시스템 */}
+                {showAnnotations && imageRef.current && currentUser && songIdNum && (
+                  <>
+                    {/* 주석 데이터 저장소 - 데이터베이스 영구 저장 및 로드 */}
+                    <AnnotationStorage
+                      ref={annotationStorageRef}
+                      songId={songIdNum}
+                      userId={currentUser.id}
+                      userName={currentUser.name}
+                      onAnnotationsLoaded={handleAnnotationsLoaded}
+                      onAnnotationSaved={handleAnnotationSaved}
+                      onSaveError={handleSaveError}
+                    />
+
+                    <AnnotationEngine
+                      ref={annotationEngineRef}
+                      songId={songIdNum}
+                      userId={currentUser.id}
+                      userName={currentUser.name}
+                      userColor={currentUser.color || '#2563eb'}
+                      isEditMode={isAnnotationMode}
+                      tool={selectedTool}
+                      thickness={strokeThickness}
+                      width={imageRef.current.offsetWidth || 800}
+                      height={imageRef.current.offsetHeight || 600}
+                      onAnnotationComplete={handleAnnotationComplete}
+                      onAnnotationUpdate={handleAnnotationUpdate}
+                      onPerformanceUpdate={handlePerformanceUpdate}
+                    />
+
+                    {/* 실시간 그리기 패스 표시 (다른 사용자가 그리는 중인 선) */}
+                    <RealTimeDrawingPaths
+                      currentUserId={currentUser.id}
+                      width={imageRef.current.offsetWidth || 800}
+                      height={imageRef.current.offsetHeight || 600}
+                      layerVisibility={layerVisibility}
+                    />
+
+                    {/* 실시간 커서 표시 (Figma 스타일) */}
+                    <RealTimeCursors
+                      currentUserId={currentUser.id}
+                      width={imageRef.current.offsetWidth || 800}
+                      height={imageRef.current.offsetHeight || 600}
+                      layerVisibility={layerVisibility}
+                    />
+                  </>
                 )}
               </div>
             )}
@@ -497,6 +805,167 @@ export const ScoreViewerPage: React.FC = () => {
                 className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-700"
               >
                 <Minimize2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* 레이어 관리 패널 - Phase 2 */}
+        {showLayerManager && !isFullscreen && (
+          <div className="absolute top-4 right-4 z-30">
+            <LayerManager
+              currentUserId={currentUser?.id || ''}
+              layerVisibility={layerVisibility}
+              onLayerVisibilityChange={handleLayerVisibilityChange}
+              showAllLayers={showAllLayers}
+              onToggleAllLayers={handleToggleAllLayers}
+            />
+          </div>
+        )}
+
+        {/* 저장 상태 표시기 */}
+        {annotationStorageRef.current && !isFullscreen && (
+          <div className="absolute top-4 left-4 z-30">
+            <div className="bg-black bg-opacity-75 rounded-lg px-3 py-2 text-sm text-white">
+              {(() => {
+                const status = annotationStorageRef.current?.getSaveStatus?.();
+                if (!status) return null;
+                
+                if (status.isSaving) {
+                  return (
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
+                      <span>저장 중...</span>
+                    </div>
+                  );
+                }
+                
+                if (status.pendingCount > 0) {
+                  return (
+                    <div className="flex items-center space-x-2 text-yellow-400">
+                      <Save className="w-4 h-4" />
+                      <span>미저장 {status.pendingCount}개</span>
+                    </div>
+                  );
+                }
+                
+                if (!status.isConnected) {
+                  return (
+                    <div className="flex items-center space-x-2 text-red-400">
+                      <span>●</span>
+                      <span>오프라인</span>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="flex items-center space-x-2 text-green-400">
+                    <span>●</span>
+                    <span>저장됨</span>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* 성능 모니터링 */}
+        <PerformanceMonitor
+          metrics={performanceMetrics}
+          visible={showPerformanceMonitor && !isFullscreen}
+          compact={false}
+          position="bottom-left"
+        />
+
+        {/* 주석 도구 패널 - Phase 2 */}
+        {isAnnotationMode && showToolbar && !isFullscreen && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
+            <div className="flex items-center space-x-3 bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-xl border">
+              {/* 펜 도구 */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleToolChange('pen')}
+                className={`min-w-[48px] min-h-[48px] rounded-xl ${
+                  selectedTool === 'pen' 
+                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                title="펜 도구 (Apple Pencil 압력 감지)"
+              >
+                <Pencil className="w-5 h-5" />
+              </Button>
+
+              {/* 하이라이터 도구 */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleToolChange('highlighter')}
+                className={`min-w-[48px] min-h-[48px] rounded-xl ${
+                  selectedTool === 'highlighter' 
+                    ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                title="하이라이터"
+              >
+                <Highlighter className="w-5 h-5" />
+              </Button>
+
+              {/* 지우개 도구 */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleToolChange('eraser')}
+                className={`min-w-[48px] min-h-[48px] rounded-xl ${
+                  selectedTool === 'eraser' 
+                    ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                title="지우개"
+              >
+                <Eraser className="w-5 h-5" />
+              </Button>
+
+              <div className="w-px h-8 bg-gray-300"></div>
+
+              {/* 두께 조절 */}
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500">두께</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={strokeThickness}
+                  onChange={(e) => setStrokeThickness(Number(e.target.value))}
+                  className="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  title={`선 두께: ${strokeThickness}px`}
+                />
+                <span className="text-xs text-gray-500 w-6 text-center">{strokeThickness}</span>
+              </div>
+
+              <div className="w-px h-8 bg-gray-300"></div>
+
+              {/* 색상 선택 (현재는 사용자 고정 색상) */}
+              <div className="flex items-center space-x-2">
+                <Palette className="w-4 h-4 text-gray-500" />
+                <div 
+                  className="w-8 h-8 rounded-full border-2 border-gray-300"
+                  style={{ backgroundColor: currentUser?.color || '#2563eb' }}
+                  title={`내 색상: ${currentUser?.name}`}
+                />
+              </div>
+
+              <div className="w-px h-8 bg-gray-300"></div>
+
+              {/* 도구 패널 닫기 */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowToolbar(false)}
+                className="min-w-[48px] min-h-[48px] rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                title="도구 패널 숨기기"
+              >
+                ✕
               </Button>
             </div>
           </div>

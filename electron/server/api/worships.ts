@@ -22,16 +22,7 @@ router.get('/', async (req, res) => {
     const { limit = 10, offset = 0, date, startDate, endDate } = req.query;
 
     // 기본 쿼리 빌더
-    let query = db.select({
-      id: worships.id,
-      title: worships.title,
-      date: worships.date,
-      time: worships.time,
-      description: worships.description,
-      createdAt: worships.createdAt,
-    }).from(worships);
-
-    // 날짜 필터링
+    // 날짜 필터링 조건 구성
     const conditions = [];
     if (date) {
       conditions.push(eq(worships.date, String(date)));
@@ -45,12 +36,18 @@ router.get('/', async (req, res) => {
       );
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-
-    // 정렬 및 페이징
-    const worshipsList = await query
+    // 쿼리 실행
+    const worshipsList = await db
+      .select({
+        id: worships.id,
+        title: worships.title,
+        date: worships.date,
+        time: worships.time,
+        description: worships.description,
+        createdAt: worships.createdAt,
+      })
+      .from(worships)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(worships.date), desc(worships.createdAt))
       .limit(Number(limit))
       .offset(Number(offset));

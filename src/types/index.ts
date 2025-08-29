@@ -97,6 +97,7 @@ export interface Annotation {
   svgPath: string;
   color: string;
   tool: 'pen' | 'highlighter' | 'eraser';
+  opacity?: number;
   createdAt: string;
 }
 
@@ -104,6 +105,7 @@ export interface Annotation {
 export interface User {
   id: string;
   name: string;
+  color: string;
   createdAt: string;
   lastActiveAt: string;
 }
@@ -130,7 +132,16 @@ export interface WebSocketMessage extends BaseMessage {
 }
 
 // 연결 상태
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
+export type ConnectionStatus = 'disconnected' | 'connected' | 'connecting' | 'reconnecting' | 'error';
+
+// 서버 정보
+export interface ServerInfo {
+  url: string;
+  status: 'connected' | 'disconnected' | 'connecting' | 'error';
+  connectedUsers: number;
+  lastPing: number;
+  version?: string;
+}
 
 // 그리기 도구
 export type DrawingTool = 'pen' | 'highlighter' | 'eraser';
@@ -165,15 +176,6 @@ export interface PaginatedResponse<T> {
   };
 }
 
-// 서버 정보
-export interface ServerInfo {
-  host: string;
-  port: number;
-  url: string;
-  status: string;
-  timestamp: string;
-  connectedUsers?: number;
-}
 
 // 터치 제스처
 export interface GestureState {

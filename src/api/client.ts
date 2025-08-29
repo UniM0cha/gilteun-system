@@ -37,11 +37,8 @@ export interface ApiError {
  */
 export class ApiClient {
   private instance: AxiosInstance;
-  private baseURL: string;
 
   constructor(config: ApiClientConfig) {
-    this.baseURL = config.baseURL;
-
     this.instance = axios.create({
       baseURL: config.baseURL,
       timeout: config.timeout || 10000, // 10초 기본 타임아웃
@@ -97,7 +94,7 @@ export class ApiClient {
       // 서버가 응답했지만 에러 상태 코드
       return {
         code: `HTTP_${error.response.status}`,
-        message: error.response.data?.message || error.message,
+        message: (error.response.data as any)?.message || error.message,
         status: error.response.status,
         details: error.response.data,
       };
@@ -198,7 +195,6 @@ export class ApiClient {
    * 베이스 URL 업데이트
    */
   updateBaseURL(newBaseURL: string): void {
-    this.baseURL = newBaseURL;
     this.instance.defaults.baseURL = newBaseURL;
   }
 

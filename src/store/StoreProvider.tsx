@@ -42,8 +42,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
 
       // 오프라인에서 온라인으로 전환 시 WebSocket 재연결
       if (connectionStatus === 'disconnected' && serverInfo && currentUser) {
-        const serverUrl = `http://${serverInfo.host}:${serverInfo.port}`;
-        connectWebSocket(serverUrl, currentUser.id, currentUser.name);
+        connectWebSocket(serverInfo.url, currentUser.id, currentUser.name);
       }
     };
 

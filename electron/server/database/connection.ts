@@ -105,16 +105,24 @@ class DatabaseManager {
         created_at TEXT DEFAULT (datetime('now'))
       );
 
-      -- 주석 테이블
+      -- 주석 테이블 (SVG 벡터 기반, 압축 지원)
       CREATE TABLE IF NOT EXISTS annotations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        song_id INTEGER REFERENCES songs(id),
+        song_id INTEGER NOT NULL REFERENCES songs(id),
         user_id TEXT NOT NULL,
         user_name TEXT NOT NULL,
         layer TEXT NOT NULL,
         svg_path TEXT NOT NULL,
-        color TEXT,
-        tool TEXT,
+        color TEXT NOT NULL,
+        tool TEXT NOT NULL,
+        stroke_width REAL DEFAULT 2,
+        opacity REAL DEFAULT 1.0,
+        is_visible INTEGER DEFAULT 1,
+        version INTEGER DEFAULT 1,
+        compressed_size INTEGER,
+        checksum TEXT,
+        deleted_at TEXT,
+        updated_at TEXT DEFAULT (datetime('now')),
         created_at TEXT DEFAULT (datetime('now'))
       );
 
@@ -134,6 +142,16 @@ class DatabaseManager {
         message TEXT NOT NULL,
         created_at TEXT DEFAULT (datetime('now'))
       );
+
+      -- 주석 테이블 성능 최적화 인덱스들
+      CREATE INDEX IF NOT EXISTS idx_annotations_song_user 
+        ON annotations(song_id, user_id);
+      CREATE INDEX IF NOT EXISTS idx_annotations_song_active 
+        ON annotations(song_id, deleted_at);
+      CREATE INDEX IF NOT EXISTS idx_annotations_user_active 
+        ON annotations(user_id, deleted_at);
+      CREATE INDEX IF NOT EXISTS idx_annotations_created_at 
+        ON annotations(created_at);
     `;
 
     try {
