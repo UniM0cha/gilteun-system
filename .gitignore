@@ -25,3 +25,6 @@ dist-ssr
 
 worktree
 release
+
+# Local Serena workspace
+.serena/
