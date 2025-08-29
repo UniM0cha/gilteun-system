@@ -3,24 +3,17 @@ const CACHE_NAME = 'gilteun-v1';
 const OFFLINE_URL = '/offline.html';
 
 // 캐시할 정적 리소스
-const STATIC_CACHE_URLS = [
-  '/',
-  '/offline.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-];
+const STATIC_CACHE_URLS = ['/', '/offline.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 // 설치 이벤트 - 정적 리소스 캐시
 self.addEventListener('install', (event) => {
   console.log('Service Worker 설치');
 
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('정적 리소스 캐싱');
-        return cache.addAll(STATIC_CACHE_URLS);
-      }),
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('정적 리소스 캐싱');
+      return cache.addAll(STATIC_CACHE_URLS);
+    }),
   );
 
   // 즉시 활성화
@@ -61,9 +54,11 @@ self.addEventListener('fetch', (event) => {
   if (requestUrl.pathname.startsWith('/api/')) {
     // API 요청: Network First (실시간 데이터 우선)
     event.respondWith(networkFirstStrategy(event.request));
-  } else if (requestUrl.pathname.endsWith('.jpg') ||
+  } else if (
+    requestUrl.pathname.endsWith('.jpg') ||
     requestUrl.pathname.endsWith('.png') ||
-    requestUrl.pathname.endsWith('.jpeg')) {
+    requestUrl.pathname.endsWith('.jpeg')
+  ) {
     // 이미지: Cache First (악보 이미지)
     event.respondWith(cacheFirstStrategy(event.request));
   } else {
@@ -131,15 +126,17 @@ async function staleWhileRevalidateStrategy(request) {
   const cachedResponse = await caches.match(request);
 
   // 백그라운드에서 업데이트
-  const fetchPromise = fetch(request).then((response) => {
-    if (response.status === 200) {
-      const cache = caches.open(CACHE_NAME);
-      cache.then(c => c.put(request, response.clone()));
-    }
-    return response;
-  }).catch(() => {
-    console.log('백그라운드 업데이트 실패:', request.url);
-  });
+  const fetchPromise = fetch(request)
+    .then((response) => {
+      if (response.status === 200) {
+        const cache = caches.open(CACHE_NAME);
+        cache.then((c) => c.put(request, response.clone()));
+      }
+      return response;
+    })
+    .catch(() => {
+      console.log('백그라운드 업데이트 실패:', request.url);
+    });
 
   // 캐시된 버전이 있으면 즉시 반환
   if (cachedResponse) {
@@ -183,7 +180,5 @@ self.addEventListener('notificationclick', (event) => {
 
   event.notification.close();
 
-  event.waitUntil(
-    clients.openWindow('/'),
-  );
+  event.waitUntil(clients.openWindow('/'));
 });

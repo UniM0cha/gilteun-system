@@ -21,7 +21,7 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
       gcTime: 10 * 60 * 1000, // 10분간 캐시 유지 (구 cacheTime)
       refetchOnWindowFocus: false, // 윈도우 포커스 시 자동 갱신 비활성화
-      refetchOnMount: true, // 마운트 시 stale한 경우만 갱신  
+      refetchOnMount: true, // 마운트 시 stale한 경우만 갱신
       refetchOnReconnect: true, // 재연결 시 stale한 경우만 갱신
     },
     mutations: {
@@ -91,12 +91,7 @@ export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
       {children}
 
       {/* 개발 환경에서만 DevTools 표시 */}
-      {import.meta.env.DEV && (
-        <ReactQueryDevtools
-          initialIsOpen={false}
-          buttonPosition="bottom-right"
-        />
-      )}
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />}
     </QueryClientProvider>
   );
 };

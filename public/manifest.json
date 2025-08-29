@@ -8,11 +8,7 @@
   "orientation": "portrait",
   "theme_color": "#2563eb",
   "background_color": "#f9fafb",
-  "categories": [
-    "music",
-    "productivity",
-    "education"
-  ],
+  "categories": ["music", "productivity", "education"],
   "lang": "ko-KR",
   "icons": [
     {

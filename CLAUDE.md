@@ -27,30 +27,14 @@
 
 ```json
 {
-  "core": [
-    "react",
-    "typescript",
-    "vite"
-  ],
+  "core": ["react", "typescript", "vite"],
   "state": "zustand",
-  "data": [
-    "axios",
-    "@tanstack/react-query"
-  ],
+  "data": ["axios", "@tanstack/react-query"],
   "forms": "formik",
   "dates": "date-fns",
-  "ui": [
-    "lucide-react",
-    "tailwindcss"
-  ],
-  "gestures": [
-    "react-use-gesture",
-    "framer-motion"
-  ],
-  "dev": [
-    "prettier",
-    "eslint"
-  ]
+  "ui": ["lucide-react", "tailwindcss"],
+  "gestures": ["react-use-gesture", "framer-motion"],
+  "dev": ["prettier", "eslint"]
 }
 ```
 
@@ -58,24 +42,11 @@
 
 ```json
 {
-  "core": [
-    "electron",
-    "express"
-  ],
-  "database": [
-    "better-sqlite3",
-    "drizzle-orm"
-  ],
+  "core": ["electron", "express"],
+  "database": ["better-sqlite3", "drizzle-orm"],
   "realtime": "ws",
-  "files": [
-    "multer",
-    "archiver",
-    "unzipper"
-  ],
-  "utils": [
-    "cors",
-    "helmet"
-  ]
+  "files": ["multer", "archiver", "unzipper"],
+  "utils": ["cors", "helmet"]
 }
 ```
 
@@ -87,10 +58,10 @@
 // 예배 정보
 export const worships = sqliteTable('worships', {
   id: integer('id').primaryKey(),
-  title: text('title').notNull(),           // "3월 15일 금요 기도회"
-  date: text('date').notNull(),             // "2024-03-15"
-  time: text('time'),                       // "19:30"
-  description: text('description'),         // "특별 기도 시간"
+  title: text('title').notNull(), // "3월 15일 금요 기도회"
+  date: text('date').notNull(), // "2024-03-15"
+  time: text('time'), // "19:30"
+  description: text('description'), // "특별 기도 시간"
   createdAt: text('created_at').default(sql`datetime('now')`),
 });
 
@@ -98,23 +69,23 @@ export const worships = sqliteTable('worships', {
 export const songs = sqliteTable('songs', {
   id: integer('id').primaryKey(),
   worshipId: integer('worship_id').references(() => worships.id),
-  title: text('title').notNull(),          // "주 은혜임을"
-  key: text('key'),                        // "G"
-  memo: text('memo'),                      // "2절 후 간주 길게"
-  imagePath: text('image_path'),           // "./uploads/song1.jpg"
-  order: integer('order'),                 // 1, 2, 3...
+  title: text('title').notNull(), // "주 은혜임을"
+  key: text('key'), // "G"
+  memo: text('memo'), // "2절 후 간주 길게"
+  imagePath: text('image_path'), // "./uploads/song1.jpg"
+  order: integer('order'), // 1, 2, 3...
 });
 
 // 주석 데이터 (벡터 기반)
 export const annotations = sqliteTable('annotations', {
   id: integer('id').primaryKey(),
   songId: integer('song_id').references(() => songs.id),
-  userId: text('user_id').notNull(),       // "user-123"
-  userName: text('user_name').notNull(),   // "김찬양"
-  layer: text('layer').notNull(),          // "김찬양의 주석"
-  svgPath: text('svg_path').notNull(),     // SVG 패스 데이터
-  color: text('color'),                    // "#ff0000"
-  tool: text('tool'),                      // "pen" | "highlighter" | "eraser"
+  userId: text('user_id').notNull(), // "user-123"
+  userName: text('user_name').notNull(), // "김찬양"
+  layer: text('layer').notNull(), // "김찬양의 주석"
+  svgPath: text('svg_path').notNull(), // SVG 패스 데이터
+  color: text('color'), // "#ff0000"
+  tool: text('tool'), // "pen" | "highlighter" | "eraser"
   createdAt: text('created_at').default(sql`datetime('now')`),
 });
 ```
@@ -125,24 +96,24 @@ export const annotations = sqliteTable('annotations', {
 
 ```typescript
 // 실시간 주석 동기화
-'annotation:start'    // 그리기 시작
-'annotation:update'   // 그리기 진행 (Figma 스타일)
-'annotation:complete' // 그리기 완료
-'annotation:undo'     // 실행 취소
-'annotation:redo'     // 다시 실행
+'annotation:start'; // 그리기 시작
+'annotation:update'; // 그리기 진행 (Figma 스타일)
+'annotation:complete'; // 그리기 완료
+'annotation:undo'; // 실행 취소
+'annotation:redo'; // 다시 실행
 
 // 명령 시스템
-'command:send'        // 명령 전송
-'command:broadcast'   // 모든 클라이언트에 브로드캐스트
+'command:send'; // 명령 전송
+'command:broadcast'; // 모든 클라이언트에 브로드캐스트
 
 // 연결 관리
-'user:connect'        // 사용자 접속
-'user:disconnect'     // 사용자 연결 해제
-'server:status'       // 서버 상태 (접속자 수 등)
+'user:connect'; // 사용자 접속
+'user:disconnect'; // 사용자 연결 해제
+'server:status'; // 서버 상태 (접속자 수 등)
 
 // 데이터 동기화
-'sync:request'        // 데이터 동기화 요청
-'sync:response'       // 데이터 동기화 응답
+'sync:request'; // 데이터 동기화 요청
+'sync:response'; // 데이터 동기화 응답
 ```
 
 ## 주요 개발 원칙
@@ -196,7 +167,7 @@ const CACHE_STRATEGY = {
   images: 'cache-first',
 
   // 주석 데이터
-  annotations: 'network-first'
+  annotations: 'network-first',
 };
 ```
 
@@ -208,7 +179,7 @@ interface GestureHandlers {
   // 핀치 줌 (필수)
   onPinch: (state: PinchState) => void;
 
-  // 더블 탭 확대 (필수) 
+  // 더블 탭 확대 (필수)
   onDoubleTab: () => void;
 
   // 스와이프 페이지 이동
@@ -273,8 +244,7 @@ const queryKeys = {
 // 뮤테이션 패턴
 const useCreateAnnotation = () => {
   return useMutation({
-    mutationFn: (annotation: CreateAnnotationDto) =>
-      annotationApi.create(annotation),
+    mutationFn: (annotation: CreateAnnotationDto) => annotationApi.create(annotation),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.annotations });
     },
@@ -343,6 +313,7 @@ npm run build
 ```
 
 ### 2. PWA 테스트
+
 ```bash
 # 프로덕션 빌드 후 미리보기
 npm run build && npm run preview
@@ -424,21 +395,21 @@ npm run dist
 ### 자주 발생하는 문제들
 
 1. **Apple Pencil 인식 안됨**
-    - `pointer` 이벤트 대신 `touch` 이벤트 사용
-    - `touch-action: none` CSS 설정
+   - `pointer` 이벤트 대신 `touch` 이벤트 사용
+   - `touch-action: none` CSS 설정
 
 2. **WebSocket 연결 끊김**
-    - 재연결 로직 구현
-    - 지수 백오프 적용
+   - 재연결 로직 구현
+   - 지수 백오프 적용
 
 3. **PWA 설치 안됨**
-    - HTTPS 요구사항 확인
-    - manifest.json 유효성 검사
+   - HTTPS 요구사항 확인
+   - manifest.json 유효성 검사
 
 4. **메모리 누수**
-    - Canvas 컨텍스트 정리
-    - WebSocket 연결 해제
-    - 이벤트 리스너 cleanup
+   - Canvas 컨텍스트 정리
+   - WebSocket 연결 해제
+   - 이벤트 리스너 cleanup
 
 ## 중요 참고사항
 

@@ -7,24 +7,23 @@ import { WorshipListPage } from '../pages/WorshipList';
 import { SongListPage } from '../pages/SongListPage';
 import { ScoreViewerPage } from '../pages/ScoreViewerPage';
 
-
 const CommandEditorPage = () => (
   <div className="page-container p-4">
-    <h1 className="text-2xl font-bold mb-4">명령 에디터</h1>
+    <h1 className="mb-4 text-2xl font-bold">명령 에디터</h1>
     <p>실시간 명령을 전송하세요.</p>
   </div>
 );
 
 const AdminPage = () => (
   <div className="page-container p-4">
-    <h1 className="text-2xl font-bold mb-4">관리자</h1>
+    <h1 className="mb-4 text-2xl font-bold">관리자</h1>
     <p>시스템을 관리하세요.</p>
   </div>
 );
 
 const SettingsPage = () => (
   <div className="page-container p-4">
-    <h1 className="text-2xl font-bold mb-4">설정</h1>
+    <h1 className="mb-4 text-2xl font-bold">설정</h1>
     <p>앱 설정을 변경하세요.</p>
   </div>
 );

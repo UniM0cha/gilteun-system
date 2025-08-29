@@ -14,15 +14,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
  * - 접근성 최적화
  */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({
-     label,
-     error,
-     helper,
-     className = '',
-     id,
-     disabled,
-     ...props
-   }, ref) => {
+  ({ label, error, helper, className = '', id, disabled, ...props }, ref) => {
     // 고유 ID 생성 (접근성)
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
     const errorId = error ? `${inputId}-error` : undefined;
@@ -42,9 +34,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         : 'border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-blue-500',
 
       // 배경색
-      disabled
-        ? 'bg-gray-50'
-        : 'bg-white',
+      disabled ? 'bg-gray-50' : 'bg-white',
 
       className,
     ].join(' ');
@@ -55,9 +45,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className={`block text-sm font-medium leading-6 ${
-              error ? 'text-red-700' : 'text-gray-700'
-            }`}
+            className={`block text-sm leading-6 font-medium ${error ? 'text-red-700' : 'text-gray-700'}`}
           >
             {label}
           </label>
@@ -77,7 +65,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
           {/* 에러 아이콘 */}
           {error && (
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
               <AlertCircle className="h-5 w-5 text-red-500" />
             </div>
           )}
@@ -85,10 +73,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         {/* 에러 메시지 */}
         {error && (
-          <p
-            id={errorId}
-            className="text-sm text-red-600 flex items-center gap-1"
-          >
+          <p id={errorId} className="flex items-center gap-1 text-sm text-red-600">
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
             {error}
           </p>
@@ -96,10 +81,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         {/* 도움말 텍스트 */}
         {helper && !error && (
-          <p
-            id={helperId}
-            className="text-sm text-gray-600"
-          >
+          <p id={helperId} className="text-sm text-gray-600">
             {helper}
           </p>
         )}

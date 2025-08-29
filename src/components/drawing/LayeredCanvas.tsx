@@ -50,112 +50,121 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
   const supportsOffscreenCanvas = typeof OffscreenCanvas !== 'undefined';
 
   // 레이어 생성 또는 가져오기
-  const getOrCreateLayer = useCallback((userId: string): LayerState => {
-    if (!layersRef.current.has(userId)) {
-      let canvas: OffscreenCanvas | HTMLCanvasElement;
-      let context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+  const getOrCreateLayer = useCallback(
+    (userId: string): LayerState => {
+      if (!layersRef.current.has(userId)) {
+        let canvas: OffscreenCanvas | HTMLCanvasElement;
+        let context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
 
-      if (supportsOffscreenCanvas) {
-        canvas = new OffscreenCanvas(width, height);
-        context = canvas.getContext('2d');
-      } else {
-        canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        context = canvas.getContext('2d');
+        if (supportsOffscreenCanvas) {
+          canvas = new OffscreenCanvas(width, height);
+          context = canvas.getContext('2d');
+        } else {
+          canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          context = canvas.getContext('2d');
+        }
+
+        if (!context) {
+          throw new Error('Failed to create canvas context');
+        }
+
+        layersRef.current.set(userId, {
+          canvas,
+          context,
+          isDirty: true,
+          lastUpdate: Date.now(),
+        });
       }
 
-      if (!context) {
-        throw new Error('Failed to create canvas context');
-      }
-
-      layersRef.current.set(userId, {
-        canvas,
-        context,
-        isDirty: true,
-        lastUpdate: Date.now(),
-      });
-    }
-
-    return layersRef.current.get(userId)!;
-  }, [width, height, supportsOffscreenCanvas]);
+      return layersRef.current.get(userId)!;
+    },
+    [width, height, supportsOffscreenCanvas],
+  );
 
   // Viewport Culling - 화면 밖 요소 제외
-  const isInViewport = useCallback((svgPath: string): boolean => {
-    if (!viewportBounds) return true;
+  const isInViewport = useCallback(
+    (svgPath: string): boolean => {
+      if (!viewportBounds) return true;
 
-    // SVG 패스를 파싱하여 대략적인 바운딩 박스 계산
-    // 실제 구현에서는 더 정교한 계산 필요
-    const pathMatch = svgPath.match(/M\s*([\d.]+)\s+([\d.]+)/);
-    if (!pathMatch) return true;
+      // SVG 패스를 파싱하여 대략적인 바운딩 박스 계산
+      // 실제 구현에서는 더 정교한 계산 필요
+      const pathMatch = svgPath.match(/M\s*([\d.]+)\s+([\d.]+)/);
+      if (!pathMatch) return true;
 
-    const x = parseFloat(pathMatch[1]);
-    const y = parseFloat(pathMatch[2]);
+      const x = parseFloat(pathMatch[1]);
+      const y = parseFloat(pathMatch[2]);
 
-    return (
-      x >= viewportBounds.x - 100 &&
-      x <= viewportBounds.x + viewportBounds.width + 100 &&
-      y >= viewportBounds.y - 100 &&
-      y <= viewportBounds.y + viewportBounds.height + 100
-    );
-  }, [viewportBounds]);
+      return (
+        x >= viewportBounds.x - 100 &&
+        x <= viewportBounds.x + viewportBounds.width + 100 &&
+        y >= viewportBounds.y - 100 &&
+        y <= viewportBounds.y + viewportBounds.height + 100
+      );
+    },
+    [viewportBounds],
+  );
 
   // 개별 레이어 렌더링
-  const renderLayer = useCallback((userId: string, userAnnotations: Annotation[]) => {
-    const layer = getOrCreateLayer(userId);
-    const { context } = layer;
+  const renderLayer = useCallback(
+    (userId: string, userAnnotations: Annotation[]) => {
+      const layer = getOrCreateLayer(userId);
+      const { context } = layer;
 
-    // 레이어가 더티 상태가 아니면 스킵
-    if (!layer.isDirty) return;
+      // 레이어가 더티 상태가 아니면 스킵
+      if (!layer.isDirty) return;
 
-    // 캔버스 초기화
-    context.clearRect(0, 0, width, height);
+      // 캔버스 초기화
+      context.clearRect(0, 0, width, height);
 
-    let culledCount = 0;
-    let renderedCount = 0;
+      let culledCount = 0;
+      let renderedCount = 0;
 
-    // 주석 렌더링
-    userAnnotations.forEach((annotation) => {
-      // Viewport culling
-      if (!isInViewport(annotation.svgPath)) {
-        culledCount++;
-        return;
-      }
+      // 주석 렌더링
+      userAnnotations.forEach((annotation) => {
+        // Viewport culling
+        if (!isInViewport(annotation.svgPath)) {
+          culledCount++;
+          return;
+        }
 
-      // SVG 패스를 Canvas Path2D로 변환
-      const path = new Path2D(annotation.svgPath);
-      
-      // 스타일 설정
-      context.strokeStyle = annotation.color;
-      context.globalAlpha = annotation.opacity || 1;
-      context.lineWidth = 2;
-      context.lineCap = 'round';
-      context.lineJoin = 'round';
+        // SVG 패스를 Canvas Path2D로 변환
+        const path = new Path2D(annotation.svgPath);
 
-      // 도구별 렌더링
-      if (annotation.tool === 'highlighter') {
-        context.globalAlpha = 0.4;
-        context.lineWidth = 10;
-      } else if (annotation.tool === 'eraser') {
-        context.globalCompositeOperation = 'destination-out';
-      }
+        // 스타일 설정
+        context.strokeStyle = annotation.color;
+        context.globalAlpha = annotation.opacity || 1;
+        context.lineWidth = 2;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
 
-      // 패스 그리기
-      context.stroke(path);
-      
-      // 설정 초기화
-      context.globalCompositeOperation = 'source-over';
-      context.globalAlpha = 1;
-      
-      renderedCount++;
-    });
+        // 도구별 렌더링
+        if (annotation.tool === 'highlighter') {
+          context.globalAlpha = 0.4;
+          context.lineWidth = 10;
+        } else if (annotation.tool === 'eraser') {
+          context.globalCompositeOperation = 'destination-out';
+        }
 
-    // 레이어 상태 업데이트
-    layer.isDirty = false;
-    layer.lastUpdate = Date.now();
+        // 패스 그리기
+        context.stroke(path);
 
-    return { culledCount, renderedCount };
-  }, [getOrCreateLayer, width, height, isInViewport]);
+        // 설정 초기화
+        context.globalCompositeOperation = 'source-over';
+        context.globalAlpha = 1;
+
+        renderedCount++;
+      });
+
+      // 레이어 상태 업데이트
+      layer.isDirty = false;
+      layer.lastUpdate = Date.now();
+
+      return { culledCount, renderedCount };
+    },
+    [getOrCreateLayer, width, height, isInViewport],
+  );
 
   // 메인 캔버스에 레이어 합성
   const compositeLayersToMainCanvas = useCallback(() => {
@@ -189,8 +198,8 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
           mainContext.drawImage(layer.canvas, 0, 0);
         } else {
           // OffscreenCanvas의 경우 ImageBitmap으로 변환 필요
-          (layer.canvas as OffscreenCanvas).convertToBlob().then(blob => {
-            createImageBitmap(blob).then(bitmap => {
+          (layer.canvas as OffscreenCanvas).convertToBlob().then((blob) => {
+            createImageBitmap(blob).then((bitmap) => {
               mainContext.drawImage(bitmap, 0, 0);
               bitmap.close(); // 메모리 해제
             });
@@ -249,7 +258,7 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
       }
 
       // 메모리 정리
-      layersRef.current.forEach(layer => {
+      layersRef.current.forEach((layer) => {
         // OffscreenCanvas는 자동으로 GC됨
         if (layer.canvas instanceof HTMLCanvasElement) {
           layer.canvas.width = 0;
@@ -264,7 +273,8 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
   useEffect(() => {
     const checkMemoryThreshold = () => {
       const currentMemory = estimateMemoryUsage();
-      if (currentMemory > 500) { // 500MB 임계값
+      if (currentMemory > 500) {
+        // 500MB 임계값
         // 오래된 레이어 정리
         const now = Date.now();
         const threshold = 60000; // 1분간 사용하지 않은 레이어
@@ -294,7 +304,7 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
           pointerEvents: 'none',
         }}
       />
-      
+
       {/* 성능 메트릭스 디버그 표시 (개발 모드에서만) */}
       {process.env.NODE_ENV === 'development' && (
         <div
@@ -311,7 +321,9 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
             pointerEvents: 'none',
           }}
         >
-          <div>Layers: {renderMetrics.renderedLayers}/{renderMetrics.layerCount}</div>
+          <div>
+            Layers: {renderMetrics.renderedLayers}/{renderMetrics.layerCount}
+          </div>
           <div>Culled: {renderMetrics.culledElements} elements</div>
           <div>Memory: ~{renderMetrics.memoryUsage}MB</div>
         </div>

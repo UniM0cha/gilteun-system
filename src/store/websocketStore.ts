@@ -23,26 +23,32 @@ interface WebSocketState {
   recentAnnotations: Annotation[];
 
   // 실시간 주석 상태 (Figma 스타일)
-  activeAnnotations: Map<string, {
-    userId: string;
-    userName: string;
-    tool: string;
-    color: string;
-    currentPath: string;
-    startTime: number;
-  }>;
+  activeAnnotations: Map<
+    string,
+    {
+      userId: string;
+      userName: string;
+      tool: string;
+      color: string;
+      currentPath: string;
+      startTime: number;
+    }
+  >;
 
   // 실시간 커서 위치 (Figma 스타일)
-  activeCursors: Map<string, {
-    userId: string;
-    userName: string;
-    x: number;
-    y: number;
-    isDrawing: boolean;
-    tool: string;
-    color: string;
-    lastUpdate: number;
-  }>;
+  activeCursors: Map<
+    string,
+    {
+      userId: string;
+      userName: string;
+      x: number;
+      y: number;
+      isDrawing: boolean;
+      tool: string;
+      color: string;
+      lastUpdate: number;
+    }
+  >;
 
   // 연결 관리
   connect: (serverUrl: string, userId: string, userName: string) => Promise<void>;
@@ -61,7 +67,15 @@ interface WebSocketState {
   clearMessages: () => void;
   removeActiveAnnotation: (userId: string) => void;
   removeActiveCursor: (userId: string) => void;
-  updateCursorPosition: (userId: string, userName: string, x: number, y: number, isDrawing: boolean, tool: string, color: string) => void;
+  updateCursorPosition: (
+    userId: string,
+    userName: string,
+    x: number,
+    y: number,
+    isDrawing: boolean,
+    tool: string,
+    color: string,
+  ) => void;
   updateConnectionStatus: (status: ConnectionStatus) => void;
   handleMessage: (message: WebSocketMessage) => void;
 }
@@ -146,14 +160,16 @@ export const useWebSocketStore = create<WebSocketState>()(
 
             // 정상 종료가 아닌 경우 재연결 시도
             if (!event.wasClean && get().reconnectAttempts < get().maxReconnectAttempts) {
-              setTimeout(() => {
-                get().reconnect();
-              }, Math.min(1000 * Math.pow(2, get().reconnectAttempts), 30000));
+              setTimeout(
+                () => {
+                  get().reconnect();
+                },
+                Math.min(1000 * Math.pow(2, get().reconnectAttempts), 30000),
+              );
             }
           };
 
           set({ wsInstance: ws });
-
         } catch (error) {
           console.error('WebSocket 연결 실패:', error);
           set({
@@ -391,7 +407,7 @@ export const useWebSocketStore = create<WebSocketState>()(
                 message.y || 0,
                 message.isDrawing || false,
                 message.tool || 'pen',
-                message.color || '#000000'
+                message.color || '#000000',
               );
             }
             break;
@@ -486,10 +502,11 @@ export const useWebSocketStore = create<WebSocketState>()(
 
 // 편의용 훅들
 export const useConnectionStatus = () => useWebSocketStore((state) => state.connectionStatus);
-export const useConnectedUsers = () => useWebSocketStore((state) => ({
-  users: state.connectedUsers,
-  count: state.connectedUsersCount,
-}));
+export const useConnectedUsers = () =>
+  useWebSocketStore((state) => ({
+    users: state.connectedUsers,
+    count: state.connectedUsersCount,
+  }));
 export const useRecentCommands = () => useWebSocketStore((state) => state.recentCommands);
 export const useRecentAnnotations = () => useWebSocketStore((state) => state.recentAnnotations);
 export const useActiveAnnotations = () => useWebSocketStore((state) => state.activeAnnotations);

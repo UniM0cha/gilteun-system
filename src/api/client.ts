@@ -177,7 +177,7 @@ export class ApiClient {
     timestamp: number;
   }> {
     try {
-      const response = await this.get('/api/health');
+      const response = await this.get('/health');
       return {
         status: 'healthy',
         ...response,

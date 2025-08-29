@@ -1,11 +1,6 @@
-import { Color4 } from "@js-draw/math";
-import {
-  Editor,
-  PenTool,
-  makeFreehandLineBuilder,
-  makePressureSensitiveFreehandLineBuilder,
-} from "js-draw";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Color4 } from '@js-draw/math';
+import { Editor, PenTool, makeFreehandLineBuilder, makePressureSensitiveFreehandLineBuilder } from 'js-draw';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * 길튼 시스템 주석 엔진
@@ -27,7 +22,7 @@ interface AnnotationEngineProps {
   isEditMode: boolean;
 
   /** 현재 선택된 도구 */
-  tool: "pen" | "highlighter" | "eraser";
+  tool: 'pen' | 'highlighter' | 'eraser';
 
   /** 그리기 두께 */
   thickness: number;
@@ -70,10 +65,7 @@ interface PredictionPoint {
   timestamp: number;
 }
 
-export const AnnotationEngine = React.forwardRef<
-  AnnotationEngineRef,
-  AnnotationEngineProps
->(
+export const AnnotationEngine = React.forwardRef<AnnotationEngineRef, AnnotationEngineProps>(
   (
     {
       userColor,
@@ -86,20 +78,19 @@ export const AnnotationEngine = React.forwardRef<
       width,
       height,
     },
-    ref
+    ref,
   ) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<Editor | null>(null);
     const penToolRef = useRef<PenTool | null>(null);
 
     // 성능 모니터링 상태
-    const [performanceMetrics, setPerformanceMetrics] =
-      useState<PerformanceMetrics>({
-        inputLatency: 0,
-        fps: 60,
-        memoryUsage: 0,
-        performanceScore: 100,
-      });
+    const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
+      inputLatency: 0,
+      fps: 60,
+      memoryUsage: 0,
+      performanceScore: 100,
+    });
 
     // 성능 측정 참조
     const performanceTimers = useRef({
@@ -133,9 +124,7 @@ export const AnnotationEngine = React.forwardRef<
           timers.fpsHistory.shift();
         }
 
-        const avgFPS =
-          timers.fpsHistory.reduce((a, b) => a + b, 0) /
-          timers.fpsHistory.length;
+        const avgFPS = timers.fpsHistory.reduce((a, b) => a + b, 0) / timers.fpsHistory.length;
         setPerformanceMetrics((prev) => ({ ...prev, fps: Math.round(avgFPS) }));
       }
 
@@ -153,30 +142,27 @@ export const AnnotationEngine = React.forwardRef<
       }
     }, []);
 
-    const calculatePerformanceScore = useCallback(
-      (latency: number, fps: number, memoryMB: number) => {
-        // 성능 점수 계산 (0-100)
-        let score = 100;
+    const calculatePerformanceScore = useCallback((latency: number, fps: number, memoryMB: number) => {
+      // 성능 점수 계산 (0-100)
+      let score = 100;
 
-        // 지연시간 패널티 (16ms 이상부터)
-        if (latency > 16) {
-          score -= Math.min(50, (latency - 16) * 2);
-        }
+      // 지연시간 패널티 (16ms 이상부터)
+      if (latency > 16) {
+        score -= Math.min(50, (latency - 16) * 2);
+      }
 
-        // FPS 패널티 (60fps 미만부터)
-        if (fps < 60) {
-          score -= Math.min(30, (60 - fps) * 2);
-        }
+      // FPS 패널티 (60fps 미만부터)
+      if (fps < 60) {
+        score -= Math.min(30, (60 - fps) * 2);
+      }
 
-        // 메모리 패널티 (500MB 이상부터)
-        if (memoryMB > 500) {
-          score -= Math.min(20, (memoryMB - 500) / 50);
-        }
+      // 메모리 패널티 (500MB 이상부터)
+      if (memoryMB > 500) {
+        score -= Math.min(20, (memoryMB - 500) / 50);
+      }
 
-        return Math.max(0, Math.round(score));
-      },
-      []
-    );
+      return Math.max(0, Math.round(score));
+    }, []);
 
     // 주석 완료 시 호출할 함수 (initializeEditor 외부에 정의)
     const handleAnnotationComplete = useCallback(() => {
@@ -194,13 +180,7 @@ export const AnnotationEngine = React.forwardRef<
 
       // 메모리 사용량 업데이트
       measureMemoryUsage();
-    }, [
-      measureInputLatency,
-      onAnnotationComplete,
-      tool,
-      userColor,
-      measureMemoryUsage,
-    ]);
+    }, [measureInputLatency, onAnnotationComplete, tool, userColor, measureMemoryUsage]);
 
     // js-draw 에디터 초기화 (성능 최적화 적용)
     const initializeEditor = useCallback(() => {
@@ -214,7 +194,7 @@ export const AnnotationEngine = React.forwardRef<
       // 성능 최적화된 에디터 생성
       const editor = new Editor(containerRef.current, {
         // iPad 터치 최적화
-        wheelEventsEnabled: "only-if-focused",
+        wheelEventsEnabled: 'only-if-focused',
       });
 
       // 도구모음 없이 사용 (커스텀 UI 사용)
@@ -224,15 +204,15 @@ export const AnnotationEngine = React.forwardRef<
       const rootElement = editor.getRootElement();
       rootElement.style.width = `${width}px`;
       rootElement.style.height = `${height}px`;
-      rootElement.style.position = "absolute";
-      rootElement.style.top = "0";
-      rootElement.style.left = "0";
-      rootElement.style.pointerEvents = isEditMode ? "auto" : "none";
-      rootElement.style.zIndex = isEditMode ? "10" : "5";
+      rootElement.style.position = 'absolute';
+      rootElement.style.top = '0';
+      rootElement.style.left = '0';
+      rootElement.style.pointerEvents = isEditMode ? 'auto' : 'none';
+      rootElement.style.zIndex = isEditMode ? '10' : '5';
 
       // iPad 성능 최적화를 위한 CSS
-      rootElement.style.willChange = isEditMode ? "transform" : "auto";
-      rootElement.style.contain = "layout style paint";
+      rootElement.style.willChange = isEditMode ? 'transform' : 'auto';
+      rootElement.style.contain = 'layout style paint';
 
       // 투명 배경 설정
       editor.setBackgroundColor(Color4.transparent);
@@ -265,9 +245,7 @@ export const AnnotationEngine = React.forwardRef<
       const cursorRootElement = editor.getRootElement();
 
       // 입력 예측 알고리즘 (Bezier curve interpolation)
-      const predictNextPoint = (
-        currentPoint: PredictionPoint
-      ): PredictionPoint | null => {
+      const predictNextPoint = (currentPoint: PredictionPoint): PredictionPoint | null => {
         const history = pointHistory.current;
         if (history.length < 2) return null;
 
@@ -289,10 +267,7 @@ export const AnnotationEngine = React.forwardRef<
 
         // 부드러운 압력 변화 예측
         const pressureDiff = p2.pressure - p1.pressure;
-        const predictedPressure = Math.max(
-          0.1,
-          Math.min(1, p2.pressure + pressureDiff * 0.5)
-        );
+        const predictedPressure = Math.max(0.1, Math.min(1, p2.pressure + pressureDiff * 0.5));
 
         return {
           x: predictedX,
@@ -305,9 +280,7 @@ export const AnnotationEngine = React.forwardRef<
       // Pointer Event Coalescing을 통한 성능 최적화
       const handlePointerMove = (e: PointerEvent) => {
         // 브라우저가 수집한 모든 중간 이벤트 가져오기
-        const coalescedEvents = e.getCoalescedEvents
-          ? e.getCoalescedEvents()
-          : [e];
+        const coalescedEvents = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
 
         // 모든 중간 포인트 처리로 부드러운 그리기
         coalescedEvents.forEach((event) => {
@@ -356,7 +329,7 @@ export const AnnotationEngine = React.forwardRef<
       };
 
       // 최적화된 이벤트 리스너 옵션
-      cursorRootElement.addEventListener("pointermove", handlePointerMove, {
+      cursorRootElement.addEventListener('pointermove', handlePointerMove, {
         passive: true, // 스크롤 성능 최적화
         capture: false, // 버블링 단계에서 처리
       });
@@ -384,7 +357,7 @@ export const AnnotationEngine = React.forwardRef<
 
       // cleanup 함수를 에디터에 저장
       const cleanup = () => {
-        cursorRootElement.removeEventListener("pointermove", handlePointerMove);
+        cursorRootElement.removeEventListener('pointermove', handlePointerMove);
         if (rafId !== null) {
           cancelAnimationFrame(rafId);
         }
@@ -431,17 +404,17 @@ export const AnnotationEngine = React.forwardRef<
       if (!pen) return;
 
       switch (tool) {
-        case "pen":
+        case 'pen':
           pen.setStrokeFactory(makePressureSensitiveFreehandLineBuilder);
           pen.setColor(Color4.fromString(userColor));
           break;
-        case "highlighter":
+        case 'highlighter':
           pen.setStrokeFactory(makeFreehandLineBuilder);
           // 하이라이터는 투명도가 있는 색상
           const highlighterColor = Color4.fromString(userColor).withAlpha(0.4);
           pen.setColor(highlighterColor);
           break;
-        case "eraser":
+        case 'eraser':
           // 지우개는 배경색 사용
           pen.setColor(Color4.transparent);
           break;
@@ -461,8 +434,8 @@ export const AnnotationEngine = React.forwardRef<
       if (!editorRef.current) return;
 
       const rootElement = editorRef.current.getRootElement();
-      rootElement.style.pointerEvents = isEditMode ? "auto" : "none";
-      rootElement.style.zIndex = isEditMode ? "10" : "5";
+      rootElement.style.pointerEvents = isEditMode ? 'auto' : 'none';
+      rootElement.style.zIndex = isEditMode ? '10' : '5';
 
       // 읽기 전용 모드 설정
       editorRef.current.setReadOnly(!isEditMode);
@@ -475,7 +448,7 @@ export const AnnotationEngine = React.forwardRef<
       try {
         await editorRef.current.loadFromSVG(svgData);
       } catch (error) {
-        console.error("주석 데이터 로드 실패:", error);
+        console.error('주석 데이터 로드 실패:', error);
       }
     }, []);
 
@@ -498,13 +471,13 @@ export const AnnotationEngine = React.forwardRef<
       // 키보드 단축키로 접근 가능 (Ctrl+Z, Ctrl+Y)
       if (editorRef.current) {
         // undo 명령을 직접 실행하는 방법이 있다면 여기에 추가
-        console.log("Undo 기능은 Ctrl+Z 키보드 단축키로 사용 가능합니다");
+        console.log('Undo 기능은 Ctrl+Z 키보드 단축키로 사용 가능합니다');
       }
     }, []);
 
     const redo = useCallback(() => {
       if (editorRef.current) {
-        console.log("Redo 기능은 Ctrl+Y 키보드 단축키로 사용 가능합니다");
+        console.log('Redo 기능은 Ctrl+Y 키보드 단축키로 사용 가능합니다');
       }
     }, []);
 
@@ -513,7 +486,7 @@ export const AnnotationEngine = React.forwardRef<
       const performanceScore = calculatePerformanceScore(
         performanceMetrics.inputLatency,
         performanceMetrics.fps,
-        performanceMetrics.memoryUsage
+        performanceMetrics.memoryUsage,
       );
 
       const updatedMetrics = { ...performanceMetrics, performanceScore };
@@ -539,7 +512,7 @@ export const AnnotationEngine = React.forwardRef<
       undo,
       redo,
       getEditor: () => editorRef.current,
-      exportSVG: () => editorRef.current?.toSVG().outerHTML || "",
+      exportSVG: () => editorRef.current?.toSVG().outerHTML || '',
       getPerformanceMetrics: () => performanceMetrics,
     }));
 
@@ -548,21 +521,21 @@ export const AnnotationEngine = React.forwardRef<
         ref={containerRef}
         className="annotation-engine"
         style={{
-          position: "absolute",
+          position: 'absolute',
           top: 0,
           left: 0,
           width: width,
           height: height,
           // iPad Safari에서 터치 이벤트 최적화
-          touchAction: isEditMode ? "none" : "auto",
+          touchAction: isEditMode ? 'none' : 'auto',
           // Apple Pencil 입력 우선 처리
-          WebkitTouchCallout: "none",
-          WebkitUserSelect: "none",
-          userSelect: "none",
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none',
         }}
       />
     );
-  }
+  },
 );
 
 // 타입 정의

@@ -1,125 +1,125 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* 길튼 시스템 글로벌 스타일 */
 @layer base {
-    html {
-        /* iPad 세로모드 최적화 */
-        font-size: 16px;
-        -webkit-text-size-adjust: 100%;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
-    }
+  html {
+    /* iPad 세로모드 최적화 */
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 
-    body {
-        @apply font-sans bg-gray-50 text-gray-900;
-        /* iPad Safari에서 바운스 스크롤 방지 */
-        overscroll-behavior: none;
-        /* 홈 인디케이터 영역 확보 */
-        padding-bottom: env(safe-area-inset-bottom);
-    }
+  body {
+    @apply bg-gray-50 font-sans text-gray-900;
+    /* iPad Safari에서 바운스 스크롤 방지 */
+    overscroll-behavior: none;
+    /* 홈 인디케이터 영역 확보 */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 
-    /* 터치 최적화 */
-    * {
-        -webkit-tap-highlight-color: transparent;
-    }
+  /* 터치 최적화 */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-    /* 스크롤바 숨기기 (iPad에서 불필요) */
-    ::-webkit-scrollbar {
-        display: none;
-    }
+  /* 스크롤바 숨기기 (iPad에서 불필요) */
+  ::-webkit-scrollbar {
+    display: none;
+  }
 
-    /* 포커스 링 스타일 */
-    :focus-visible {
-        @apply outline-2 outline-blue-500 outline-offset-2;
-    }
+  /* 포커스 링 스타일 */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue-500;
+  }
 }
 
 @layer components {
-    /* 기본 버튼 스타일 */
-    .btn-primary {
-        @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200;
-        @apply bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800;
-        /* 최소 터치 영역 44px 확보 */
-        min-height: 44px;
-        min-width: 44px;
-    }
+  /* 기본 버튼 스타일 */
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200;
+    @apply bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800;
+    /* 최소 터치 영역 44px 확보 */
+    min-height: 44px;
+    min-width: 44px;
+  }
 
-    .btn-secondary {
-        @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200;
-        @apply bg-gray-200 text-gray-900 hover:bg-gray-300 active:bg-gray-400;
-        /* 최소 터치 영역 44px 확보 */
-        min-height: 44px;
-        min-width: 44px;
-    }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200;
+    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 active:bg-gray-400;
+    /* 최소 터치 영역 44px 확보 */
+    min-height: 44px;
+    min-width: 44px;
+  }
 
-    /* 카드 컴포넌트 */
-    .card {
-        @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4;
-    }
+  /* 카드 컴포넌트 */
+  .card {
+    @apply rounded-lg border border-gray-200 bg-white p-4 shadow-sm;
+  }
 
-    /* 입력 필드 스타일 */
-    .input {
-        @apply block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
-        /* 터치 친화적 크기 */
-        min-height: 44px;
-    }
+  /* 입력 필드 스타일 */
+  .input {
+    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500;
+    /* 터치 친화적 크기 */
+    min-height: 44px;
+  }
 
-    /* 네비게이션 바 */
-    .navbar {
-        @apply flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200;
-        /* 상단 safe area 확보 */
-        padding-top: calc(12px + env(safe-area-inset-top));
-    }
+  /* 네비게이션 바 */
+  .navbar {
+    @apply flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3;
+    /* 상단 safe area 확보 */
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
 
-    /* 하단 네비게이션 */
-    .bottom-nav {
-        @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2;
-        /* 하단 safe area 확보 */
-        padding-bottom: calc(8px + env(safe-area-inset-bottom));
-    }
+  /* 하단 네비게이션 */
+  .bottom-nav {
+    @apply fixed right-0 bottom-0 left-0 border-t border-gray-200 bg-white px-4 py-2;
+    /* 하단 safe area 확보 */
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
 }
 
 @layer utilities {
-    /* iPad 세로모드 전체화면 */
-    .fullscreen-portrait {
-        @apply w-screen h-screen overflow-hidden;
-    }
+  /* iPad 세로모드 전체화면 */
+  .fullscreen-portrait {
+    @apply h-screen w-screen overflow-hidden;
+  }
 
-    /* 터치 영역 최소 크기 보장 */
-    .touch-target {
-        min-width: 44px;
-        min-height: 44px;
-    }
+  /* 터치 영역 최소 크기 보장 */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
 
-    /* 스크롤 영역 */
-    .scroll-area {
-        @apply overflow-y-auto;
-        -webkit-overflow-scrolling: touch;
-    }
+  /* 스크롤 영역 */
+  .scroll-area {
+    @apply overflow-y-auto;
+    -webkit-overflow-scrolling: touch;
+  }
 
-    /* Apple Pencil 지원 영역 */
-    .pencil-area {
-        touch-action: none;
-    }
+  /* Apple Pencil 지원 영역 */
+  .pencil-area {
+    touch-action: none;
+  }
 
-    /* 드래그 가능 영역 */
-    .draggable {
-        @apply select-none cursor-grab active:cursor-grabbing;
-    }
+  /* 드래그 가능 영역 */
+  .draggable {
+    @apply cursor-grab select-none active:cursor-grabbing;
+  }
 
-    /* 확대/축소 가능 영역 */
-    .zoomable {
-        touch-action: pinch-zoom;
-    }
+  /* 확대/축소 가능 영역 */
+  .zoomable {
+    touch-action: pinch-zoom;
+  }
 
-    /* 모바일 최적화 텍스트 */
-    .text-mobile {
-        @apply text-base leading-relaxed;
-    }
+  /* 모바일 최적화 텍스트 */
+  .text-mobile {
+    @apply text-base leading-relaxed;
+  }
 
-    /* 고대비 텍스트 (접근성) */
-    .text-high-contrast {
-        @apply text-gray-900;
-    }
+  /* 고대비 텍스트 (접근성) */
+  .text-high-contrast {
+    @apply text-gray-900;
+  }
 }

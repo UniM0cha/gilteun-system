@@ -148,9 +148,9 @@ npm run dist
 ```typescript
 interface Worship {
   id: number;
-  title: string;        // "3월 15일 금요 기도회"
-  date: string;         // "2024-03-15"  
-  time?: string;        // "19:30"
+  title: string; // "3월 15일 금요 기도회"
+  date: string; // "2024-03-15"
+  time?: string; // "19:30"
   description?: string; // "특별 기도 시간"
   createdAt: string;
 }
@@ -162,11 +162,11 @@ interface Worship {
 interface Song {
   id: number;
   worshipId: number;
-  title: string;        // "주 은혜임을"
-  key?: string;         // "G"
-  memo?: string;        // "2절 후 간주 길게"
-  imagePath: string;    // "./uploads/song1.jpg"
-  order: number;        // 1, 2, 3...
+  title: string; // "주 은혜임을"
+  key?: string; // "G"
+  memo?: string; // "2절 후 간주 길게"
+  imagePath: string; // "./uploads/song1.jpg"
+  order: number; // 1, 2, 3...
 }
 ```
 
@@ -176,11 +176,11 @@ interface Song {
 interface Annotation {
   id: number;
   songId: number;
-  userId: string;       // "user-123"
-  userName: string;     // "김찬양"
-  layer: string;        // "김찬양의 주석"
-  svgPath: string;      // SVG 패스 데이터
-  color: string;        // "#ff0000"
+  userId: string; // "user-123"
+  userName: string; // "김찬양"
+  layer: string; // "김찬양의 주석"
+  svgPath: string; // SVG 패스 데이터
+  color: string; // "#ff0000"
   tool: 'pen' | 'highlighter' | 'eraser';
   createdAt: string;
 }
@@ -253,7 +253,7 @@ interface Annotation {
 # 단위 테스트
 npm run test
 
-# E2E 테스트  
+# E2E 테스트
 npm run test:e2e
 
 # 타입 체크

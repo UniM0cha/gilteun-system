@@ -48,7 +48,7 @@ export const queryKeys = {
   recentWorships: (limit: number) => ['worships', 'recent', limit] as const,
   todayWorship: () => ['worships', 'today'] as const,
 
-  // Songs  
+  // Songs
   songs: () => ['songs'] as const,
   song: (id: number) => ['songs', id] as const,
   songStats: (songId: number) => ['songs', songId, 'stats'] as const,
@@ -118,7 +118,7 @@ export const useWorship = (id: number | null, options?: { enabled?: boolean }) =
   return useQuery({
     queryKey: queryKeys.worship(id!),
     queryFn: () => worshipApi?.getWorship(id!) ?? Promise.reject('No API'),
-    enabled: !!worshipApi && !!id && id > 0 && (options?.enabled !== false),
+    enabled: !!worshipApi && !!id && id > 0 && options?.enabled !== false,
     staleTime: 2 * 60 * 1000, // 2분간 fresh 상태 유지
   });
 };
@@ -173,8 +173,7 @@ export const useCreateWorship = (): UseMutationResult<Worship, Error, CreateWors
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateWorshipRequest) =>
-      worshipApi?.createWorship(data) ?? Promise.reject('No API'),
+    mutationFn: (data: CreateWorshipRequest) => worshipApi?.createWorship(data) ?? Promise.reject('No API'),
     onSuccess: (newWorship) => {
       // 예배 목록 캐시 무효화
       queryClient.invalidateQueries({ queryKey: queryKeys.worships() });
@@ -195,8 +194,7 @@ export const useUpdateWorship = (): UseMutationResult<Worship, Error, { id: numb
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }) =>
-      worshipApi?.updateWorship(id, data) ?? Promise.reject('No API'),
+    mutationFn: ({ id, data }) => worshipApi?.updateWorship(id, data) ?? Promise.reject('No API'),
     onSuccess: (updatedWorship, { id }) => {
       // 특정 예배 캐시 업데이트
       queryClient.setQueryData(queryKeys.worship(id), updatedWorship);
@@ -216,12 +214,13 @@ export const useDeleteWorship = (): UseMutationResult<void, Error, number> => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) =>
-      worshipApi?.deleteWorship(id) ?? Promise.reject('No API'),
+    mutationFn: (id: number) => worshipApi?.deleteWorship(id) ?? Promise.reject('No API'),
     onSuccess: (_, deletedId) => {
       // 캐시에서 삭제된 예배 제거
       queryClient.removeQueries({ queryKey: queryKeys.worship(deletedId) });
-      queryClient.removeQueries({ queryKey: queryKeys.worshipSongs(deletedId) });
+      queryClient.removeQueries({
+        queryKey: queryKeys.worshipSongs(deletedId),
+      });
 
       // 예배 목록 캐시 무효화
       queryClient.invalidateQueries({ queryKey: queryKeys.worships() });
@@ -252,7 +251,7 @@ export const useSongs = (params?: { worshipId?: number }, options?: { enabled?: 
 
       return await client.get(`/api/songs?${queryParams.toString()}`);
     },
-    enabled: !!client && (options?.enabled !== false),
+    enabled: !!client && options?.enabled !== false,
     staleTime: 2 * 60 * 1000, // 2분간 fresh 상태 유지
   });
 };
@@ -279,8 +278,7 @@ export const useCreateSong = (): UseMutationResult<Song, Error, CreateSongReques
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateSongRequest) =>
-      songApi?.createSong(data) ?? Promise.reject('No API'),
+    mutationFn: (data: CreateSongRequest) => songApi?.createSong(data) ?? Promise.reject('No API'),
     onSuccess: (newSong) => {
       // 예배의 찬양 목록 캐시 무효화
       queryClient.invalidateQueries({
@@ -301,8 +299,7 @@ export const useUpdateSong = (): UseMutationResult<Song, Error, { id: number } &
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...data }) =>
-      songApi?.updateSong(id, data) ?? Promise.reject('No API'),
+    mutationFn: ({ id, ...data }) => songApi?.updateSong(id, data) ?? Promise.reject('No API'),
     onSuccess: (updatedSong) => {
       // 특정 찬양 캐시 업데이트
       queryClient.setQueryData(queryKeys.song(updatedSong.id), updatedSong);
@@ -324,8 +321,7 @@ export const useDeleteSong = (): UseMutationResult<void, Error, number> => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) =>
-      songApi?.deleteSong(id) ?? Promise.reject('No API'),
+    mutationFn: (id: number) => songApi?.deleteSong(id) ?? Promise.reject('No API'),
     onSuccess: (_, deletedId) => {
       // 캐시에서 삭제된 찬양 제거
       queryClient.removeQueries({ queryKey: queryKeys.song(deletedId) });
@@ -345,8 +341,7 @@ export const useUploadScore = (): UseMutationResult<any, Error, { songId: number
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ songId, file }) =>
-      songApi?.uploadScore(songId, file) ?? Promise.reject('No API'),
+    mutationFn: ({ songId, file }) => songApi?.uploadScore(songId, file) ?? Promise.reject('No API'),
     onSuccess: (_, { songId }) => {
       // 찬양 정보 캐시 무효화 (이미지 경로 업데이트)
       queryClient.invalidateQueries({ queryKey: queryKeys.song(songId) });
@@ -355,7 +350,7 @@ export const useUploadScore = (): UseMutationResult<any, Error, { songId: number
 };
 
 // ============================================================================
-// Annotation Hooks  
+// Annotation Hooks
 // ============================================================================
 
 /**
@@ -381,12 +376,15 @@ export const useCreateAnnotation = (): UseMutationResult<Annotation, Error, Crea
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateAnnotationRequest) =>
-      songApi?.createAnnotation(data) ?? Promise.reject('No API'),
+    mutationFn: (data: CreateAnnotationRequest) => songApi?.createAnnotation(data) ?? Promise.reject('No API'),
     onSuccess: (_, { songId }) => {
       // 주석 목록 캐시 무효화
-      queryClient.invalidateQueries({ queryKey: queryKeys.annotations(songId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.annotationLayers(songId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.annotations(songId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.annotationLayers(songId),
+      });
     },
   });
 };

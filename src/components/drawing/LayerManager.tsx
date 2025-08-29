@@ -17,16 +17,16 @@ export interface LayerVisibility {
 interface LayerManagerProps {
   /** 현재 사용자 ID */
   currentUserId: string;
-  
+
   /** 레이어 가시성 상태 */
   layerVisibility: LayerVisibility;
-  
+
   /** 레이어 가시성 변경 콜백 */
   onLayerVisibilityChange: (visibility: LayerVisibility) => void;
-  
+
   /** 모든 레이어 표시 여부 */
   showAllLayers: boolean;
-  
+
   /** 모든 레이어 표시 토글 콜백 */
   onToggleAllLayers: (show: boolean) => void;
 }
@@ -54,11 +54,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
   // 사용자별 레이어 정보 생성
   const getUserLayers = useCallback((): UserLayerInfo[] => {
     const userMap = new Map<string, UserLayerInfo>();
-    
+
     // 연결된 사용자들 추가
-    connectedUsers.users.forEach(user => {
+    connectedUsers.users.forEach((user) => {
       if (user.id === currentUserId) return; // 자신은 제외
-      
+
       userMap.set(user.id, {
         userId: user.id,
         userName: user.name,
@@ -72,7 +72,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
     // 활성 주석 사용자들 추가/업데이트
     activeAnnotations.forEach((annotation, userId) => {
       if (userId === currentUserId) return; // 자신은 제외
-      
+
       const existing = userMap.get(userId);
       if (existing) {
         userMap.set(userId, {
@@ -93,29 +93,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
       }
     });
 
-    return Array.from(userMap.values())
-      .sort((a, b) => {
-        // 그리기 중인 사용자를 먼저 표시
-        if (a.isDrawing && !b.isDrawing) return -1;
-        if (!a.isDrawing && b.isDrawing) return 1;
-        // 연결된 사용자를 먼저 표시
-        if (a.isConnected && !b.isConnected) return -1;
-        if (!a.isConnected && b.isConnected) return 1;
-        // 이름 순으로 정렬
-        return a.userName.localeCompare(b.userName);
-      });
+    return Array.from(userMap.values()).sort((a, b) => {
+      // 그리기 중인 사용자를 먼저 표시
+      if (a.isDrawing && !b.isDrawing) return -1;
+      if (!a.isDrawing && b.isDrawing) return 1;
+      // 연결된 사용자를 먼저 표시
+      if (a.isConnected && !b.isConnected) return -1;
+      if (!a.isConnected && b.isConnected) return 1;
+      // 이름 순으로 정렬
+      return a.userName.localeCompare(b.userName);
+    });
   }, [connectedUsers.users, activeAnnotations, currentUserId]);
 
   const userLayers = getUserLayers();
 
   // 개별 레이어 토글
-  const handleLayerToggle = useCallback((userId: string) => {
-    const newVisibility = {
-      ...layerVisibility,
-      [userId]: !layerVisibility[userId],
-    };
-    onLayerVisibilityChange(newVisibility);
-  }, [layerVisibility, onLayerVisibilityChange]);
+  const handleLayerToggle = useCallback(
+    (userId: string) => {
+      const newVisibility = {
+        ...layerVisibility,
+        [userId]: !layerVisibility[userId],
+      };
+      onLayerVisibilityChange(newVisibility);
+    },
+    [layerVisibility, onLayerVisibilityChange],
+  );
 
   // 모든 레이어 토글
   const handleToggleAll = useCallback(() => {
@@ -123,36 +125,30 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
   }, [showAllLayers, onToggleAllLayers]);
 
   // 가시성 레이어가 있는지 확인
-  const visibleLayersCount = userLayers.filter(layer => 
-    layerVisibility[layer.userId] !== false
-  ).length;
+  const visibleLayersCount = userLayers.filter((layer) => layerVisibility[layer.userId] !== false).length;
 
   return (
-    <div className="layer-manager bg-white rounded-lg border shadow-lg max-w-sm">
+    <div className="layer-manager max-w-sm rounded-lg border bg-white shadow-lg">
       {/* 헤더 */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between border-b p-4">
         <div className="flex items-center space-x-2">
-          <Layers className="w-5 h-5 text-gray-600" />
+          <Layers className="h-5 w-5 text-gray-600" />
           <h3 className="font-medium text-gray-900">레이어 관리</h3>
           <span className="text-sm text-gray-500">
             ({visibleLayersCount}/{userLayers.length})
           </span>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           {/* 모든 레이어 토글 */}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleToggleAll}
-            className="min-w-[32px] min-h-[32px]"
+            className="min-h-[32px] min-w-[32px]"
             title={showAllLayers ? '모든 레이어 숨기기' : '모든 레이어 표시'}
           >
-            {showAllLayers ? (
-              <Eye className="w-4 h-4 text-blue-600" />
-            ) : (
-              <EyeOff className="w-4 h-4 text-gray-400" />
-            )}
+            {showAllLayers ? <Eye className="h-4 w-4 text-blue-600" /> : <EyeOff className="h-4 w-4 text-gray-400" />}
           </Button>
 
           {/* 확장/축소 버튼 */}
@@ -160,13 +156,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
             variant="ghost"
             size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="min-w-[32px] min-h-[32px]"
+            className="min-h-[32px] min-w-[32px]"
           >
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
+            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </div>
       </div>
@@ -176,60 +168,56 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
         <div className="max-h-96 overflow-y-auto">
           {userLayers.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
-              <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              <Users className="mx-auto mb-2 h-8 w-8 text-gray-300" />
               <p className="text-sm">연결된 사용자가 없습니다</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
               {userLayers.map((layer) => {
                 const isVisible = layerVisibility[layer.userId] !== false;
-                
+
                 return (
                   <div
                     key={layer.userId}
-                    className={`p-3 flex items-center justify-between hover:bg-gray-50 ${
+                    className={`flex items-center justify-between p-3 hover:bg-gray-50 ${
                       layer.isDrawing ? 'bg-blue-50' : ''
                     }`}
                   >
                     {/* 사용자 정보 */}
-                    <div className="flex items-center space-x-3 flex-1">
+                    <div className="flex flex-1 items-center space-x-3">
                       {/* 사용자 색상 표시 */}
                       <div
-                        className="w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0"
+                        className="h-4 w-4 flex-shrink-0 rounded-full border-2 border-white shadow-sm"
                         style={{ backgroundColor: layer.color }}
                       />
-                      
+
                       {/* 사용자 이름 및 상태 */}
-                      <div className="flex-1 min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900 truncate">
-                            {layer.userName}
-                          </span>
-                          
+                          <span className="truncate text-sm font-medium text-gray-900">{layer.userName}</span>
+
                           {/* 상태 표시 */}
                           {layer.isDrawing && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
                               그리는 중
                             </span>
                           )}
-                          
+
                           {layer.isConnected && !layer.isDrawing && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                               온라인
                             </span>
                           )}
-                          
+
                           {!layer.isConnected && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                            <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                               오프라인
                             </span>
                           )}
                         </div>
-                        
+
                         {layer.annotationCount > 0 && (
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            주석 {layer.annotationCount}개
-                          </p>
+                          <p className="mt-0.5 text-xs text-gray-500">주석 {layer.annotationCount}개</p>
                         )}
                       </div>
                     </div>
@@ -239,18 +227,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
                       variant="ghost"
                       size="sm"
                       onClick={() => handleLayerToggle(layer.userId)}
-                      className={`min-w-[32px] min-h-[32px] ${
-                        isVisible 
-                          ? 'text-blue-600 hover:text-blue-700' 
-                          : 'text-gray-400 hover:text-gray-600'
+                      className={`min-h-[32px] min-w-[32px] ${
+                        isVisible ? 'text-blue-600 hover:text-blue-700' : 'text-gray-400 hover:text-gray-600'
                       }`}
                       title={isVisible ? `${layer.userName} 레이어 숨기기` : `${layer.userName} 레이어 표시`}
                     >
-                      {isVisible ? (
-                        <Eye className="w-4 h-4" />
-                      ) : (
-                        <EyeOff className="w-4 h-4" />
-                      )}
+                      {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </Button>
                   </div>
                 );
@@ -267,13 +249,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
             <span>총 {userLayers.length}명의 사용자</span>
             <span>표시 중: {visibleLayersCount}개</span>
           </div>
-          
-          {userLayers.filter(l => l.isDrawing).length > 0 && (
-            <div className="flex items-center mt-1 space-x-1">
+
+          {userLayers.filter((l) => l.isDrawing).length > 0 && (
+            <div className="mt-1 flex items-center space-x-1">
               <span className="text-blue-600">●</span>
-              <span className="text-blue-600">
-                {userLayers.filter(l => l.isDrawing).length}명이 그리는 중
-              </span>
+              <span className="text-blue-600">{userLayers.filter((l) => l.isDrawing).length}명이 그리는 중</span>
             </div>
           )}
         </div>

@@ -13,11 +13,7 @@ interface LoadingSpinnerProps {
  * - 선택적 텍스트 표시
  * - 중앙 정렬 옵션
  */
-export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
-                                                                size = 'md',
-                                                                className = '',
-                                                                text,
-                                                              }) => {
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', className = '', text }) => {
   // 사이즈별 클래스
   const sizeClasses = {
     sm: 'w-4 h-4',
@@ -25,11 +21,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     lg: 'w-8 h-8',
   };
 
-  const spinnerClasses = [
-    'animate-spin text-blue-600',
-    sizeClasses[size],
-    className,
-  ].join(' ');
+  const spinnerClasses = ['animate-spin text-blue-600', sizeClasses[size], className].join(' ');
 
   if (text) {
     return (
@@ -56,17 +48,17 @@ interface LoadingOverlayProps {
  * - 백드롭과 중앙 정렬 스피너
  */
 export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
-                                                                isLoading,
-                                                                children,
-                                                                text = '로딩 중...',
-                                                                className = '',
-                                                              }) => {
+  isLoading,
+  children,
+  text = '로딩 중...',
+  className = '',
+}) => {
   return (
     <div className={`relative ${className}`}>
       {children}
 
       {isLoading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+        <div className="bg-opacity-75 absolute inset-0 z-10 flex items-center justify-center bg-white">
           <div className="text-center">
             <LoadingSpinner size="lg" />
             <p className="mt-2 text-sm text-gray-600">{text}</p>

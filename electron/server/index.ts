@@ -33,18 +33,23 @@ export class GilteunServer {
    */
   private setupMiddleware(): void {
     // 보안 헤더
-    this.app.use(helmet({
-      contentSecurityPolicy: false, // PWA 호환성을 위해 비활성화
-    }));
+    this.app.use(
+      helmet({
+        contentSecurityPolicy: false, // PWA 호환성을 위해 비활성화
+      }),
+    );
 
     // CORS 설정 - iPad 클라이언트 연결 허용
-    this.app.use(cors({
-      origin: process.env.NODE_ENV === 'development'
-        ? ['http://localhost:5173', 'http://192.168.*', 'http://10.0.*']
-        : true, // 프로덕션에서는 로컬 네트워크만 허용
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    }));
+    this.app.use(
+      cors({
+        origin:
+          process.env.NODE_ENV === 'development'
+            ? ['http://localhost:5173', 'http://192.168.*', 'http://10.0.*']
+            : true, // 프로덕션에서는 로컬 네트워크만 허용
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+      }),
+    );
 
     // JSON 파싱
     this.app.use(express.json({ limit: '10mb' })); // 악보 이미지 업로드용

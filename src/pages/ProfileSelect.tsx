@@ -15,15 +15,7 @@ export const ProfileSelectPage: React.FC = () => {
   const navigate = useNavigate();
 
   // 스토어 상태 및 액션
-  const {
-    settings,
-    serverInfo,
-    isLoading,
-    setCurrentUser,
-    updateSettings,
-    setServerInfo,
-    setLoading,
-  } = useAppStore();
+  const { settings, serverInfo, isLoading, setCurrentUser, updateSettings, setServerInfo, setLoading } = useAppStore();
 
   // 폼 상태
   const [userName, setUserName] = useState(settings.userName || '');
@@ -74,7 +66,7 @@ export const ProfileSelectPage: React.FC = () => {
   // 서버 연결 테스트
   const testServerConnection = async (): Promise<boolean> => {
     try {
-      const response = await fetch(`${serverUrl}/api/health`, {
+      const response = await fetch(`${serverUrl}/health`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -131,7 +123,11 @@ export const ProfileSelectPage: React.FC = () => {
       const user: User = {
         id: settings.userId || `user-${Date.now()}`,
         name: trimmedUserName,
-        color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
+        color:
+          '#' +
+          Math.floor(Math.random() * 16777215)
+            .toString(16)
+            .padStart(6, '0'),
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
       };
@@ -148,7 +144,6 @@ export const ProfileSelectPage: React.FC = () => {
 
       // 예배 목록 페이지로 이동
       navigate('/worship');
-
     } catch (error) {
       console.error('프로필 설정 실패:', error);
       setConnectionError('프로필 설정 중 오류가 발생했습니다.');
@@ -164,16 +159,16 @@ export const ProfileSelectPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md space-y-6">
         {/* 헤더 */}
         <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-              <Users className="w-8 h-8 text-white" />
+          <div className="mb-4 flex justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-600">
+              <Users className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">길튼 시스템</h1>
+          <h1 className="mb-2 text-2xl font-bold text-gray-900">길튼 시스템</h1>
           <p className="text-gray-600">찬양팀 실시간 협업 플랫폼</p>
         </div>
 
@@ -213,9 +208,9 @@ export const ProfileSelectPage: React.FC = () => {
 
               {/* 연결 에러 표시 */}
               {connectionError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
                   <div className="flex items-start gap-2">
-                    <Wifi className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <Wifi className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
                     <p className="text-sm text-red-700">{connectionError}</p>
                   </div>
                 </div>
@@ -223,14 +218,12 @@ export const ProfileSelectPage: React.FC = () => {
 
               {/* 서버 연결 정보 (연결 성공 시) */}
               {serverInfo?.status === 'connected' && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3">
                   <div className="flex items-center gap-2">
-                    <Wifi className="w-5 h-5 text-green-500" />
+                    <Wifi className="h-5 w-5 text-green-500" />
                     <div>
-                      <p className="text-sm text-green-700 font-medium">서버 연결 성공</p>
-                      <p className="text-xs text-green-600">
-                        현재 접속자: {serverInfo.connectedUsers}명
-                      </p>
+                      <p className="text-sm font-medium text-green-700">서버 연결 성공</p>
+                      <p className="text-xs text-green-600">현재 접속자: {serverInfo.connectedUsers}명</p>
                     </div>
                   </div>
                 </div>
@@ -260,7 +253,7 @@ export const ProfileSelectPage: React.FC = () => {
                 onClick={handleAdvancedSettings}
                 disabled={isConnecting || isLoading}
               >
-                <Settings className="w-4 h-4 mr-2" />
+                <Settings className="mr-2 h-4 w-4" />
                 고급 설정
               </Button>
             </CardFooter>
@@ -270,7 +263,8 @@ export const ProfileSelectPage: React.FC = () => {
         {/* 도움말 */}
         <div className="text-center">
           <p className="text-sm text-gray-500">
-            길튼 서버가 실행 중인지 확인하고<br />
+            길튼 서버가 실행 중인지 확인하고
+            <br />
             올바른 서버 주소를 입력해주세요
           </p>
         </div>

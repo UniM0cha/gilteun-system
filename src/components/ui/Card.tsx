@@ -14,13 +14,7 @@ interface CardProps {
  * - 다양한 패딩과 그림자 옵션
  * - 터치 인터랙션 지원
  */
-export const Card: React.FC<CardProps> = ({
-                                            children,
-                                            className = '',
-                                            padding = 'md',
-                                            shadow = 'sm',
-                                            onClick,
-                                          }) => {
+export const Card: React.FC<CardProps> = ({ children, className = '', padding = 'md', shadow = 'sm', onClick }) => {
   // 패딩 클래스
   const paddingClasses = {
     none: '',
@@ -43,24 +37,25 @@ export const Card: React.FC<CardProps> = ({
     shadowClasses[shadow],
 
     // 클릭 가능한 카드인 경우
-    onClick && [
-      'cursor-pointer transition-all duration-200',
-      'hover:shadow-md hover:border-gray-300',
-      'active:scale-98 active:shadow-sm',
-      'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-    ].filter(Boolean).join(' '),
+    onClick &&
+      [
+        'cursor-pointer transition-all duration-200',
+        'hover:shadow-md hover:border-gray-300',
+        'active:scale-98 active:shadow-sm',
+        'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+      ]
+        .filter(Boolean)
+        .join(' '),
 
     className,
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const Component = onClick ? 'button' : 'div';
 
   return (
-    <Component
-      className={cardClasses}
-      onClick={onClick}
-      {...(onClick && { type: 'button' })}
-    >
+    <Component className={cardClasses} onClick={onClick} {...(onClick && { type: 'button' })}>
       {children}
     </Component>
   );
@@ -71,15 +66,8 @@ interface CardHeaderProps {
   className?: string;
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({
-                                                        children,
-                                                        className = '',
-                                                      }) => {
-  return (
-    <div className={`pb-2 border-b border-gray-200 mb-4 ${className}`}>
-      {children}
-    </div>
-  );
+export const CardHeader: React.FC<CardHeaderProps> = ({ children, className = '' }) => {
+  return <div className={`mb-4 border-b border-gray-200 pb-2 ${className}`}>{children}</div>;
 };
 
 interface CardTitleProps {
@@ -87,15 +75,8 @@ interface CardTitleProps {
   className?: string;
 }
 
-export const CardTitle: React.FC<CardTitleProps> = ({
-                                                      children,
-                                                      className = '',
-                                                    }) => {
-  return (
-    <h3 className={`text-lg font-semibold text-gray-900 leading-6 ${className}`}>
-      {children}
-    </h3>
-  );
+export const CardTitle: React.FC<CardTitleProps> = ({ children, className = '' }) => {
+  return <h3 className={`text-lg leading-6 font-semibold text-gray-900 ${className}`}>{children}</h3>;
 };
 
 interface CardContentProps {
@@ -103,15 +84,8 @@ interface CardContentProps {
   className?: string;
 }
 
-export const CardContent: React.FC<CardContentProps> = ({
-                                                          children,
-                                                          className = '',
-                                                        }) => {
-  return (
-    <div className={className}>
-      {children}
-    </div>
-  );
+export const CardContent: React.FC<CardContentProps> = ({ children, className = '' }) => {
+  return <div className={className}>{children}</div>;
 };
 
 interface CardFooterProps {
@@ -119,13 +93,6 @@ interface CardFooterProps {
   className?: string;
 }
 
-export const CardFooter: React.FC<CardFooterProps> = ({
-                                                        children,
-                                                        className = '',
-                                                      }) => {
-  return (
-    <div className={`pt-4 mt-4 border-t border-gray-200 ${className}`}>
-      {children}
-    </div>
-  );
+export const CardFooter: React.FC<CardFooterProps> = ({ children, className = '' }) => {
+  return <div className={`mt-4 border-t border-gray-200 pt-4 ${className}`}>{children}</div>;
 };

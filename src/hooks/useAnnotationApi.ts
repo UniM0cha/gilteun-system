@@ -11,7 +11,7 @@ import { Annotation, UpdateAnnotationRequest } from '../types';
 export const annotationQueryKeys = {
   all: ['annotations'] as const,
   songAnnotations: (songId: number) => [...annotationQueryKeys.all, 'song', songId] as const,
-  userAnnotations: (songId: number, userId: string) => 
+  userAnnotations: (songId: number, userId: string) =>
     [...annotationQueryKeys.songAnnotations(songId), 'user', userId] as const,
   annotationStats: (songId: number) => [...annotationQueryKeys.songAnnotations(songId), 'stats'] as const,
 };
@@ -60,32 +60,32 @@ export const useAnnotationStats = (songId: number, enabled = true) => {
  */
 export const useCreateAnnotation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: annotationApi.createAnnotation,
     onSuccess: (data, variables) => {
       if (data) {
         // 찬양별 주석 목록 무효화
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.songAnnotations(variables.songId)
+          queryKey: annotationQueryKeys.songAnnotations(variables.songId),
         });
-        
+
         // 사용자별 주석 목록 무효화
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.userAnnotations(variables.songId, variables.userId)
+          queryKey: annotationQueryKeys.userAnnotations(variables.songId, variables.userId),
         });
-        
+
         // 주석 통계 무효화
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.annotationStats(variables.songId)
+          queryKey: annotationQueryKeys.annotationStats(variables.songId),
         });
-        
+
         // 옵티미스틱 업데이트
         queryClient.setQueryData(
           annotationQueryKeys.songAnnotations(variables.songId),
           (old: Annotation[] | undefined) => {
             return old ? [...old, data] : [data];
-          }
+          },
         );
       }
     },
@@ -100,7 +100,7 @@ export const useCreateAnnotation = () => {
  */
 export const useUpdateAnnotation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ id, updates }: { id: number; updates: UpdateAnnotationRequest }) =>
       annotationApi.updateAnnotation(id, updates),
@@ -108,18 +108,13 @@ export const useUpdateAnnotation = () => {
       if (data) {
         // 관련된 모든 쿼리 무효화
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.songAnnotations(data.songId)
+          queryKey: annotationQueryKeys.songAnnotations(data.songId),
         });
-        
+
         // 옵티미스틱 업데이트
-        queryClient.setQueryData(
-          annotationQueryKeys.songAnnotations(data.songId),
-          (old: Annotation[] | undefined) => {
-            return old?.map(annotation => 
-              annotation.id === variables.id ? data : annotation
-            ) || [data];
-          }
-        );
+        queryClient.setQueryData(annotationQueryKeys.songAnnotations(data.songId), (old: Annotation[] | undefined) => {
+          return old?.map((annotation) => (annotation.id === variables.id ? data : annotation)) || [data];
+        });
       }
     },
     onError: (error) => {
@@ -133,31 +128,30 @@ export const useUpdateAnnotation = () => {
  */
 export const useDeleteAnnotation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ id }: { id: number; songId: number; userId: string }) =>
-      annotationApi.deleteAnnotation(id),
+    mutationFn: ({ id }: { id: number; songId: number; userId: string }) => annotationApi.deleteAnnotation(id),
     onSuccess: (success, variables) => {
       if (success) {
         // 관련된 모든 쿼리 무효화
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.songAnnotations(variables.songId)
+          queryKey: annotationQueryKeys.songAnnotations(variables.songId),
         });
-        
+
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.userAnnotations(variables.songId, variables.userId)
+          queryKey: annotationQueryKeys.userAnnotations(variables.songId, variables.userId),
         });
-        
+
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.annotationStats(variables.songId)
+          queryKey: annotationQueryKeys.annotationStats(variables.songId),
         });
-        
+
         // 옵티미스틱 업데이트
         queryClient.setQueryData(
           annotationQueryKeys.songAnnotations(variables.songId),
           (old: Annotation[] | undefined) => {
-            return old?.filter(annotation => annotation.id !== variables.id) || [];
-          }
+            return old?.filter((annotation) => annotation.id !== variables.id) || [];
+          },
         );
       }
     },
@@ -172,7 +166,7 @@ export const useDeleteAnnotation = () => {
  */
 export const useDeleteUserAnnotations = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ songId, userId }: { songId: number; userId: string }) =>
       annotationApi.deleteUserAnnotations(songId, userId),
@@ -180,15 +174,15 @@ export const useDeleteUserAnnotations = () => {
       if (success) {
         // 모든 관련 쿼리 무효화
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.songAnnotations(variables.songId)
+          queryKey: annotationQueryKeys.songAnnotations(variables.songId),
         });
-        
+
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.userAnnotations(variables.songId, variables.userId)
+          queryKey: annotationQueryKeys.userAnnotations(variables.songId, variables.userId),
         });
-        
+
         queryClient.invalidateQueries({
-          queryKey: annotationQueryKeys.annotationStats(variables.songId)
+          queryKey: annotationQueryKeys.annotationStats(variables.songId),
         });
       }
     },
@@ -203,7 +197,7 @@ export const useDeleteUserAnnotations = () => {
  */
 export const useBulkCreateAnnotations = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: annotationApi.bulkCreateAnnotations,
     onSuccess: (data, variables) => {
@@ -212,11 +206,11 @@ export const useBulkCreateAnnotations = () => {
         if (songId) {
           // 모든 관련 쿼리 무효화
           queryClient.invalidateQueries({
-            queryKey: annotationQueryKeys.songAnnotations(songId)
+            queryKey: annotationQueryKeys.songAnnotations(songId),
           });
-          
+
           queryClient.invalidateQueries({
-            queryKey: annotationQueryKeys.annotationStats(songId)
+            queryKey: annotationQueryKeys.annotationStats(songId),
           });
         }
       }

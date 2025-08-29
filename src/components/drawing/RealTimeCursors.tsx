@@ -16,11 +16,11 @@ interface CursorPosition {
 interface RealTimeCursorsProps {
   /** 현재 사용자 ID (자신의 커서는 표시하지 않음) */
   currentUserId: string;
-  
+
   /** 컨테이너 크기 */
   width: number;
   height: number;
-  
+
   /** 레이어 가시성 설정 (선택적) */
   layerVisibility?: Record<string, boolean>;
 }
@@ -47,14 +47,14 @@ export const RealTimeCursors: React.FC<RealTimeCursorsProps> = ({
   // 활성 커서 정보를 렌더링용 커서 정보로 변환
   useEffect(() => {
     const cursors = new Map<string, UserCursor>();
-    
+
     activeCursors.forEach((cursor, userId) => {
       if (userId === currentUserId) return; // 자신의 커서는 제외
-      
+
       // 레이어 가시성 확인 (기본값은 true)
       const isLayerVisible = layerVisibility[userId] !== false;
       if (!isLayerVisible) return;
-      
+
       cursors.set(userId, {
         userId,
         userName: cursor.userName,
@@ -65,7 +65,7 @@ export const RealTimeCursors: React.FC<RealTimeCursorsProps> = ({
         lastSeen: cursor.lastUpdate,
       });
     });
-    
+
     setUserCursors(cursors);
   }, [activeCursors, currentUserId, layerVisibility]);
 
@@ -75,25 +75,25 @@ export const RealTimeCursors: React.FC<RealTimeCursorsProps> = ({
       const now = Date.now();
       const updated = new Map(userCursors);
       let hasChanges = false;
-      
+
       updated.forEach((cursor, userId) => {
-        if (now - cursor.lastSeen > 5000) { // 5초
+        if (now - cursor.lastSeen > 5000) {
+          // 5초
           updated.delete(userId);
           hasChanges = true;
         }
       });
-      
+
       if (hasChanges) {
         setUserCursors(updated);
       }
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, [userCursors]);
 
-
   return (
-    <div 
+    <div
       className="real-time-cursors"
       style={{
         position: 'absolute',
@@ -106,12 +106,7 @@ export const RealTimeCursors: React.FC<RealTimeCursorsProps> = ({
       }}
     >
       {Array.from(userCursors.values()).map((cursor) => (
-        <UserCursor
-          key={cursor.userId}
-          cursor={cursor}
-          containerWidth={width}
-          containerHeight={height}
-        />
+        <UserCursor key={cursor.userId} cursor={cursor} containerWidth={width} containerHeight={height} />
       ))}
     </div>
   );
@@ -126,29 +121,25 @@ interface UserCursorProps {
   containerHeight: number;
 }
 
-const UserCursor: React.FC<UserCursorProps> = ({ 
-  cursor, 
-  containerWidth, 
-  containerHeight 
-}) => {
+const UserCursor: React.FC<UserCursorProps> = ({ cursor, containerWidth, containerHeight }) => {
   const [isVisible, setIsVisible] = useState(true);
 
   // 커서 깜박임 효과 (그리기 중일 때)
   useEffect(() => {
     if (!cursor.isDrawing) return;
-    
+
     const interval = setInterval(() => {
-      setIsVisible(prev => !prev);
+      setIsVisible((prev) => !prev);
     }, 500);
-    
+
     return () => clearInterval(interval);
   }, [cursor.isDrawing]);
 
   // 커서 위치가 컨테이너 밖이면 숨김
-  const isOutOfBounds = 
-    cursor.position.x < 0 || 
+  const isOutOfBounds =
+    cursor.position.x < 0 ||
     cursor.position.x > containerWidth ||
-    cursor.position.y < 0 || 
+    cursor.position.y < 0 ||
     cursor.position.y > containerHeight;
 
   if (isOutOfBounds) return null;
@@ -273,7 +264,7 @@ interface RealTimeDrawingPathsProps {
   currentUserId: string;
   width: number;
   height: number;
-  
+
   /** 레이어 가시성 설정 (선택적) */
   layerVisibility?: Record<string, boolean>;
 }
@@ -285,22 +276,27 @@ export const RealTimeDrawingPaths: React.FC<RealTimeDrawingPathsProps> = ({
   layerVisibility = {},
 }) => {
   const activeAnnotations = useActiveAnnotations();
-  const [animatedPaths, setAnimatedPaths] = useState<Map<string, {
-    path: string;
-    animationProgress: number;
-    lastUpdate: number;
-  }>>(new Map());
+  const [animatedPaths, setAnimatedPaths] = useState<
+    Map<
+      string,
+      {
+        path: string;
+        animationProgress: number;
+        lastUpdate: number;
+      }
+    >
+  >(new Map());
 
   // 실시간 애니메이션 업데이트
   useEffect(() => {
     const updatedPaths = new Map();
-    
+
     activeAnnotations.forEach((annotation, userId) => {
       if (userId === currentUserId) return;
-      
+
       const existing = animatedPaths.get(userId);
       const now = Date.now();
-      
+
       // 새로운 패스이거나 업데이트된 경우
       if (!existing || existing.path !== annotation.currentPath) {
         updatedPaths.set(userId, {
@@ -313,7 +309,7 @@ export const RealTimeDrawingPaths: React.FC<RealTimeDrawingPathsProps> = ({
         updatedPaths.set(userId, existing);
       }
     });
-    
+
     setAnimatedPaths(updatedPaths);
   }, [activeAnnotations, currentUserId, animatedPaths]);
 
@@ -322,12 +318,12 @@ export const RealTimeDrawingPaths: React.FC<RealTimeDrawingPathsProps> = ({
     const interval = setInterval(() => {
       const now = Date.now();
       let hasUpdates = false;
-      
+
       const updated = new Map(animatedPaths);
       updated.forEach((pathData, userId) => {
         const elapsed = now - pathData.lastUpdate;
         const newProgress = Math.min(1, pathData.animationProgress + elapsed / 1000); // 1초에 완료
-        
+
         if (newProgress !== pathData.animationProgress) {
           updated.set(userId, {
             ...pathData,
@@ -337,12 +333,12 @@ export const RealTimeDrawingPaths: React.FC<RealTimeDrawingPathsProps> = ({
           hasUpdates = true;
         }
       });
-      
+
       if (hasUpdates) {
         setAnimatedPaths(updated);
       }
     }, 16); // ~60fps
-    
+
     return () => clearInterval(interval);
   }, [animatedPaths]);
 
@@ -362,13 +358,13 @@ export const RealTimeDrawingPaths: React.FC<RealTimeDrawingPathsProps> = ({
     >
       {Array.from(activeAnnotations.entries()).map(([userId, annotation]) => {
         if (userId === currentUserId) return null; // 자신의 그리기는 제외
-        
+
         // 레이어 가시성 확인 (기본값은 true)
         const isLayerVisible = layerVisibility[userId] !== false;
         if (!isLayerVisible) return null;
-        
+
         const animatedPath = animatedPaths.get(userId);
-        
+
         return (
           <g key={userId}>
             {/* 완료된 그리기 (고정된 선) */}
@@ -381,7 +377,7 @@ export const RealTimeDrawingPaths: React.FC<RealTimeDrawingPathsProps> = ({
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            
+
             {/* 실시간 그리기 중인 선 (애니메이션) */}
             {animatedPath && (
               <path
@@ -401,12 +397,7 @@ export const RealTimeDrawingPaths: React.FC<RealTimeDrawingPathsProps> = ({
             )}
 
             {/* 사용자 이름 라벨 (그리기 중일 때만 표시) */}
-            <foreignObject 
-              x="10" 
-              y="10" 
-              width="150" 
-              height="30"
-            >
+            <foreignObject x="10" y="10" width="150" height="30">
               <div
                 style={{
                   backgroundColor: annotation.color,

@@ -14,8 +14,7 @@ export interface CreateWorshipRequest {
 /**
  * 예배 수정 요청 타입
  */
-export interface UpdateWorshipRequest extends Partial<CreateWorshipRequest> {
-}
+export interface UpdateWorshipRequest extends Partial<CreateWorshipRequest> {}
 
 /**
  * 예배 목록 응답 타입
@@ -31,8 +30,7 @@ export interface WorshipsResponse {
  * - 예배 관련 찬양 관리
  */
 export class WorshipApi {
-  constructor(private client: ApiClient) {
-  }
+  constructor(private client: ApiClient) {}
 
   /**
    * 예배 목록 조회
@@ -85,22 +83,28 @@ export class WorshipApi {
   /**
    * 예배에 찬양 추가
    */
-  async addSongToWorship(worshipId: number, songData: {
-    title: string;
-    key?: string;
-    memo?: string;
-    order?: number;
-  }): Promise<Song> {
+  async addSongToWorship(
+    worshipId: number,
+    songData: {
+      title: string;
+      key?: string;
+      memo?: string;
+      order?: number;
+    },
+  ): Promise<Song> {
     return this.client.post(`/api/worships/${worshipId}/songs`, songData);
   }
 
   /**
    * 예배의 찬양 순서 변경
    */
-  async reorderWorshipSongs(worshipId: number, songOrders: Array<{
-    songId: number;
-    order: number;
-  }>): Promise<void> {
+  async reorderWorshipSongs(
+    worshipId: number,
+    songOrders: Array<{
+      songId: number;
+      order: number;
+    }>,
+  ): Promise<void> {
     return this.client.patch(`/api/worships/${worshipId}/songs/reorder`, {
       songOrders,
     });

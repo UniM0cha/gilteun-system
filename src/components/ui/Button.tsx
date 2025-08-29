@@ -15,15 +15,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
  * - 다양한 variant 지원
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({
-     variant = 'primary',
-     size = 'md',
-     loading = false,
-     disabled,
-     children,
-     className = '',
-     ...props
-   }, ref) => {
+  ({ variant = 'primary', size = 'md', loading = false, disabled, children, className = '', ...props }, ref) => {
     const baseClasses = [
       'inline-flex items-center justify-center rounded-lg font-medium',
       'transition-all duration-200 ease-in-out',
@@ -68,25 +60,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ].join(' '),
     };
 
-    const buttonClasses = [
-      ...baseClasses,
-      sizeClasses[size],
-      variantClasses[variant],
-      className,
-    ].join(' ');
+    const buttonClasses = [...baseClasses, sizeClasses[size], variantClasses[variant], className].join(' ');
 
     const isDisabled = disabled || loading;
 
     return (
-      <button
-        ref={ref}
-        className={buttonClasses}
-        disabled={isDisabled}
-        {...props}
-      >
-        {loading && (
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-        )}
+      <button ref={ref} className={buttonClasses} disabled={isDisabled} {...props}>
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {children}
       </button>
     );

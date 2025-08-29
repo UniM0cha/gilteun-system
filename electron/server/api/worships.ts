@@ -28,12 +28,7 @@ router.get('/', async (req, res) => {
       conditions.push(eq(worships.date, String(date)));
     }
     if (startDate && endDate) {
-      conditions.push(
-        and(
-          gte(worships.date, String(startDate)),
-          lte(worships.date, String(endDate)),
-        ),
-      );
+      conditions.push(and(gte(worships.date, String(startDate)), lte(worships.date, String(endDate))));
     }
 
     // 쿼리 실행
@@ -55,9 +50,7 @@ router.get('/', async (req, res) => {
     // 각 예배의 찬양 개수 조회
     const worshipsWithSongsCount = await Promise.all(
       worshipsList.map(async (worship) => {
-        const songsCount = await db.select({ count: songs.id })
-          .from(songs)
-          .where(eq(songs.worshipId, worship.id));
+        const songsCount = await db.select({ count: songs.id }).from(songs).where(eq(songs.worshipId, worship.id));
 
         return {
           ...worship,
@@ -108,10 +101,7 @@ router.get('/:id', async (req, res) => {
     const db = getDatabase();
 
     // 예배 정보 조회
-    const worship = await db.select()
-      .from(worships)
-      .where(eq(worships.id, id))
-      .get();
+    const worship = await db.select().from(worships).where(eq(worships.id, id)).get();
 
     if (!worship) {
       return res.status(404).json({
@@ -121,9 +111,7 @@ router.get('/:id', async (req, res) => {
     }
 
     // 해당 예배의 찬양 개수 조회
-    const songsCount = await db.select({ count: songs.id })
-      .from(songs)
-      .where(eq(songs.worshipId, id));
+    const songsCount = await db.select({ count: songs.id }).from(songs).where(eq(songs.worshipId, id));
 
     const worshipWithSongsCount = {
       ...worship,
@@ -223,10 +211,7 @@ router.put('/:id', async (req, res) => {
     const db = getDatabase();
 
     // 예배 존재 여부 확인
-    const existingWorship = await db.select()
-      .from(worships)
-      .where(eq(worships.id, id))
-      .get();
+    const existingWorship = await db.select().from(worships).where(eq(worships.id, id)).get();
 
     if (!existingWorship) {
       return res.status(404).json({
@@ -243,17 +228,12 @@ router.put('/:id', async (req, res) => {
     if (description !== undefined) updateData.description = description;
 
     // 업데이트 실행
-    const result = await db.update(worships)
-      .set(updateData)
-      .where(eq(worships.id, id))
-      .returning();
+    const result = await db.update(worships).set(updateData).where(eq(worships.id, id)).returning();
 
     const updatedWorship = result[0];
 
     // 찬양 개수 추가
-    const songsCount = await db.select({ count: songs.id })
-      .from(songs)
-      .where(eq(songs.worshipId, id));
+    const songsCount = await db.select({ count: songs.id }).from(songs).where(eq(songs.worshipId, id));
 
     const worshipWithSongsCount = {
       ...updatedWorship,
@@ -285,10 +265,7 @@ router.delete('/:id', async (req, res) => {
     const db = getDatabase();
 
     // 예배 존재 여부 확인
-    const existingWorship = await db.select()
-      .from(worships)
-      .where(eq(worships.id, id))
-      .get();
+    const existingWorship = await db.select().from(worships).where(eq(worships.id, id)).get();
 
     if (!existingWorship) {
       return res.status(404).json({

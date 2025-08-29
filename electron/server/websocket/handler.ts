@@ -53,17 +53,23 @@ export class GilteunWebSocketHandler {
     const userId = url.searchParams.get('userId') || `user-${Date.now()}`;
     const userName = url.searchParams.get('userName') || '익명 사용자';
 
-    logger.info('WebSocket 클라이언트 연결', { userId, userName, ip: clientIp });
+    logger.info('WebSocket 클라이언트 연결', {
+      userId,
+      userName,
+      ip: clientIp,
+    });
 
     // 접속자 수 제한 확인
     if (this.clients.size >= this.MAX_CLIENTS) {
       logger.warn('최대 접속자 수 초과', { currentClients: this.clients.size });
-      ws.send(JSON.stringify({
-        type: 'error',
-        code: 'MAX_CLIENTS_EXCEEDED',
-        message: '최대 접속자 수(30명)를 초과했습니다',
-        timestamp: Date.now(),
-      }));
+      ws.send(
+        JSON.stringify({
+          type: 'error',
+          code: 'MAX_CLIENTS_EXCEEDED',
+          message: '최대 접속자 수(30명)를 초과했습니다',
+          timestamp: Date.now(),
+        }),
+      );
       ws.close();
       return;
     }
@@ -147,7 +153,10 @@ export class GilteunWebSocketHandler {
           break;
 
         default:
-          logger.warn('알 수 없는 메시지 타입', { type: message.type, userId: client.userId });
+          logger.warn('알 수 없는 메시지 타입', {
+            type: message.type,
+            userId: client.userId,
+          });
           await this.sendError(ws, 'UNKNOWN_MESSAGE_TYPE', `알 수 없는 메시지 타입: ${message.type}`);
       }
     } catch (error) {
@@ -160,10 +169,12 @@ export class GilteunWebSocketHandler {
    * 핑 메시지 처리
    */
   private async handlePing(ws: WebSocket): Promise<void> {
-    ws.send(JSON.stringify({
-      type: 'pong',
-      timestamp: Date.now(),
-    }));
+    ws.send(
+      JSON.stringify({
+        type: 'pong',
+        timestamp: Date.now(),
+      }),
+    );
   }
 
   /**
@@ -189,15 +200,18 @@ export class GilteunWebSocketHandler {
       const db = getDatabase();
 
       // 주석을 데이터베이스에 저장
-      const result = await db.insert(annotations).values({
-        songId: message.songId,
-        userId: client.userId,
-        userName: client.userName,
-        layer: message.layer,
-        svgPath: message.svgPath,
-        color: message.color,
-        tool: message.tool,
-      }).returning();
+      const result = await db
+        .insert(annotations)
+        .values({
+          songId: message.songId,
+          userId: client.userId,
+          userName: client.userName,
+          layer: message.layer,
+          svgPath: message.svgPath,
+          color: message.color,
+          tool: message.tool,
+        })
+        .returning();
 
       const savedAnnotation = result[0];
 
@@ -217,7 +231,6 @@ export class GilteunWebSocketHandler {
         userId: client.userId,
         songId: message.songId,
       });
-
     } catch (error) {
       logger.error('주석 저장 실패', error);
       await this.sendError(client, 'ANNOTATION_SAVE_ERROR', '주석 저장 중 오류가 발생했습니다');
@@ -246,11 +259,14 @@ export class GilteunWebSocketHandler {
       const db = getDatabase();
 
       // 명령을 데이터베이스에 저장
-      const result = await db.insert(commands).values({
-        userId: client.userId,
-        userName: client.userName,
-        message: message.message,
-      }).returning();
+      const result = await db
+        .insert(commands)
+        .values({
+          userId: client.userId,
+          userName: client.userName,
+          message: message.message,
+        })
+        .returning();
 
       const savedCommand = result[0];
 
@@ -271,7 +287,6 @@ export class GilteunWebSocketHandler {
         userId: client.userId,
         message: message.message,
       });
-
     } catch (error) {
       logger.error('명령 전송 실패', error);
       await this.sendError(client, 'COMMAND_SEND_ERROR', '명령 전송 중 오류가 발생했습니다');
@@ -289,16 +304,14 @@ export class GilteunWebSocketHandler {
       switch (message.dataType) {
         case 'commands':
           // 최근 50개 명령 조회
-          data = await db.select()
-            .from(commands)
-            .orderBy(desc(commands.createdAt))
-            .limit(50);
+          data = await db.select().from(commands).orderBy(desc(commands.createdAt)).limit(50);
           break;
 
         case 'annotations':
           // 현재 보고 있는 찬양의 주석들 (currentSong이 설정된 경우)
           if (client.currentSong) {
-            data = await db.select()
+            data = await db
+              .select()
               .from(annotations)
               .where(eq(annotations.songId, client.currentSong))
               .orderBy(desc(annotations.createdAt));
@@ -319,7 +332,6 @@ export class GilteunWebSocketHandler {
       };
 
       ws.send(JSON.stringify(syncResponse));
-
     } catch (error) {
       logger.error('동기화 요청 처리 실패', error);
       await this.sendError(ws, 'SYNC_ERROR', '데이터 동기화 중 오류가 발생했습니다');
@@ -391,7 +403,7 @@ export class GilteunWebSocketHandler {
    * 서버 상태 브로드캐스트
    */
   private async broadcastServerStatus(): Promise<void> {
-    const activeUsers = Array.from(this.clients.values()).map(client => ({
+    const activeUsers = Array.from(this.clients.values()).map((client) => ({
       userId: client.userId,
       userName: client.userName,
     }));
@@ -502,14 +514,12 @@ export class GilteunWebSocketHandler {
       const db = getDatabase();
 
       // 기존 사용자 확인
-      const existingUser = await db.select()
-        .from(users)
-        .where(eq(users.id, userId))
-        .get();
+      const existingUser = await db.select().from(users).where(eq(users.id, userId)).get();
 
       if (existingUser) {
         // 기존 사용자 활동 시간 업데이트
-        await db.update(users)
+        await db
+          .update(users)
           .set({
             name: userName,
             lastActiveAt: new Date().toISOString(),

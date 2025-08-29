@@ -76,14 +76,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
       console.log('🔌 WebSocket 자동 연결 시도');
       connectWebSocket(settings.serverUrl, currentUser.id, currentUser.name);
     }
-  }, [
-    isInitialized,
-    settings.autoConnect,
-    settings.serverUrl,
-    currentUser,
-    connectionStatus,
-    connectWebSocket,
-  ]);
+  }, [isInitialized, settings.autoConnect, settings.serverUrl, currentUser, connectionStatus, connectWebSocket]);
 
   // 페이지 언로드 시 정리
   useEffect(() => {
@@ -141,24 +134,21 @@ export const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ childr
   if (!isInitialized || isLoading) {
     return (
       <div className="fullscreen-portrait flex items-center justify-center bg-gray-50">
-        <div className="text-center space-y-4">
+        <div className="space-y-4 text-center">
           {/* 로딩 스피너 */}
-          <div className="relative w-16 h-16 mx-auto">
-            <div className="absolute inset-0 border-4 border-primary-200 rounded-full"></div>
-            <div
-              className="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin"></div>
+          <div className="relative mx-auto h-16 w-16">
+            <div className="border-primary-200 absolute inset-0 rounded-full border-4"></div>
+            <div className="border-primary-600 absolute inset-0 animate-spin rounded-full border-4 border-t-transparent"></div>
           </div>
 
           {/* 길튼 시스템 로고/제목 */}
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">길튼 시스템</h1>
+            <h1 className="mb-2 text-2xl font-bold text-gray-900">길튼 시스템</h1>
             <p className="text-sm text-gray-600">교회 찬양팀을 위한 실시간 협업 플랫폼</p>
           </div>
 
           {/* 로딩 메시지 */}
-          {loadingMessage && (
-            <p className="text-sm text-gray-500">{loadingMessage}</p>
-          )}
+          {loadingMessage && <p className="text-sm text-gray-500">{loadingMessage}</p>}
         </div>
       </div>
     );

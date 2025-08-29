@@ -38,7 +38,7 @@ const useToastManager = () => {
       id: `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
 
-    setToasts(prev => [newToast, ...prev].slice(0, 5)); // 최대 5개
+    setToasts((prev) => [newToast, ...prev].slice(0, 5)); // 최대 5개
 
     // 자동 제거 (persistent가 false인 경우)
     if (!toast.persistent) {
@@ -49,7 +49,7 @@ const useToastManager = () => {
   };
 
   const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
   const clearAll = () => {
@@ -126,12 +126,8 @@ export const ToastContainer: React.FC = () => {
 
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2" style={{ top: 'env(safe-area-inset-top, 1rem) + 1rem' }}>
-      {toasts.map(toast => (
-        <ToastItem
-          key={toast.id}
-          toast={toast}
-          onClose={() => removeToast(toast.id)}
-        />
+      {toasts.map((toast) => (
+        <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
       ))}
     </div>
   );
@@ -158,14 +154,14 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose }) => {
   const getIcon = () => {
     switch (toast.type) {
       case 'success':
-        return <CheckCircle className="w-5 h-5 text-green-600" />;
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
       case 'error':
-        return <XCircle className="w-5 h-5 text-red-600" />;
+        return <XCircle className="h-5 w-5 text-red-600" />;
       case 'warning':
-        return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
+        return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
       case 'info':
       default:
-        return <Info className="w-5 h-5 text-blue-600" />;
+        return <Info className="h-5 w-5 text-blue-600" />;
     }
   };
 
@@ -191,31 +187,24 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose }) => {
 
   return (
     <div
-      className={`
-        flex items-start gap-3 p-4 rounded-lg border shadow-lg max-w-sm min-w-64
-        transition-all duration-300 transform
-        ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
-        ${getStyles()}
-      `}
+      className={`flex max-w-sm min-w-64 transform items-start gap-3 rounded-lg border p-4 shadow-lg transition-all duration-300 ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'} ${getStyles()} `}
     >
       {/* 아이콘 */}
-      <div className="flex-shrink-0 mt-0.5">
-        {getIcon()}
-      </div>
+      <div className="mt-0.5 flex-shrink-0">{getIcon()}</div>
 
       {/* 메시지 내용 */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <h4 className="text-sm font-medium">{toast.title}</h4>
-        <p className="text-sm opacity-90 mt-1">{toast.message}</p>
+        <p className="mt-1 text-sm opacity-90">{toast.message}</p>
       </div>
 
       {/* 닫기 버튼 */}
       <button
         onClick={handleClose}
-        className="flex-shrink-0 p-1 rounded-md hover:bg-black/10 transition-colors touch-target"
+        className="touch-target flex-shrink-0 rounded-md p-1 transition-colors hover:bg-black/10"
         aria-label="알림 닫기"
       >
-        <X className="w-4 h-4" />
+        <X className="h-4 w-4" />
       </button>
     </div>
   );
@@ -241,7 +230,6 @@ export const useToast = () => {
     warning: (title: string, message: string, duration?: number) =>
       showToast({ type: 'warning', title, message, duration }),
 
-    info: (title: string, message: string, duration?: number) =>
-      showToast({ type: 'info', title, message, duration }),
+    info: (title: string, message: string, duration?: number) => showToast({ type: 'info', title, message, duration }),
   };
 };

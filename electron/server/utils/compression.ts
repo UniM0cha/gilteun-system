@@ -20,7 +20,7 @@ export function compress(data: string): string {
       windowBits: 15,
       memLevel: 8,
     });
-    
+
     // base64로 인코딩하여 문자열로 저장
     return compressed.toString('base64');
   } catch (error) {
@@ -41,11 +41,11 @@ export function decompress(compressedData: string): string {
     if (!isBase64(compressedData)) {
       return compressedData;
     }
-    
+
     // base64 디코딩 후 gzip 압축 해제
     const buffer = Buffer.from(compressedData, 'base64');
     const decompressed = gunzipSync(buffer);
-    
+
     return decompressed.toString('utf8');
   } catch (error) {
     console.error('SVG 데이터 압축 해제 오류:', error);
@@ -63,7 +63,7 @@ function isBase64(str: string): boolean {
   try {
     // base64 정규식 패턴 확인
     const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
-    
+
     // 길이가 4의 배수여야 하고 패턴에 맞아야 함
     return str.length % 4 === 0 && base64Pattern.test(str);
   } catch {
@@ -81,7 +81,7 @@ export function getCompressionRatio(originalData: string, compressedData: string
   try {
     const originalSize = Buffer.byteLength(originalData, 'utf8');
     const compressedSize = Buffer.byteLength(compressedData, 'utf8');
-    
+
     return Math.max(0, 1 - compressedSize / originalSize);
   } catch {
     return 0;
@@ -96,17 +96,19 @@ export function getCompressionRatio(originalData: string, compressedData: string
  */
 export function optimizeSVGData(svgData: string): string {
   try {
-    return svgData
-      // 다중 공백을 단일 공백으로 변환
-      .replace(/\s+/g, ' ')
-      // 태그 사이의 공백 제거
-      .replace(/>\s+</g, '><')
-      // 불필요한 앞뒤 공백 제거
-      .trim()
-      // 소수점 정밀도를 6자리로 제한 (SVG에서 충분한 정밀도)
-      .replace(/(\d+\.\d{6})\d+/g, '$1')
-      // 연속된 같은 명령 최적화 (예: L 10 20 L 30 40 → L 10 20 30 40)
-      .replace(/([MLHVCSQTAZ])\s*(\d+(?:\.\d+)?(?:\s+\d+(?:\.\d+)?)*)\s*\1\s*/gi, '$1 $2 ');
+    return (
+      svgData
+        // 다중 공백을 단일 공백으로 변환
+        .replace(/\s+/g, ' ')
+        // 태그 사이의 공백 제거
+        .replace(/>\s+</g, '><')
+        // 불필요한 앞뒤 공백 제거
+        .trim()
+        // 소수점 정밀도를 6자리로 제한 (SVG에서 충분한 정밀도)
+        .replace(/(\d+\.\d{6})\d+/g, '$1')
+        // 연속된 같은 명령 최적화 (예: L 10 20 L 30 40 → L 10 20 30 40)
+        .replace(/([MLHVCSQTAZ])\s*(\d+(?:\.\d+)?(?:\s+\d+(?:\.\d+)?)*)\s*\1\s*/gi, '$1 $2 ')
+    );
   } catch (error) {
     console.error('SVG 데이터 최적화 오류:', error);
     return svgData;
@@ -132,16 +134,16 @@ export interface CompressionStats {
  */
 export function getCompressionStats(originalData: string, compressedData?: string): CompressionStats {
   const originalSize = Buffer.byteLength(originalData, 'utf8');
-  
+
   if (!compressedData) {
     const compressed = compress(originalData);
     compressedData = compressed;
   }
-  
+
   const compressedSize = Buffer.byteLength(compressedData, 'base64');
   const compressionRatio = getCompressionRatio(originalData, compressedData);
   const savedBytes = Math.max(0, originalSize - compressedSize);
-  
+
   return {
     originalSize,
     compressedSize,
@@ -162,17 +164,17 @@ export function batchCompress(dataList: string[]): {
 } {
   let totalOriginalSize = 0;
   let totalCompressedSize = 0;
-  
-  const compressedData = dataList.map(data => {
+
+  const compressedData = dataList.map((data) => {
     const optimized = optimizeSVGData(data);
     const compressed = compress(optimized);
-    
+
     totalOriginalSize += Buffer.byteLength(data, 'utf8');
     totalCompressedSize += Buffer.byteLength(compressed, 'base64');
-    
+
     return compressed;
   });
-  
+
   const totalStats: CompressionStats = {
     originalSize: totalOriginalSize,
     compressedSize: totalCompressedSize,
@@ -180,7 +182,7 @@ export function batchCompress(dataList: string[]): {
     savedBytes: Math.max(0, totalOriginalSize - totalCompressedSize),
     isCompressed: totalCompressedSize < totalOriginalSize,
   };
-  
+
   return {
     compressedData,
     totalStats,

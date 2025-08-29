@@ -176,7 +176,6 @@ export interface PaginatedResponse<T> {
   };
 }
 
-
 // 터치 제스처
 export interface GestureState {
   scale: number;

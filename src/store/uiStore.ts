@@ -355,36 +355,40 @@ export const useUIStore = create<UIState>()(
 );
 
 // 편의용 훅들
-export const useDrawingState = () => useUIStore((state) => ({
-  isDrawingMode: state.isDrawingMode,
-  selectedTool: state.selectedTool,
-  selectedColor: state.selectedColor,
-  brushSize: state.brushSize,
-  layerName: state.layerName,
-  isPencilActive: state.isPencilActive,
-  pressureSensitivity: state.pressureSensitivity,
-}));
+export const useDrawingState = () =>
+  useUIStore((state) => ({
+    isDrawingMode: state.isDrawingMode,
+    selectedTool: state.selectedTool,
+    selectedColor: state.selectedColor,
+    brushSize: state.brushSize,
+    layerName: state.layerName,
+    isPencilActive: state.isPencilActive,
+    pressureSensitivity: state.pressureSensitivity,
+  }));
 
-export const useViewState = () => useUIStore((state) => ({
-  zoomLevel: state.zoomLevel,
-  viewMode: state.viewMode,
-  viewportX: state.viewportX,
-  viewportY: state.viewportY,
-  gestureState: state.gestureState,
-}));
+export const useViewState = () =>
+  useUIStore((state) => ({
+    zoomLevel: state.zoomLevel,
+    viewMode: state.viewMode,
+    viewportX: state.viewportX,
+    viewportY: state.viewportY,
+    gestureState: state.gestureState,
+  }));
 
-export const useUIPanel = () => useUIStore((state) => ({
-  showToolbar: state.showToolbar,
-  showLayerPanel: state.showLayerPanel,
-  showCommandPanel: state.showCommandPanel,
-  showUserList: state.showUserList,
-  showSettings: state.showSettings,
-}));
+export const useUIPanel = () =>
+  useUIStore((state) => ({
+    showToolbar: state.showToolbar,
+    showLayerPanel: state.showLayerPanel,
+    showCommandPanel: state.showCommandPanel,
+    showUserList: state.showUserList,
+    showSettings: state.showSettings,
+  }));
 
-export const useModal = () => useUIStore((state) => ({
-  activeModal: state.activeModal,
-  modalProps: state.modalProps,
-}));
+export const useModal = () =>
+  useUIStore((state) => ({
+    activeModal: state.activeModal,
+    modalProps: state.modalProps,
+  }));
 
 // 개별 프로퍼티로 분리하여 참조 안정성 확보
 export const useIsOffline = () => useUIStore((state) => state.isOffline);

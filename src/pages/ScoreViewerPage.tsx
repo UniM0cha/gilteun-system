@@ -1,33 +1,33 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import {
   Activity,
   ArrowLeft,
   Edit3,
+  Eraser,
   Eye,
   EyeOff,
+  Highlighter,
   Layers,
   Maximize2,
   Minimize2,
+  Palette,
+  Pencil,
   RotateCcw,
+  Save,
   Settings,
   Users,
   ZoomIn,
   ZoomOut,
-  Palette,
-  Highlighter,
-  Pencil,
-  Eraser,
-  Save,
 } from 'lucide-react';
-import { Button, LoadingOverlay, LoadingSpinner } from '../components/ui';
-import { useAppStore } from '../store/appStore';
-import { useSong, useWorship } from '../hooks/useApi';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AnnotationEngine, AnnotationEngineRef, PerformanceMetrics } from '../components/drawing/AnnotationEngine';
-import { RealTimeCursors, RealTimeDrawingPaths } from '../components/drawing/RealTimeCursors';
-import { LayerManager, LayerVisibility } from '../components/drawing/LayerManager';
 import { AnnotationStorage, AnnotationStorageRef } from '../components/drawing/AnnotationStorage';
+import { LayerManager, LayerVisibility } from '../components/drawing/LayerManager';
+import { RealTimeCursors, RealTimeDrawingPaths } from '../components/drawing/RealTimeCursors';
+import { Button, LoadingOverlay, LoadingSpinner } from '../components/ui';
 import { PerformanceMonitor } from '../components/ui/PerformanceMonitor';
+import { useSong, useWorship } from '../hooks/useApi';
+import { useAppStore } from '../store/appStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { Annotation } from '../types';
 
@@ -40,19 +40,15 @@ import { Annotation } from '../types';
  */
 export const ScoreViewerPage: React.FC = () => {
   const navigate = useNavigate();
-  const { worshipId, songId } = useParams<{ worshipId: string; songId: string }>();
+  const { worshipId, songId } = useParams<{
+    worshipId: string;
+    songId: string;
+  }>();
   const worshipIdNum = worshipId ? parseInt(worshipId) : null;
   const songIdNum = songId ? parseInt(songId) : null;
 
   // 스토어 상태
-  const {
-    currentWorship,
-    currentSong,
-    currentUser,
-    setCurrentWorship,
-    setCurrentSong,
-    isLoading,
-  } = useAppStore();
+  const { currentWorship, currentSong, currentUser, setCurrentWorship, setCurrentSong, isLoading } = useAppStore();
 
   // 로컬 상태
   const [scale, setScale] = useState(1);
@@ -92,11 +88,7 @@ export const ScoreViewerPage: React.FC = () => {
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
 
   // WebSocket 스토어
-  const {
-    sendAnnotationUpdate,
-    sendAnnotationComplete,
-    sendCursorMove,
-  } = useWebSocketStore();
+  const { sendAnnotationUpdate, sendAnnotationComplete } = useWebSocketStore();
 
   // API 훅
   const {
@@ -107,11 +99,7 @@ export const ScoreViewerPage: React.FC = () => {
     enabled: !!worshipIdNum,
   });
 
-  const {
-    data: song,
-    isLoading: isLoadingSong,
-    error: songError,
-  } = useSong(songIdNum || 0);
+  const { data: song, isLoading: isLoadingSong, error: songError } = useSong(songIdNum || 0);
 
   // 상태 동기화
   useEffect(() => {
@@ -126,28 +114,7 @@ export const ScoreViewerPage: React.FC = () => {
     }
   }, [song, currentSong, setCurrentSong]);
 
-  // AnnotationEngine에서 발생하는 커서 이벤트 리스너
-  useEffect(() => {
-    const handleCursorMove = (e: CustomEvent) => {
-      if (!songIdNum || !currentUser) return;
-      
-      const { x, y, isDrawing } = e.detail;
-      sendCursorMove(songIdNum, x, y, isDrawing, selectedTool);
-    };
-
-    // AnnotationEngine의 root element에 이벤트 리스너 추가
-    if (annotationEngineRef.current) {
-      const editor = annotationEngineRef.current.getEditor?.();
-      if (editor) {
-        const rootElement = editor.getRootElement();
-        rootElement.addEventListener('cursorMove', handleCursorMove as EventListener);
-        
-        return () => {
-          rootElement.removeEventListener('cursorMove', handleCursorMove as EventListener);
-        };
-      }
-    }
-  }, [songIdNum, currentUser, selectedTool, sendCursorMove]);
+  // 커서 이동 실시간 전송 기능은 요구사항에서 제외됨 (삭제)
 
   // 뒤로 가기
   const handleGoBack = () => {
@@ -155,77 +122,40 @@ export const ScoreViewerPage: React.FC = () => {
   };
 
   // Phase 2: 주석 관련 핸들러 - 데이터베이스 저장과 실시간 동기화
-  const handleAnnotationComplete = useCallback(async (svgPath: string, tool: string, color: string) => {
-    if (songIdNum && currentUser && annotationStorageRef.current) {
-      try {
-        // 1. 데이터베이스에 저장 (AnnotationStorage 사용)
-        await annotationStorageRef.current.saveAnnotation(
-          svgPath,
-          tool as 'pen' | 'highlighter' | 'eraser',
-          color,
-          {
+  const handleAnnotationComplete = useCallback(
+    async (svgPath: string, tool: string, color: string) => {
+      if (songIdNum && currentUser && annotationStorageRef.current) {
+        try {
+          // 1. 데이터베이스에 저장 (AnnotationStorage 사용)
+          await annotationStorageRef.current.saveAnnotation(svgPath, tool as 'pen' | 'highlighter' | 'eraser', color, {
             autoSave: false, // 즉시 저장
-            compress: true,  // SVG 압축
-            layer: `${currentUser.name}의 주석`
-          }
-        );
+            compress: true, // SVG 압축
+            layer: `${currentUser.name}의 주석`,
+          });
 
-        // 2. 실시간 동기화를 위해 WebSocket으로 전송
-        sendAnnotationComplete(
-          songIdNum,
-          svgPath,
-          tool,
-          color,
-          `${currentUser.name}의 주석`
-        );
-      } catch (error) {
-        console.error('주석 저장 실패:', error);
-        // 저장 실패 시에도 실시간 동기화는 유지
-        sendAnnotationComplete(
-          songIdNum,
-          svgPath,
-          tool,
-          color,
-          `${currentUser.name}의 주석`
-        );
+          // 2. 실시간 동기화를 위해 WebSocket으로 전송
+          sendAnnotationComplete(songIdNum, svgPath, tool, color, `${currentUser.name}의 주석`);
+        } catch (error) {
+          console.error('주석 저장 실패:', error);
+          // 저장 실패 시에도 실시간 동기화는 유지
+          sendAnnotationComplete(songIdNum, svgPath, tool, color, `${currentUser.name}의 주석`);
+        }
       }
-    }
-  }, [songIdNum, currentUser, sendAnnotationComplete]);
+    },
+    [songIdNum, currentUser, sendAnnotationComplete],
+  );
 
-  const handleAnnotationUpdate = useCallback((svgPath: string, isComplete: boolean) => {
-    if (songIdNum && currentUser && !isComplete) {
-      // 실시간 동기화를 위해 WebSocket으로 전송 (Figma 스타일)
-      sendAnnotationUpdate(songIdNum, svgPath, selectedTool, currentUser.color || '#2563eb');
-    }
-  }, [songIdNum, currentUser, selectedTool, sendAnnotationUpdate]);
+  const handleAnnotationUpdate = useCallback(
+    (svgPath: string, isComplete: boolean) => {
+      if (songIdNum && currentUser && !isComplete) {
+        // 실시간 동기화를 위해 WebSocket으로 전송 (Figma 스타일)
+        sendAnnotationUpdate(songIdNum, svgPath, selectedTool, currentUser.color || '#2563eb');
+      }
+    },
+    [songIdNum, currentUser, selectedTool, sendAnnotationUpdate],
+  );
 
-  // Phase 2: 커서 위치 추적 및 실시간 전송
-  const handleCursorMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if (!songIdNum || !currentUser || !imageRef.current) return;
-    
-    // 이벤트에 따라 좌표 추출
-    let clientX: number, clientY: number;
-    if (e.type.startsWith('touch')) {
-      const touchEvent = e as React.TouchEvent;
-      if (touchEvent.touches.length === 0) return;
-      clientX = touchEvent.touches[0].clientX;
-      clientY = touchEvent.touches[0].clientY;
-    } else {
-      const mouseEvent = e as React.MouseEvent;
-      clientX = mouseEvent.clientX;
-      clientY = mouseEvent.clientY;
-    }
-    
-    // 이미지 상대좌표로 변환
-    const rect = imageRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    
-    // 이미지 영역 내부에 있을 때만 전송
-    if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
-      sendCursorMove(songIdNum, x, y, isAnnotationMode, selectedTool);
-    }
-  }, [songIdNum, currentUser, isAnnotationMode, selectedTool, sendCursorMove]);
+  // 커서 위치 추적 및 실시간 전송 기능은 제거됨
 
   const toggleAnnotationMode = useCallback(() => {
     setIsAnnotationMode(!isAnnotationMode);
@@ -243,44 +173,53 @@ export const ScoreViewerPage: React.FC = () => {
     setLayerVisibility(visibility);
   }, []);
 
-  const handleToggleAllLayers = useCallback((show: boolean) => {
-    setShowAllLayers(show);
-    if (!show) {
-      // 모든 레이어 숨김
-      const allHidden: LayerVisibility = {};
-      Object.keys(layerVisibility).forEach(userId => {
-        allHidden[userId] = false;
-      });
-      setLayerVisibility(allHidden);
-    } else {
-      // 모든 레이어 표시
-      const allVisible: LayerVisibility = {};
-      Object.keys(layerVisibility).forEach(userId => {
-        allVisible[userId] = true;
-      });
-      setLayerVisibility(allVisible);
-    }
-  }, [layerVisibility]);
+  const handleToggleAllLayers = useCallback(
+    (show: boolean) => {
+      setShowAllLayers(show);
+      if (!show) {
+        // 모든 레이어 숨김
+        const allHidden: LayerVisibility = {};
+        Object.keys(layerVisibility).forEach((userId) => {
+          allHidden[userId] = false;
+        });
+        setLayerVisibility(allHidden);
+      } else {
+        // 모든 레이어 표시
+        const allVisible: LayerVisibility = {};
+        Object.keys(layerVisibility).forEach((userId) => {
+          allVisible[userId] = true;
+        });
+        setLayerVisibility(allVisible);
+      }
+    },
+    [layerVisibility],
+  );
 
   // Phase 2: AnnotationStorage 콜백들
   const handleAnnotationsLoaded = useCallback(async (annotations: Annotation[]) => {
     console.log(`기존 주석 ${annotations.length}개 로드됨`);
     setLoadedAnnotations(annotations);
-    
+
     // AnnotationEngine에 기존 주석들 로드
     if (annotationEngineRef.current && annotations.length > 0) {
       try {
         // 모든 주석을 하나의 SVG로 병합하여 로드
         const combinedSVG = `
           <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
-            ${annotations.map((annotation) => `
-              <g data-annotation-id="${annotation.id}" data-user-id="${annotation.userId}" opacity="${annotation.opacity || 1.0}">
+            ${annotations
+              .map(
+                (annotation) => `
+              <g data-annotation-id="${annotation.id}" data-user-id="${
+                annotation.userId
+              }" opacity="${annotation.opacity || 1.0}">
                 ${annotation.svgPath}
               </g>
-            `).join('')}
+            `,
+              )
+              .join('')}
           </svg>
         `;
-        
+
         await annotationEngineRef.current.loadAnnotationData(combinedSVG);
       } catch (error) {
         console.error('기존 주석 로드 실패:', error);
@@ -291,7 +230,7 @@ export const ScoreViewerPage: React.FC = () => {
   const handleAnnotationSaved = useCallback((annotation: Annotation) => {
     console.log('주석 저장 완료:', annotation.id);
     // 로드된 주석 목록 업데이트
-    setLoadedAnnotations(prev => [...prev, annotation]);
+    setLoadedAnnotations((prev) => [...prev, annotation]);
   }, []);
 
   const handleSaveError = useCallback((error: Error) => {
@@ -300,32 +239,35 @@ export const ScoreViewerPage: React.FC = () => {
   }, []);
 
   // Phase 2: 성능 모니터링 콜백
-  const handlePerformanceUpdate = useCallback((metrics: PerformanceMetrics) => {
-    setPerformanceMetrics(metrics);
-    
-    // 성능 점수가 낮을 때 경고 로그
-    if (metrics.performanceScore < 60) {
-      console.warn('성능 저하 감지:', {
-        inputLatency: `${metrics.inputLatency.toFixed(1)}ms`,
-        fps: `${metrics.fps}fps`,
-        memoryUsage: `${metrics.memoryUsage}MB`,
-        score: metrics.performanceScore
-      });
-    }
-    
-    // Apple Pencil 지연시간 목표 달성 체크
-    if (metrics.inputLatency > 16 && isAnnotationMode) {
-      console.warn(`Apple Pencil 지연시간 목표 초과: ${metrics.inputLatency.toFixed(1)}ms (목표: <16ms)`);
-    }
-  }, [isAnnotationMode]);
+  const handlePerformanceUpdate = useCallback(
+    (metrics: PerformanceMetrics) => {
+      setPerformanceMetrics(metrics);
+
+      // 성능 점수가 낮을 때 경고 로그
+      if (metrics.performanceScore < 60) {
+        console.warn('성능 저하 감지:', {
+          inputLatency: `${metrics.inputLatency.toFixed(1)}ms`,
+          fps: `${metrics.fps}fps`,
+          memoryUsage: `${metrics.memoryUsage}MB`,
+          score: metrics.performanceScore,
+        });
+      }
+
+      // Apple Pencil 지연시간 목표 달성 체크
+      if (metrics.inputLatency > 16 && isAnnotationMode) {
+        console.warn(`Apple Pencil 지연시간 목표 초과: ${metrics.inputLatency.toFixed(1)}ms (목표: <16ms)`);
+      }
+    },
+    [isAnnotationMode],
+  );
 
   // 줌 제어
   const handleZoomIn = useCallback(() => {
-    setScale(prev => Math.min(prev * 1.2, 5));
+    setScale((prev) => Math.min(prev * 1.2, 5));
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setScale(prev => Math.max(prev / 1.2, 0.1));
+    setScale((prev) => Math.max(prev / 1.2, 0.1));
   }, []);
 
   const handleResetZoom = useCallback(() => {
@@ -373,31 +315,31 @@ export const ScoreViewerPage: React.FC = () => {
     }
   }, []);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
 
-    if (e.touches.length === 1 && isDragging && lastTouch) {
-      // 드래그
-      const touch = e.touches[0];
-      const deltaX = touch.clientX - lastTouch.x;
-      const deltaY = touch.clientY - lastTouch.y;
+      if (e.touches.length === 1 && isDragging && lastTouch) {
+        // 드래그
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - lastTouch.x;
+        const deltaY = touch.clientY - lastTouch.y;
 
-      setPosition(prev => ({
-        x: prev.x + deltaX,
-        y: prev.y + deltaY,
-      }));
+        setPosition((prev) => ({
+          x: prev.x + deltaX,
+          y: prev.y + deltaY,
+        }));
 
-      setLastTouch({ x: touch.clientX, y: touch.clientY });
-    } else if (e.touches.length === 2) {
-      // 핀치 줌 (기본 브라우저 핀치 줌 사용)
-      // 추가 구현은 Phase 2에서 진행
-    }
-    
-    // 커서 위치 실시간 전송 (드래그 중이 아닐 때)
-    if (!isDragging && e.touches.length === 1) {
-      handleCursorMove(e);
-    }
-  }, [isDragging, lastTouch, handleCursorMove]);
+        setLastTouch({ x: touch.clientX, y: touch.clientY });
+      } else if (e.touches.length === 2) {
+        // 핀치 줌 (기본 브라우저 핀치 줌 사용)
+        // 추가 구현은 Phase 2에서 진행
+      }
+
+      // 커서 위치 실시간 전송 기능 제거
+    },
+    [isDragging, lastTouch],
+  );
 
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
@@ -406,30 +348,31 @@ export const ScoreViewerPage: React.FC = () => {
 
   // 마우스 이벤트 (데스크톱 지원)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 0) { // 좌클릭
+    if (e.button === 0) {
+      // 좌클릭
       setLastTouch({ x: e.clientX, y: e.clientY });
       setIsDragging(true);
     }
   }, []);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isDragging && lastTouch) {
-      const deltaX = e.clientX - lastTouch.x;
-      const deltaY = e.clientY - lastTouch.y;
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (isDragging && lastTouch) {
+        const deltaX = e.clientX - lastTouch.x;
+        const deltaY = e.clientY - lastTouch.y;
 
-      setPosition(prev => ({
-        x: prev.x + deltaX,
-        y: prev.y + deltaY,
-      }));
+        setPosition((prev) => ({
+          x: prev.x + deltaX,
+          y: prev.y + deltaY,
+        }));
 
-      setLastTouch({ x: e.clientX, y: e.clientY });
-    }
-    
-    // 커서 위치 실시간 전송 (드래그 중이 아닐 때)
-    if (!isDragging) {
-      handleCursorMove(e);
-    }
-  }, [isDragging, lastTouch, handleCursorMove]);
+        setLastTouch({ x: e.clientX, y: e.clientY });
+      }
+
+      // 커서 위치 실시간 전송 기능 제거
+    },
+    [isDragging, lastTouch],
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -479,10 +422,10 @@ export const ScoreViewerPage: React.FC = () => {
   // 에러 상태 처리
   if (!worshipIdNum || !songIdNum) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">잘못된 접근</h2>
-          <p className="text-gray-600 mb-4">올바르지 않은 찬양 정보입니다.</p>
+          <h2 className="mb-2 text-xl font-semibold text-gray-900">잘못된 접근</h2>
+          <p className="mb-4 text-gray-600">올바르지 않은 찬양 정보입니다.</p>
           <Button onClick={handleGoBack}>찬양 목록으로 돌아가기</Button>
         </div>
       </div>
@@ -493,23 +436,21 @@ export const ScoreViewerPage: React.FC = () => {
     <div className="min-h-screen bg-black text-white" data-testid="score-viewer">
       {/* 헤더 (전체화면이 아닐 때만 표시) */}
       {!isFullscreen && (
-        <div className="bg-gray-900 border-b border-gray-700 px-4 py-3">
-          <div className="max-w-6xl mx-auto">
+        <div className="border-b border-gray-700 bg-gray-900 px-4 py-3">
+          <div className="mx-auto max-w-6xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleGoBack}
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-800"
+                  className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-800"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
 
                 <div>
-                  <h1 className="text-lg font-semibold text-white">
-                    {song?.title || '악보 뷰어'}
-                  </h1>
+                  <h1 className="text-lg font-semibold text-white">{song?.title || '악보 뷰어'}</h1>
                   <p className="text-sm text-gray-300">
                     {worship?.title} • {worship?.date}
                     {song?.key && ` • Key: ${song.key}`}
@@ -523,9 +464,9 @@ export const ScoreViewerPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAnnotations(!showAnnotations)}
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-800"
+                  className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-800"
                 >
-                  {showAnnotations ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  {showAnnotations ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                 </Button>
 
                 {/* 주석 레이어 관리 */}
@@ -533,13 +474,13 @@ export const ScoreViewerPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowLayerManager(!showLayerManager)}
-                  className={`min-w-[44px] min-h-[44px] text-white hover:bg-gray-800 ${
+                  className={`min-h-[44px] min-w-[44px] text-white hover:bg-gray-800 ${
                     showLayerManager ? 'bg-blue-600 hover:bg-blue-700' : ''
                   }`}
                   title="레이어 관리"
                   data-testid="layer-manager-button"
                 >
-                  <Layers className="w-4 h-4" />
+                  <Layers className="h-4 w-4" />
                 </Button>
 
                 {/* 주석 모드 토글 (Phase 2) */}
@@ -548,12 +489,12 @@ export const ScoreViewerPage: React.FC = () => {
                   size="sm"
                   onClick={toggleAnnotationMode}
                   data-testid="draw-mode-button"
-                  className={`min-w-[44px] min-h-[44px] text-white hover:bg-gray-800 ${
+                  className={`min-h-[44px] min-w-[44px] text-white hover:bg-gray-800 ${
                     isAnnotationMode ? 'bg-blue-600 hover:bg-blue-700' : ''
                   }`}
                   title="주석 모드 토글"
                 >
-                  <Edit3 className="w-4 h-4" />
+                  <Edit3 className="h-4 w-4" />
                 </Button>
 
                 {/* 성능 모니터링 토글 */}
@@ -561,28 +502,20 @@ export const ScoreViewerPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowPerformanceMonitor(!showPerformanceMonitor)}
-                  className={`min-w-[44px] min-h-[44px] text-white hover:bg-gray-800 ${
+                  className={`min-h-[44px] min-w-[44px] text-white hover:bg-gray-800 ${
                     showPerformanceMonitor ? 'bg-green-600 hover:bg-green-700' : ''
                   }`}
                   title="성능 모니터링"
                 >
-                  <Activity className="w-4 h-4" />
+                  <Activity className="h-4 w-4" />
                 </Button>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-800"
-                >
-                  <Settings className="w-4 h-4" />
+                <Button variant="ghost" size="sm" className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-800">
+                  <Settings className="h-4 w-4" />
                 </Button>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-800"
-                >
-                  <Users className="w-4 h-4" />
+                <Button variant="ghost" size="sm" className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-800">
+                  <Users className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -593,47 +526,45 @@ export const ScoreViewerPage: React.FC = () => {
       {/* 컨트롤 패널 (전체화면이 아닐 때만 표시) */}
       {!isFullscreen && (
         <div className="bg-gray-800 px-4 py-3">
-          <div className="max-w-6xl mx-auto">
+          <div className="mx-auto max-w-6xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleZoomOut}
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-700"
+                  className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-700"
                 >
-                  <ZoomOut className="w-4 h-4" />
+                  <ZoomOut className="h-4 w-4" />
                 </Button>
 
-                <span className="text-sm text-gray-300 min-w-[60px] text-center">
-                  {Math.round(scale * 100)}%
-                </span>
+                <span className="min-w-[60px] text-center text-sm text-gray-300">{Math.round(scale * 100)}%</span>
 
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleZoomIn}
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-700"
+                  className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-700"
                 >
-                  <ZoomIn className="w-4 h-4" />
+                  <ZoomIn className="h-4 w-4" />
                 </Button>
 
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleResetZoom}
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-700"
+                  className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-700"
                 >
-                  <RotateCcw className="w-4 h-4" />
+                  <RotateCcw className="h-4 w-4" />
                 </Button>
 
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleFitToScreen}
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-700"
+                  className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-700"
                 >
-                  <Minimize2 className="w-4 h-4" />
+                  <Minimize2 className="h-4 w-4" />
                 </Button>
               </div>
 
@@ -642,9 +573,9 @@ export const ScoreViewerPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={toggleFullscreen}
-                  className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-700"
+                  className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-700"
                 >
-                  <Maximize2 className="w-4 h-4" />
+                  <Maximize2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -655,10 +586,7 @@ export const ScoreViewerPage: React.FC = () => {
       {/* 메인 뷰어 */}
       <div
         ref={containerRef}
-        className={`
-          relative overflow-hidden bg-black
-          ${isFullscreen ? 'fixed inset-0 z-50' : 'flex-1 h-screen'}
-        `}
+        className={`relative overflow-hidden bg-black ${isFullscreen ? 'fixed inset-0 z-50' : 'h-screen flex-1'} `}
         style={{
           height: isFullscreen ? '100vh' : 'calc(100vh - 120px)',
           touchAction: 'none', // 기본 터치 제스처 비활성화
@@ -672,13 +600,13 @@ export const ScoreViewerPage: React.FC = () => {
         onDoubleClick={handleDoubleClick}
       >
         <LoadingOverlay isLoading={isLoading} text="악보를 불러오는 중...">
-          <div className="flex items-center justify-center h-full">
-            {(isLoadingWorship || isLoadingSong) ? (
+          <div className="flex h-full items-center justify-center">
+            {isLoadingWorship || isLoadingSong ? (
               <LoadingSpinner size="lg" text="악보를 불러오는 중..." />
-            ) : (worshipError || songError) ? (
+            ) : worshipError || songError ? (
               <div className="text-center text-white">
-                <h3 className="text-lg font-medium mb-2">오류가 발생했습니다</h3>
-                <p className="text-gray-300 mb-4">
+                <h3 className="mb-2 text-lg font-medium">오류가 발생했습니다</h3>
+                <p className="mb-4 text-gray-300">
                   {worshipError?.message || songError?.message || '악보를 불러올 수 없습니다'}
                 </p>
                 <Button onClick={handleGoBack} variant="outline">
@@ -687,10 +615,8 @@ export const ScoreViewerPage: React.FC = () => {
               </div>
             ) : !song?.imagePath ? (
               <div className="text-center text-white">
-                <h3 className="text-lg font-medium mb-2">악보가 없습니다</h3>
-                <p className="text-gray-300 mb-4">
-                  이 찬양에는 업로드된 악보가 없습니다
-                </p>
+                <h3 className="mb-2 text-lg font-medium">악보가 없습니다</h3>
+                <p className="mb-4 text-gray-300">이 찬양에는 업로드된 악보가 없습니다</p>
                 <Button onClick={handleGoBack} variant="outline">
                   찬양 목록으로 돌아가기
                 </Button>
@@ -775,36 +701,34 @@ export const ScoreViewerPage: React.FC = () => {
         {/* 전체화면 모드 컨트롤 */}
         {isFullscreen && (
           <div className="absolute top-4 right-4 z-10">
-            <div className="flex items-center space-x-2 bg-black bg-opacity-75 rounded-lg px-3 py-2">
+            <div className="bg-opacity-75 flex items-center space-x-2 rounded-lg bg-black px-3 py-2">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleZoomOut}
-                className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-700"
+                className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-700"
               >
-                <ZoomOut className="w-4 h-4" />
+                <ZoomOut className="h-4 w-4" />
               </Button>
 
-              <span className="text-sm text-white min-w-[60px] text-center">
-                {Math.round(scale * 100)}%
-              </span>
+              <span className="min-w-[60px] text-center text-sm text-white">{Math.round(scale * 100)}%</span>
 
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleZoomIn}
-                className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-700"
+                className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-700"
               >
-                <ZoomIn className="w-4 h-4" />
+                <ZoomIn className="h-4 w-4" />
               </Button>
 
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={toggleFullscreen}
-                className="min-w-[44px] min-h-[44px] text-white hover:bg-gray-700"
+                className="min-h-[44px] min-w-[44px] text-white hover:bg-gray-700"
               >
-                <Minimize2 className="w-4 h-4" />
+                <Minimize2 className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -826,29 +750,29 @@ export const ScoreViewerPage: React.FC = () => {
         {/* 저장 상태 표시기 */}
         {annotationStorageRef.current && !isFullscreen && (
           <div className="absolute top-4 left-4 z-30">
-            <div className="bg-black bg-opacity-75 rounded-lg px-3 py-2 text-sm text-white">
+            <div className="bg-opacity-75 rounded-lg bg-black px-3 py-2 text-sm text-white">
               {(() => {
                 const status = annotationStorageRef.current?.getSaveStatus?.();
                 if (!status) return null;
-                
+
                 if (status.isSaving) {
                   return (
                     <div className="flex items-center space-x-2">
-                      <div className="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent"></div>
                       <span>저장 중...</span>
                     </div>
                   );
                 }
-                
+
                 if (status.pendingCount > 0) {
                   return (
                     <div className="flex items-center space-x-2 text-yellow-400">
-                      <Save className="w-4 h-4" />
+                      <Save className="h-4 w-4" />
                       <span>미저장 {status.pendingCount}개</span>
                     </div>
                   );
                 }
-                
+
                 if (!status.isConnected) {
                   return (
                     <div className="flex items-center space-x-2 text-red-400">
@@ -857,7 +781,7 @@ export const ScoreViewerPage: React.FC = () => {
                     </div>
                   );
                 }
-                
+
                 return (
                   <div className="flex items-center space-x-2 text-green-400">
                     <span>●</span>
@@ -879,21 +803,21 @@ export const ScoreViewerPage: React.FC = () => {
 
         {/* 주석 도구 패널 - Phase 2 */}
         {isAnnotationMode && showToolbar && !isFullscreen && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
-            <div className="flex items-center space-x-3 bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-xl border">
+          <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 transform">
+            <div className="bg-opacity-95 flex items-center space-x-3 rounded-2xl border bg-white px-6 py-4 shadow-xl backdrop-blur-sm">
               {/* 펜 도구 */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleToolChange('pen')}
-                className={`min-w-[48px] min-h-[48px] rounded-xl ${
-                  selectedTool === 'pen' 
-                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+                className={`min-h-[48px] min-w-[48px] rounded-xl ${
+                  selectedTool === 'pen'
+                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
                 title="펜 도구 (Apple Pencil 압력 감지)"
               >
-                <Pencil className="w-5 h-5" />
+                <Pencil className="h-5 w-5" />
               </Button>
 
               {/* 하이라이터 도구 */}
@@ -901,14 +825,14 @@ export const ScoreViewerPage: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => handleToolChange('highlighter')}
-                className={`min-w-[48px] min-h-[48px] rounded-xl ${
-                  selectedTool === 'highlighter' 
-                    ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200' 
+                className={`min-h-[48px] min-w-[48px] rounded-xl ${
+                  selectedTool === 'highlighter'
+                    ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
                 title="하이라이터"
               >
-                <Highlighter className="w-5 h-5" />
+                <Highlighter className="h-5 w-5" />
               </Button>
 
               {/* 지우개 도구 */}
@@ -916,17 +840,17 @@ export const ScoreViewerPage: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => handleToolChange('eraser')}
-                className={`min-w-[48px] min-h-[48px] rounded-xl ${
-                  selectedTool === 'eraser' 
-                    ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                className={`min-h-[48px] min-w-[48px] rounded-xl ${
+                  selectedTool === 'eraser'
+                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
                 title="지우개"
               >
-                <Eraser className="w-5 h-5" />
+                <Eraser className="h-5 w-5" />
               </Button>
 
-              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="h-8 w-px bg-gray-300"></div>
 
               {/* 두께 조절 */}
               <div className="flex items-center space-x-2">
@@ -937,32 +861,32 @@ export const ScoreViewerPage: React.FC = () => {
                   max="20"
                   value={strokeThickness}
                   onChange={(e) => setStrokeThickness(Number(e.target.value))}
-                  className="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  className="h-2 w-20 cursor-pointer appearance-none rounded-lg bg-gray-200"
                   title={`선 두께: ${strokeThickness}px`}
                 />
-                <span className="text-xs text-gray-500 w-6 text-center">{strokeThickness}</span>
+                <span className="w-6 text-center text-xs text-gray-500">{strokeThickness}</span>
               </div>
 
-              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="h-8 w-px bg-gray-300"></div>
 
               {/* 색상 선택 (현재는 사용자 고정 색상) */}
               <div className="flex items-center space-x-2">
-                <Palette className="w-4 h-4 text-gray-500" />
-                <div 
-                  className="w-8 h-8 rounded-full border-2 border-gray-300"
+                <Palette className="h-4 w-4 text-gray-500" />
+                <div
+                  className="h-8 w-8 rounded-full border-2 border-gray-300"
                   style={{ backgroundColor: currentUser?.color || '#2563eb' }}
                   title={`내 색상: ${currentUser?.name}`}
                 />
               </div>
 
-              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="h-8 w-px bg-gray-300"></div>
 
               {/* 도구 패널 닫기 */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowToolbar(false)}
-                className="min-w-[48px] min-h-[48px] rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                className="min-h-[48px] min-w-[48px] rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                 title="도구 패널 숨기기"
               >
                 ✕

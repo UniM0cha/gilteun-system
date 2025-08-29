@@ -9,7 +9,7 @@ const router = express.Router();
 
 /**
  * 주석 API 라우터 - SVG 패스 기반 벡터 데이터 관리
- * 
+ *
  * 기능:
  * - SVG 패스 데이터 압축 저장
  * - 사용자별/찬양별 주석 조회
@@ -33,7 +33,7 @@ function createChecksum(data: string): string {
 function processSVGData(svgPath: string) {
   const compressed = compress(svgPath);
   const checksum = createChecksum(svgPath);
-  
+
   return {
     compressedData: compressed,
     originalSize: Buffer.byteLength(svgPath, 'utf8'),
@@ -79,14 +79,11 @@ router.get('/song/:songId', async (req, res) => {
         updatedAt: annotations.updatedAt,
       })
       .from(annotations)
-      .where(and(
-        eq(annotations.songId, songId),
-        activeAnnotationsFilter
-      ))
+      .where(and(eq(annotations.songId, songId), activeAnnotationsFilter))
       .orderBy(desc(annotations.createdAt));
 
     // SVG 데이터 압축 해제
-    const processedResult = result.map(annotation => ({
+    const processedResult = result.map((annotation) => ({
       ...annotation,
       svgPath: decompress(annotation.svgPath), // 클라이언트로 전송 시 압축 해제
     }));
@@ -118,14 +115,10 @@ router.get('/song/:songId/user/:userId', async (req, res) => {
     const result = await db
       .select()
       .from(annotations)
-      .where(and(
-        eq(annotations.songId, songId),
-        eq(annotations.userId, userId),
-        activeAnnotationsFilter
-      ))
+      .where(and(eq(annotations.songId, songId), eq(annotations.userId, userId), activeAnnotationsFilter))
       .orderBy(desc(annotations.createdAt));
 
-    const processedResult = result.map(annotation => ({
+    const processedResult = result.map((annotation) => ({
       ...annotation,
       svgPath: decompress(annotation.svgPath),
     }));
@@ -146,17 +139,7 @@ router.get('/song/:songId/user/:userId', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const {
-      songId,
-      userId,
-      userName,
-      layer,
-      svgPath,
-      color,
-      tool,
-      strokeWidth = 2,
-      opacity = 1.0,
-    } = req.body;
+    const { songId, userId, userName, layer, svgPath, color, tool, strokeWidth = 2, opacity = 1.0 } = req.body;
 
     // 필수 필드 검증
     if (!songId || !userId || !userName || !svgPath || !color || !tool) {
@@ -164,7 +147,7 @@ router.post('/', async (req, res) => {
     }
 
     const db = getDatabase();
-    
+
     // 찬양 존재 여부 확인
     const song = await db.select().from(songs).where(eq(songs.id, songId)).limit(1);
     if (song.length === 0) {
@@ -221,11 +204,11 @@ router.post('/bulk', async (req, res) => {
     }
 
     const db = getDatabase();
-    
+
     // 모든 주석 처리
-    const processedAnnotations = annotationList.map(annotation => {
+    const processedAnnotations = annotationList.map((annotation) => {
       const { compressedData, compressedSize, checksum } = processSVGData(annotation.svgPath);
-      
+
       return {
         songId: annotation.songId,
         userId: annotation.userId,
@@ -242,10 +225,7 @@ router.post('/bulk', async (req, res) => {
     });
 
     // 벌크 삽입
-    const result = await db
-      .insert(annotations)
-      .values(processedAnnotations)
-      .returning();
+    const result = await db.insert(annotations).values(processedAnnotations).returning();
 
     // 응답용 데이터 (압축 해제)
     const responseData = result.map((annotation, index) => ({
@@ -300,10 +280,7 @@ router.patch('/:id', async (req, res) => {
     const result = await db
       .update(annotations)
       .set(updateData)
-      .where(and(
-        eq(annotations.id, id),
-        activeAnnotationsFilter
-      ))
+      .where(and(eq(annotations.id, id), activeAnnotationsFilter))
       .returning();
 
     if (result.length === 0) {
@@ -344,10 +321,7 @@ router.delete('/:id', async (req, res) => {
         deletedAt: sql`datetime('now')`,
         updatedAt: sql`datetime('now')`,
       })
-      .where(and(
-        eq(annotations.id, id),
-        activeAnnotationsFilter
-      ))
+      .where(and(eq(annotations.id, id), activeAnnotationsFilter))
       .returning();
 
     if (result.length === 0) {
@@ -383,11 +357,7 @@ router.delete('/song/:songId/user/:userId', async (req, res) => {
         deletedAt: sql`datetime('now')`,
         updatedAt: sql`datetime('now')`,
       })
-      .where(and(
-        eq(annotations.songId, songId),
-        eq(annotations.userId, userId),
-        activeAnnotationsFilter
-      ))
+      .where(and(eq(annotations.songId, songId), eq(annotations.userId, userId), activeAnnotationsFilter))
       .returning();
 
     res.json({
@@ -420,10 +390,7 @@ router.get('/song/:songId/stats', async (req, res) => {
         latestUpdate: sql<string>`max(${annotations.updatedAt})`,
       })
       .from(annotations)
-      .where(and(
-        eq(annotations.songId, songId),
-        activeAnnotationsFilter
-      ))
+      .where(and(eq(annotations.songId, songId), activeAnnotationsFilter))
       .groupBy(annotations.userId, annotations.userName)
       .orderBy(desc(sql`count(*)`));
 
@@ -451,20 +418,15 @@ router.get('/song/:songId/export', async (req, res) => {
     }
 
     const db = getDatabase();
-    
+
     // WHERE 조건 구성
-    const whereConditions = [
-      eq(annotations.songId, songId),
-      activeAnnotationsFilter
-    ];
+    const whereConditions = [eq(annotations.songId, songId), activeAnnotationsFilter];
 
     // 특정 사용자들만 포함
     if (userIds) {
-      const userIdList = userIds.split(',').filter(id => id.trim());
+      const userIdList = userIds.split(',').filter((id) => id.trim());
       if (userIdList.length > 0) {
-        whereConditions.push(
-          sql`${annotations.userId} IN (${userIdList.map(id => `'${id}'`).join(',')})`
-        );
+        whereConditions.push(sql`${annotations.userId} IN (${userIdList.map((id) => `'${id}'`).join(',')})`);
       }
     }
 
@@ -481,7 +443,7 @@ router.get('/song/:songId/export', async (req, res) => {
 
     // SVG 병합
     let combinedSVG = `<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">`;
-    
+
     result.forEach((annotation) => {
       const decompressed = decompress(annotation.svgPath);
       // 각 주석을 그룹으로 감싸서 사용자별로 식별 가능하게 함

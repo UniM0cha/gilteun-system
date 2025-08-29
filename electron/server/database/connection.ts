@@ -37,7 +37,7 @@ class DatabaseManager {
       // SQLite 연결
       this.sqlite = new Database(dbPath);
       this.sqlite.pragma('journal_mode = WAL'); // 성능 향상을 위한 WAL 모드
-      this.sqlite.pragma('foreign_keys = ON');  // 외래키 제약 조건 활성화
+      this.sqlite.pragma('foreign_keys = ON'); // 외래키 제약 조건 활성화
 
       // Drizzle ORM 초기화
       this.db = drizzle(this.sqlite, { schema });

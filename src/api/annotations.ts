@@ -28,7 +28,7 @@ class AnnotationAPI {
   async getUserAnnotations(songId: number, userId: string): Promise<Annotation[]> {
     try {
       const response = await axios.get<ApiResponse<Annotation[]>>(
-        `${API_BASE}/annotations/song/${songId}/user/${userId}`
+        `${API_BASE}/annotations/song/${songId}/user/${userId}`,
       );
       return response.data.data || [];
     } catch (error) {
@@ -95,10 +95,9 @@ class AnnotationAPI {
   async exportAnnotationsSVG(songId: number, userIds?: string[]): Promise<string> {
     try {
       const params = userIds ? { userIds: userIds.join(',') } : {};
-      const response = await axios.get<ApiResponse<{ svg: string }>>(
-        `${API_BASE}/annotations/song/${songId}/export`,
-        { params }
-      );
+      const response = await axios.get<ApiResponse<{ svg: string }>>(`${API_BASE}/annotations/song/${songId}/export`, {
+        params,
+      });
       return response.data.data?.svg || '';
     } catch (error) {
       console.error('주석 SVG 내보내기 실패:', error);
@@ -112,7 +111,7 @@ class AnnotationAPI {
   async getAnnotationStats(songId: number): Promise<{ userId: string; userName: string; count: number }[]> {
     try {
       const response = await axios.get<ApiResponse<{ userId: string; userName: string; count: number }[]>>(
-        `${API_BASE}/annotations/song/${songId}/stats`
+        `${API_BASE}/annotations/song/${songId}/stats`,
       );
       return response.data.data || [];
     } catch (error) {
@@ -127,7 +126,7 @@ class AnnotationAPI {
   async bulkCreateAnnotations(annotations: CreateAnnotationRequest[]): Promise<Annotation[]> {
     try {
       const response = await axios.post<ApiResponse<Annotation[]>>(`${API_BASE}/annotations/bulk`, {
-        annotations
+        annotations,
       });
       return response.data.data || [];
     } catch (error) {

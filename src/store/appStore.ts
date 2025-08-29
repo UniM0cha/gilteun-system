@@ -104,7 +104,6 @@ export const useAppStore = create<AppState>()(
           });
         },
 
-
         // 서버 정보 관리
         setServerInfo: (info) => {
           set({ serverInfo: info });
@@ -168,14 +167,17 @@ export const useAppStore = create<AppState>()(
               currentUser: {
                 id: updatedSettings.userId,
                 name: updatedSettings.userName,
-                color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
+                color:
+                  '#' +
+                  Math.floor(Math.random() * 16777215)
+                    .toString(16)
+                    .padStart(6, '0'),
                 createdAt: new Date().toISOString(),
                 lastActiveAt: new Date().toISOString(),
               },
             });
 
             set({ isInitialized: true });
-
           } catch (error) {
             console.error('앱 초기화 실패:', error);
             set({
@@ -229,7 +231,8 @@ export const useCurrentSong = () => useAppStore((state) => state.currentSong);
 export const useServerInfo = () => useAppStore((state) => state.serverInfo);
 export const useAppSettings = () => useAppStore((state) => state.settings);
 export const useAppError = () => useAppStore((state) => state.lastError);
-export const useAppLoading = () => useAppStore((state) => ({
-  isLoading: state.isLoading,
-  message: state.loadingMessage,
-}));
+export const useAppLoading = () =>
+  useAppStore((state) => ({
+    isLoading: state.isLoading,
+    message: state.loadingMessage,
+  }));

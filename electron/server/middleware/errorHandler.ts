@@ -6,12 +6,7 @@ export interface AppError extends Error {
   isOperational?: boolean;
 }
 
-export const errorHandler = (
-  error: AppError,
-  req: Request,
-  res: Response,
-  _next: NextFunction,
-) => {
+export const errorHandler = (error: AppError, req: Request, res: Response, _next: NextFunction) => {
   const statusCode = error.statusCode || 500;
   const message = error.message || '내부 서버 오류가 발생했습니다';
 
