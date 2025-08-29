@@ -255,8 +255,16 @@ router.patch('/:id', async (req, res) => {
     }
 
     const db = getDatabase();
-    const updates = req.body;
-    const updateData: any = {
+    const updates = req.body as Partial<{
+      svgPath: string;
+      layer: string;
+      color: string;
+      tool: string;
+      strokeWidth: number;
+      opacity: number;
+      isVisible: boolean;
+    }>;
+    const updateData: Record<string, unknown> = {
       updatedAt: sql`datetime('now')`,
     };
 

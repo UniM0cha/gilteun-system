@@ -6,10 +6,4 @@ export type { ApiClientConfig, ApiResponse, ApiError } from './client';
 
 export type { CreateWorshipRequest, UpdateWorshipRequest, WorshipsResponse } from './worship';
 
-export type {
-  CreateSongRequest,
-  UpdateSongRequest,
-  UploadScoreRequest,
-  CreateAnnotationRequest,
-  UpdateAnnotationRequest,
-} from './songs';
+export type { CreateSongRequest, UpdateSongRequest, UploadScoreRequest } from './songs';

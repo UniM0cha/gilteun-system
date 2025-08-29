@@ -115,7 +115,7 @@ export interface SyncRequestMessage extends BaseMessage {
 export interface SyncResponseMessage extends BaseMessage {
   type: 'sync:response';
   dataType: 'worships' | 'songs' | 'annotations' | 'commands';
-  data: any[];
+  data: unknown[];
   lastSyncTime: string;
 }
 
@@ -132,7 +132,7 @@ export interface ErrorMessage extends BaseMessage {
   type: 'error';
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 // 모든 메시지 타입의 유니온

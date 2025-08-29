@@ -153,20 +153,4 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error, onReload, onReset 
 /**
  * 함수형 컴포넌트용 에러 바운더리 훅
  */
-export const useErrorHandler = () => {
-  const setError = useAppStore((state) => state.setError);
-
-  return (error: Error, errorInfo?: string) => {
-    console.error('Error caught by useErrorHandler:', error);
-
-    setError({
-      code: 'HANDLED_ERROR',
-      message: error.message,
-      details: {
-        stack: error.stack,
-        info: errorInfo,
-      },
-      timestamp: Date.now(),
-    });
-  };
-};
+// useErrorHandler 훅은 분리하여 HMR 경고를 방지합니다.

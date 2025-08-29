@@ -26,38 +26,7 @@ interface Toast {
 //   toasts: Toast[];
 // }
 
-/**
- * 토스트 관리 훅
- */
-const useToastManager = () => {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const addToast = (toast: Omit<Toast, 'id'>) => {
-    const newToast: Toast = {
-      ...toast,
-      id: `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    };
-
-    setToasts((prev) => [newToast, ...prev].slice(0, 5)); // 최대 5개
-
-    // 자동 제거 (persistent가 false인 경우)
-    if (!toast.persistent) {
-      setTimeout(() => {
-        removeToast(newToast.id);
-      }, toast.duration || 4000);
-    }
-  };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
-
-  const clearAll = () => {
-    setToasts([]);
-  };
-
-  return { toasts, addToast, removeToast, clearAll };
-};
+import { useToastManager } from '../hooks/useToastManager';
 
 /**
  * 토스트 컨테이너 컴포넌트
@@ -80,7 +49,7 @@ export const ToastContainer: React.FC = () => {
         duration: 6000,
       });
     }
-  }, [appError]);
+  }, [appError, addToast]);
 
   // 연결 상태 변화를 토스트로 표시
   useEffect(() => {
@@ -106,7 +75,7 @@ export const ToastContainer: React.FC = () => {
         persistent: true,
       });
     }
-  }, [connectionStatus]);
+  }, [connectionStatus, addToast]);
 
   // 오프라인 상태 토스트
   useEffect(() => {
@@ -118,7 +87,7 @@ export const ToastContainer: React.FC = () => {
         persistent: true,
       });
     }
-  }, [isOffline]);
+  }, [isOffline, addToast]);
 
   if (toasts.length === 0) {
     return null;

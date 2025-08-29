@@ -95,7 +95,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
   // 개발 모드에서 스토어 디버그 도구 등록
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      // @ts-ignore
+      // @ts-expect-error 개발 편의를 위한 디버그 노출
       window.GilteunDebug = {
         stores: {
           app: useAppStore,

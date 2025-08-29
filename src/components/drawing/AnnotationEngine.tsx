@@ -131,9 +131,13 @@ export const AnnotationEngine = React.forwardRef<AnnotationEngineRef, Annotation
       timers.lastFrameTime = now;
     }, []);
 
+    interface PerformanceWithMemory extends Performance {
+      memory?: { usedJSHeapSize: number };
+    }
     const measureMemoryUsage = useCallback(() => {
-      if ((performance as any).memory) {
-        const memoryInfo = (performance as any).memory;
+      const perf = performance as PerformanceWithMemory;
+      if (perf.memory) {
+        const memoryInfo = perf.memory;
         const memoryUsage = memoryInfo.usedJSHeapSize / (1024 * 1024); // MB
         setPerformanceMetrics((prev) => ({
           ...prev,
@@ -363,9 +367,10 @@ export const AnnotationEngine = React.forwardRef<AnnotationEngineRef, Annotation
         }
       };
 
-      (editor as any)._cleanup = cleanup;
+      (editor as unknown as { _cleanup?: () => void })._cleanup = cleanup;
 
       editorRef.current = editor;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       width,
       height,
@@ -390,8 +395,9 @@ export const AnnotationEngine = React.forwardRef<AnnotationEngineRef, Annotation
       return () => {
         if (editorRef.current) {
           // 커스텀 cleanup 함수 호출
-          if ((editorRef.current as any)._cleanup) {
-            (editorRef.current as any)._cleanup();
+          const cleanupFn = (editorRef.current as unknown as { _cleanup?: () => void })._cleanup;
+          if (cleanupFn) {
+            cleanupFn();
           }
           editorRef.current.remove();
         }
@@ -404,20 +410,23 @@ export const AnnotationEngine = React.forwardRef<AnnotationEngineRef, Annotation
       if (!pen) return;
 
       switch (tool) {
-        case 'pen':
+        case 'pen': {
           pen.setStrokeFactory(makePressureSensitiveFreehandLineBuilder);
           pen.setColor(Color4.fromString(userColor));
           break;
-        case 'highlighter':
+        }
+        case 'highlighter': {
           pen.setStrokeFactory(makeFreehandLineBuilder);
           // 하이라이터는 투명도가 있는 색상
           const highlighterColor = Color4.fromString(userColor).withAlpha(0.4);
           pen.setColor(highlighterColor);
           break;
-        case 'eraser':
+        }
+        case 'eraser': {
           // 지우개는 배경색 사용
           pen.setColor(Color4.transparent);
           break;
+        }
       }
     }, [tool, userColor]);
 

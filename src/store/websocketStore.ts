@@ -318,7 +318,8 @@ export const useWebSocketStore = create<WebSocketState>()(
       },
 
       // 메시지 처리
-      handleMessage: (message: WebSocketMessage) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      handleMessage: (message: any) => {
         console.log('WebSocket 메시지 수신:', message);
 
         switch (message.type) {

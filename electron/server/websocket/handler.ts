@@ -180,6 +180,7 @@ export class GilteunWebSocketHandler {
   /**
    * 실시간 주석 업데이트 처리 (Figma 스타일)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async handleAnnotationUpdate(message: any, client: ClientInfo): Promise<void> {
     // 해당 찬양을 보고 있는 다른 클라이언트들에게 실시간 전송
     const messageWithUser = {
@@ -240,6 +241,7 @@ export class GilteunWebSocketHandler {
   /**
    * 주석 실행 취소/다시 실행 처리
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async handleAnnotationAction(message: any, client: ClientInfo): Promise<void> {
     const messageWithUser = {
       ...message,
@@ -299,6 +301,7 @@ export class GilteunWebSocketHandler {
   private async handleSyncRequest(ws: WebSocket, message: SyncRequestMessage, client: ClientInfo): Promise<void> {
     try {
       const db = getDatabase();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let data: any[] = [];
 
       switch (message.dataType) {
@@ -341,6 +344,7 @@ export class GilteunWebSocketHandler {
   /**
    * 특정 찬양을 보고 있는 클라이언트들에게 브로드캐스트
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private broadcastToSong(songId: number, message: any, excludeUserId?: string): void {
     this.clients.forEach((client, ws) => {
       if (client.currentSong === songId && client.userId !== excludeUserId) {
@@ -354,6 +358,7 @@ export class GilteunWebSocketHandler {
   /**
    * 모든 클라이언트에게 브로드캐스트
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private broadcastToAll(message: any, excludeUserId?: string): void {
     this.clients.forEach((client, ws) => {
       if (client.userId !== excludeUserId) {

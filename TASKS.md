@@ -10,6 +10,12 @@
 
 ---
 
+## 전반 UI/UX 지침
+
+- [P0] 모든 UI 구현은 `gilteun-system-ui-mockup.tsx`를 기준으로 진행하고 검수합니다.
+- [P1] 모크업과 다를 필요가 있는 경우(단순화/축소/기기 제약), 차이점과 근거를 본 TASKS.md에 기록합니다.
+- [P1] 화면/컴포넌트를 추가·변경할 때 해당 모크업 섹션을 명시하고 수용/제외 범위를 적습니다.
+
 ## 1) 즉시 수정 항목 (일관성/치명 이슈)
 
 - [x] [P0] 헬스 체크 엔드포인트 불일치 수정
@@ -27,24 +33,27 @@
     - `src/components/drawing/AnnotationEngine.tsx`에서 커스텀 이벤트 디스패치가 없는지 확인 (없으면 유지)
   - 완료 기준: `cursorMove` 관련 레퍼런스 없음, 그리기/실시간 동작 정상, 빌드 통과
 
-- [ ] [P1] 주석 API 사용 통일 (단일 표면)
+- [x] [P1] 주석 API 사용 통일 (단일 표면)
   - 주석은 `src/api/annotations.ts` + `src/hooks/useAnnotationApi.ts`로 사용.
-  - `src/api/songs.ts` 내 주석 관련 메서드( `/api/songs/:id/annotations` 스타일) 제거 또는 비사용화.
-  - 완료 기준: 검색 시 song스코프 주석 엔드포인트 호출 없음. 모든 주석 CRUD는 `/api/annotations/*` 사용.
+  - `src/hooks/useApi.ts` 내 중복 주석 훅 제거, `src/api/index.ts`의 주석 타입 export 제거.
+  - 완료 기준: 검색 시 song스코프 주석 엔드포인트/훅 호출 없음. 모든 주석 CRUD는 `/api/annotations/*` 사용.
 
 ---
 
 ## 2) 테스트 가능성 및 E2E 정합
 
-- [ ] [P0] E2E에서 기대하는 data-testid 부여
+- [x] [P0] E2E에서 기대하는 data-testid 부여
   - `src/pages/ProfileSelect.tsx` 루트: `data-testid="profile-select"`
   - `src/pages/WorshipList.tsx` 각 예배 카드: `data-testid="worship-item"` 추가 (루트 컨테이너는 이미 `worship-list` 존재)
   - `src/pages/SongListPage.tsx` 각 찬양 카드: `data-testid="song-item"` 추가 (페이지 루트는 `song-list` 존재)
   - 완료 기준: `tests/e2e/multiuser-collaboration.spec.ts`의 셀렉터가 타임아웃 없이 찾힘
 
-- [ ] [P1] E2E 전제 정렬
-  - 테스트에서 참조하는 `window.websocketStore`, `annotationStore`, `layerStore`를 Dev/Test 환경에서만 노출하거나, 테스트를 실제 Zustand 스토어로 교정.
-  - 완료 기준: 레퍼런스 에러 없이 E2E 시나리오 전부 통과
+- [x] [P1] E2E 전제 정렬 (전역 의존 제거)
+  - 전역 노출 삭제. 테스트는 UI/REST 기반으로 교체
+  - 서버 연결: `/health` REST로 확인
+  - 주석 동기화: `svg.real-time-drawing-paths path` 존재 여부로 확인
+  - 레이어 토글: 토글 전후 path 개수 비교로 확인
+  - 성능/스트레스: 전역 의존 테스트는 스킵 처리(추후 전용 페이지에서 측정)
 
 ---
 

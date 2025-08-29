@@ -128,7 +128,7 @@ export interface BaseMessage {
 }
 
 export interface WebSocketMessage extends BaseMessage {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // 연결 상태
@@ -202,6 +202,6 @@ export interface AppSettings {
 export interface AppError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
   timestamp: number;
 }

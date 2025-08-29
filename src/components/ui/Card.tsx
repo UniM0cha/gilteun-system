@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { FC } from 'react';
 
 interface CardProps {
   children: React.ReactNode;
@@ -6,6 +6,7 @@ interface CardProps {
   padding?: 'none' | 'sm' | 'md' | 'lg';
   shadow?: 'none' | 'sm' | 'md' | 'lg';
   onClick?: () => void;
+  dataTestId?: string;
 }
 
 /**
@@ -14,7 +15,14 @@ interface CardProps {
  * - 다양한 패딩과 그림자 옵션
  * - 터치 인터랙션 지원
  */
-export const Card: React.FC<CardProps> = ({ children, className = '', padding = 'md', shadow = 'sm', onClick }) => {
+export const Card: FC<CardProps> = ({
+  children,
+  className = '',
+  padding = 'md',
+  shadow = 'sm',
+  onClick,
+  dataTestId,
+}) => {
   // 패딩 클래스
   const paddingClasses = {
     none: '',
@@ -55,7 +63,7 @@ export const Card: React.FC<CardProps> = ({ children, className = '', padding = 
   const Component = onClick ? 'button' : 'div';
 
   return (
-    <Component className={cardClasses} onClick={onClick} {...(onClick && { type: 'button' })}>
+    <Component className={cardClasses} onClick={onClick} {...(onClick && { type: 'button' })} data-testid={dataTestId}>
       {children}
     </Component>
   );

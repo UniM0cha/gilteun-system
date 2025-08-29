@@ -166,6 +166,15 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
     [getOrCreateLayer, width, height, isInViewport],
   );
 
+  // 메모리 사용량 추정 (useCallback으로 안정적 참조 유지)
+  const estimateMemoryUsage = useCallback((): number => {
+    // 각 캔버스는 width * height * 4 bytes (RGBA) 사용
+    const bytesPerCanvas = width * height * 4;
+    const totalCanvases = layersRef.current.size;
+    const totalBytes = bytesPerCanvas * totalCanvases;
+    return Math.round(totalBytes / (1024 * 1024)); // MB 단위
+  }, [width, height]);
+
   // 메인 캔버스에 레이어 합성
   const compositeLayersToMainCanvas = useCallback(() => {
     const mainCanvas = mainCanvasRef.current;
@@ -216,16 +225,7 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
       culledElements: totalCulledElements,
       memoryUsage: estimateMemoryUsage(),
     });
-  }, [annotations, layerVisibility, width, height, renderLayer]);
-
-  // 메모리 사용량 추정
-  const estimateMemoryUsage = useCallback((): number => {
-    // 각 캔버스는 width * height * 4 bytes (RGBA) 사용
-    const bytesPerCanvas = width * height * 4;
-    const totalCanvases = layersRef.current.size;
-    const totalBytes = bytesPerCanvas * totalCanvases;
-    return Math.round(totalBytes / (1024 * 1024)); // MB 단위
-  }, [width, height]);
+  }, [annotations, layerVisibility, width, height, renderLayer, estimateMemoryUsage]);
 
   // 렌더링 루프
   const renderLoop = useCallback(() => {
@@ -250,6 +250,7 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
 
   // 렌더링 루프 시작/종료
   useEffect(() => {
+    const layersOnMount = layersRef.current;
     rafRef.current = requestAnimationFrame(renderLoop);
 
     return () => {
@@ -258,14 +259,14 @@ export const LayeredCanvas: React.FC<LayeredCanvasProps> = ({
       }
 
       // 메모리 정리
-      layersRef.current.forEach((layer) => {
+      layersOnMount.forEach((layer) => {
         // OffscreenCanvas는 자동으로 GC됨
         if (layer.canvas instanceof HTMLCanvasElement) {
           layer.canvas.width = 0;
           layer.canvas.height = 0;
         }
       });
-      layersRef.current.clear();
+      layersOnMount.clear();
     };
   }, [renderLoop]);
 

@@ -159,7 +159,7 @@ export const ProfileSelectPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4" data-testid="profile-select">
       <div className="w-full max-w-md space-y-6">
         {/* 헤더 */}
         <div className="text-center">

@@ -2,8 +2,6 @@ import { useMutation, UseMutationResult, useQuery, useQueryClient, UseQueryResul
 import { ApiClient, createApiClient, SongApi, WorshipApi } from '../api';
 import { useAppStore } from '../store/appStore';
 import type {
-  Annotation,
-  CreateAnnotationRequest,
   CreateSongRequest,
   CreateWorshipRequest,
   Song,
@@ -54,11 +52,6 @@ export const queryKeys = {
   songStats: (songId: number) => ['songs', songId, 'stats'] as const,
   popularSongs: (limit: number) => ['songs', 'popular', limit] as const,
   searchSongs: (query: string) => ['songs', 'search', query] as const,
-
-  // Annotations
-  annotations: (songId: number) => ['songs', songId, 'annotations'] as const,
-  annotationLayers: (songId: number) => ['songs', songId, 'annotations', 'layers'] as const,
-  latestAnnotations: (songId: number) => ['songs', songId, 'annotations', 'latest'] as const,
 } as const;
 
 // ============================================================================
@@ -239,7 +232,7 @@ export const useDeleteWorship = (): UseMutationResult<void, Error, number> => {
 export const useSongs = (params?: { worshipId?: number }, options?: { enabled?: boolean }) => {
   const { client } = useApiClient();
 
-  return useQuery({
+  return useQuery<{ songs: Song[]; pagination?: unknown }>({
     queryKey: [...queryKeys.songs(), params],
     queryFn: async () => {
       if (!client) throw new Error('No client available');
@@ -249,7 +242,7 @@ export const useSongs = (params?: { worshipId?: number }, options?: { enabled?: 
         queryParams.append('worshipId', params.worshipId.toString());
       }
 
-      return await client.get(`/api/songs?${queryParams.toString()}`);
+      return await client.get<{ songs: Song[]; pagination?: unknown }>(`/api/songs?${queryParams.toString()}`);
     },
     enabled: !!client && options?.enabled !== false,
     staleTime: 2 * 60 * 1000, // 2분간 fresh 상태 유지
@@ -325,7 +318,6 @@ export const useDeleteSong = (): UseMutationResult<void, Error, number> => {
     onSuccess: (_, deletedId) => {
       // 캐시에서 삭제된 찬양 제거
       queryClient.removeQueries({ queryKey: queryKeys.song(deletedId) });
-      queryClient.removeQueries({ queryKey: queryKeys.annotations(deletedId) });
 
       // 찬양 목록 캐시 무효화
       queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
@@ -336,7 +328,8 @@ export const useDeleteSong = (): UseMutationResult<void, Error, number> => {
 /**
  * 악보 업로드 뮤테이션 훅
  */
-export const useUploadScore = (): UseMutationResult<any, Error, { songId: number; file: File }> => {
+type UploadScoreResponse = { imagePath: string; originalName: string; size: number };
+export const useUploadScore = (): UseMutationResult<UploadScoreResponse, Error, { songId: number; file: File }> => {
   const { songApi } = useApiClient();
   const queryClient = useQueryClient();
 
@@ -346,59 +339,5 @@ export const useUploadScore = (): UseMutationResult<any, Error, { songId: number
       // 찬양 정보 캐시 무효화 (이미지 경로 업데이트)
       queryClient.invalidateQueries({ queryKey: queryKeys.song(songId) });
     },
-  });
-};
-
-// ============================================================================
-// Annotation Hooks
-// ============================================================================
-
-/**
- * 찬양의 주석 목록 조회 훅
- */
-export const useAnnotations = (songId: number, params?: { userId?: string; layer?: string }) => {
-  const { songApi } = useApiClient();
-
-  return useQuery({
-    queryKey: [...queryKeys.annotations(songId), params],
-    queryFn: () => songApi?.getAnnotations(songId, params) ?? Promise.reject('No API'),
-    enabled: !!songApi && songId > 0,
-    staleTime: 30 * 1000, // 30초간 fresh 상태 유지 (실시간성 중요)
-    refetchInterval: 5000, // 5초마다 자동 갱신
-  });
-};
-
-/**
- * 주석 생성 뮤테이션 훅
- */
-export const useCreateAnnotation = (): UseMutationResult<Annotation, Error, CreateAnnotationRequest> => {
-  const { songApi } = useApiClient();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: CreateAnnotationRequest) => songApi?.createAnnotation(data) ?? Promise.reject('No API'),
-    onSuccess: (_, { songId }) => {
-      // 주석 목록 캐시 무효화
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.annotations(songId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.annotationLayers(songId),
-      });
-    },
-  });
-};
-
-/**
- * 주석 레이어 목록 조회 훅
- */
-export const useAnnotationLayers = (songId: number) => {
-  const { songApi } = useApiClient();
-
-  return useQuery({
-    queryKey: queryKeys.annotationLayers(songId),
-    queryFn: () => songApi?.getAnnotationLayers(songId) ?? Promise.reject('No API'),
-    enabled: !!songApi && songId > 0,
-    staleTime: 1 * 60 * 1000, // 1분간 fresh 상태 유지
   });
 };

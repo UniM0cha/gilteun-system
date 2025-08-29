@@ -196,15 +196,16 @@ export const ScoreViewerPage: React.FC = () => {
   );
 
   // Phase 2: AnnotationStorage 콜백들
-  const handleAnnotationsLoaded = useCallback(async (annotations: Annotation[]) => {
-    console.log(`기존 주석 ${annotations.length}개 로드됨`);
-    setLoadedAnnotations(annotations);
+  const handleAnnotationsLoaded = useCallback(
+    async (annotations: Annotation[]) => {
+      console.log(`기존 주석 ${annotations.length}개 로드됨`);
+      setLoadedAnnotations(annotations);
 
-    // AnnotationEngine에 기존 주석들 로드
-    if (annotationEngineRef.current && annotations.length > 0) {
-      try {
-        // 모든 주석을 하나의 SVG로 병합하여 로드
-        const combinedSVG = `
+      // AnnotationEngine에 기존 주석들 로드
+      if (annotationEngineRef.current && annotations.length > 0) {
+        try {
+          // 모든 주석을 하나의 SVG로 병합하여 로드
+          const combinedSVG = `
           <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
             ${annotations
               .map(
@@ -220,18 +221,23 @@ export const ScoreViewerPage: React.FC = () => {
           </svg>
         `;
 
-        await annotationEngineRef.current.loadAnnotationData(combinedSVG);
-      } catch (error) {
-        console.error('기존 주석 로드 실패:', error);
+          await annotationEngineRef.current.loadAnnotationData(combinedSVG);
+        } catch (error) {
+          console.error('기존 주석 로드 실패:', error);
+        }
       }
-    }
-  }, []);
+    },
+    [setLoadedAnnotations],
+  );
 
-  const handleAnnotationSaved = useCallback((annotation: Annotation) => {
-    console.log('주석 저장 완료:', annotation.id);
-    // 로드된 주석 목록 업데이트
-    setLoadedAnnotations((prev) => [...prev, annotation]);
-  }, []);
+  const handleAnnotationSaved = useCallback(
+    (annotation: Annotation) => {
+      console.log('주석 저장 완료:', annotation.id);
+      // 로드된 주석 목록 업데이트
+      setLoadedAnnotations((prev) => [...prev, annotation]);
+    },
+    [setLoadedAnnotations],
+  );
 
   const handleSaveError = useCallback((error: Error) => {
     console.error('주석 저장 오류:', error);

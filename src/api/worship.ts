@@ -14,7 +14,7 @@ export interface CreateWorshipRequest {
 /**
  * 예배 수정 요청 타입
  */
-export interface UpdateWorshipRequest extends Partial<CreateWorshipRequest> {}
+export type UpdateWorshipRequest = Partial<CreateWorshipRequest>;
 
 /**
  * 예배 목록 응답 타입

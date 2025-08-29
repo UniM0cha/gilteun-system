@@ -1,6 +1,6 @@
+import { ArrowLeft, Edit2, Music, Plus, Settings, Trash2, Upload, Users } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Edit2, Music, Plus, Settings, Trash2, Upload, Users } from 'lucide-react';
 import {
   Button,
   Card,
@@ -13,8 +13,8 @@ import {
   LoadingOverlay,
   LoadingSpinner,
 } from '../components/ui';
-import { useAppStore } from '../store/appStore';
 import { useCreateSong, useDeleteSong, useSongs, useUpdateSong, useWorship } from '../hooks/useApi';
+import { useAppStore } from '../store/appStore';
 import type { CreateSongRequest, Song } from '../types';
 
 /**
@@ -164,6 +164,7 @@ export const SongListPage: React.FC = () => {
 
   // 파일 업로드 핸들러 (Phase 3에서 구현)
   const handleFileUpload = useCallback(async (_file: FileUploadFile): Promise<string> => {
+    void _file;
     // TODO: Phase 3에서 실제 파일 업로드 API 구현
     throw new Error('파일 업로드 기능은 Phase 3에서 구현됩니다');
   }, []);
@@ -173,6 +174,7 @@ export const SongListPage: React.FC = () => {
     <Card
       shadow="sm"
       className="cursor-pointer transition-shadow hover:shadow-md"
+      dataTestId="song-item"
       onClick={() => handleSongSelect(song)}
     >
       <CardContent className="p-4">

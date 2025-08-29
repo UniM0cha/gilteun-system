@@ -1,9 +1,9 @@
+import { Calendar, Clock, LogOut, Music, Plus, RefreshCw, Search, Settings, Users } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, LogOut, Music, Plus, RefreshCw, Search, Settings, Users } from 'lucide-react';
 import { Button, Card, CardContent, Input, LoadingOverlay, LoadingSpinner } from '../components/ui';
-import { useAppStore } from '../store/appStore';
 import { useHealthCheck, useWorships } from '../hooks/useApi';
+import { useAppStore } from '../store/appStore';
 import type { Worship } from '../types';
 
 /**
@@ -78,6 +78,7 @@ export const WorshipListPage: React.FC = () => {
     <Card
       shadow="sm"
       className="cursor-pointer transition-shadow hover:shadow-md"
+      dataTestId="worship-item"
       onClick={() => handleWorshipSelect(worship)}
     >
       <CardContent className="space-y-3">

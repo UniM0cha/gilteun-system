@@ -12,7 +12,7 @@ export interface ApiClientConfig {
 /**
  * API 응답 타입
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data: T;
   message?: string;
@@ -26,7 +26,7 @@ export interface ApiError {
   code: string;
   message: string;
   status?: number;
-  details?: any;
+  details?: unknown;
 }
 
 /**
@@ -92,9 +92,10 @@ export class ApiClient {
   private transformError(error: AxiosError): ApiError {
     if (error.response) {
       // 서버가 응답했지만 에러 상태 코드
+      const data = error.response.data as { message?: string } | undefined;
       return {
         code: `HTTP_${error.response.status}`,
-        message: (error.response.data as any)?.message || error.message,
+        message: data?.message || error.message,
         status: error.response.status,
         details: error.response.data,
       };
@@ -118,7 +119,7 @@ export class ApiClient {
   /**
    * GET 요청
    */
-  async get<T = any>(url: string, params?: any): Promise<T> {
+  async get<T = unknown>(url: string, params?: Record<string, unknown>): Promise<T> {
     const response = await this.instance.get<T>(url, { params });
     return response.data;
   }
@@ -126,7 +127,7 @@ export class ApiClient {
   /**
    * POST 요청
    */
-  async post<T = any>(url: string, data?: any): Promise<T> {
+  async post<T = unknown>(url: string, data?: unknown): Promise<T> {
     const response = await this.instance.post<T>(url, data);
     return response.data;
   }
@@ -134,7 +135,7 @@ export class ApiClient {
   /**
    * PUT 요청
    */
-  async put<T = any>(url: string, data?: any): Promise<T> {
+  async put<T = unknown>(url: string, data?: unknown): Promise<T> {
     const response = await this.instance.put<T>(url, data);
     return response.data;
   }
@@ -142,7 +143,7 @@ export class ApiClient {
   /**
    * PATCH 요청
    */
-  async patch<T = any>(url: string, data?: any): Promise<T> {
+  async patch<T = unknown>(url: string, data?: unknown): Promise<T> {
     const response = await this.instance.patch<T>(url, data);
     return response.data;
   }
@@ -150,7 +151,7 @@ export class ApiClient {
   /**
    * DELETE 요청
    */
-  async delete<T = any>(url: string): Promise<T> {
+  async delete<T = unknown>(url: string): Promise<T> {
     const response = await this.instance.delete<T>(url);
     return response.data;
   }
@@ -158,7 +159,7 @@ export class ApiClient {
   /**
    * 파일 업로드 (multipart/form-data)
    */
-  async upload<T = any>(url: string, formData: FormData): Promise<T> {
+  async upload<T = unknown>(url: string, formData: FormData): Promise<T> {
     const response = await this.instance.post<T>(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -177,13 +178,13 @@ export class ApiClient {
     timestamp: number;
   }> {
     try {
-      const response = await this.get('/health');
+      const response = await this.get<{ version?: string; connectedUsers?: number }>('/health');
       return {
         status: 'healthy',
         ...response,
         timestamp: Date.now(),
       };
-    } catch (error) {
+    } catch {
       return {
         status: 'unhealthy',
         timestamp: Date.now(),

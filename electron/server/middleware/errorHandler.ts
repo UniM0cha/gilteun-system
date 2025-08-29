@@ -6,7 +6,9 @@ export interface AppError extends Error {
   isOperational?: boolean;
 }
 
-export const errorHandler = (error: AppError, req: Request, res: Response, _next: NextFunction) => {
+export const errorHandler = (error: AppError, req: Request, res: Response, _next: NextFunction): void => {
+  // Express 에러 미들웨어 시그니처 유지 목적의 인자 사용 처리
+  void _next;
   const statusCode = error.statusCode || 500;
   const message = error.message || '내부 서버 오류가 발생했습니다';
 
@@ -31,7 +33,7 @@ export const errorHandler = (error: AppError, req: Request, res: Response, _next
   });
 };
 
-export const asyncHandler = (fn: Function) => {
+export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => unknown) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

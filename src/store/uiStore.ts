@@ -31,7 +31,7 @@ interface UIState {
 
   // 모달 및 다이얼로그
   activeModal: string | null;
-  modalProps: any;
+  modalProps: Record<string, unknown> | null;
 
   // 터치 및 Apple Pencil
   isPencilActive: boolean;
@@ -74,7 +74,7 @@ interface UIState {
   toggleSettings: () => void;
 
   // 모달 관리
-  openModal: (modalId: string, props?: any) => void;
+  openModal: (modalId: string, props?: Record<string, unknown>) => void;
   closeModal: () => void;
 
   // Apple Pencil 및 터치
@@ -255,7 +255,7 @@ export const useUIStore = create<UIState>()(
       },
 
       // 모달 관리
-      openModal: (modalId, props = null) => {
+      openModal: (modalId, props = null as unknown as Record<string, unknown>) => {
         set({
           activeModal: modalId,
           modalProps: props,

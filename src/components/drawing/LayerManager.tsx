@@ -230,6 +230,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
                       className={`min-h-[32px] min-w-[32px] ${
                         isVisible ? 'text-blue-600 hover:text-blue-700' : 'text-gray-400 hover:text-gray-600'
                       }`}
+                      data-testid={`layer-toggle-${layer.userId}`}
                       title={isVisible ? `${layer.userName} 레이어 숨기기` : `${layer.userName} 레이어 표시`}
                     >
                       {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}

@@ -9,9 +9,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // 기본 쿼리 옵션
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: unknown) => {
+        const err = error as { code?: string; status?: number } | undefined;
         // 네트워크 오류나 서버 오류는 재시도
-        if (error?.code === 'NETWORK_ERROR' || error?.status >= 500) {
+        if (err?.code === 'NETWORK_ERROR' || (err?.status ?? 0) >= 500) {
           return failureCount < 3;
         }
         // 클라이언트 오류(4xx)는 재시도하지 않음
@@ -26,9 +27,10 @@ const queryClient = new QueryClient({
     },
     mutations: {
       // 기본 뮤테이션 옵션
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: unknown) => {
+        const err = error as { code?: string } | undefined;
         // 네트워크 오류만 재시도 (최대 2회)
-        if (error?.code === 'NETWORK_ERROR') {
+        if (err?.code === 'NETWORK_ERROR') {
           return failureCount < 2;
         }
         return false;
@@ -43,7 +45,7 @@ const queryClient = new QueryClient({
  */
 queryClient.getQueryCache().subscribe((event) => {
   if (event.type === 'updated' && 'error' in event.query.state && event.query.state.error) {
-    const error = event.query.state.error as any;
+    const error = event.query.state.error as unknown;
 
     // 개발 환경에서만 콘솔 로그
     if (import.meta.env.DEV) {
@@ -54,7 +56,7 @@ queryClient.getQueryCache().subscribe((event) => {
     }
 
     // 특정 에러에 대한 글로벌 처리
-    if (error?.code === 'NETWORK_ERROR') {
+    if ((error as { code?: string } | undefined)?.code === 'NETWORK_ERROR') {
       // 네트워크 에러 발생 시 전역 알림 (선택적)
       console.warn('네트워크 연결을 확인해주세요');
     }
@@ -63,7 +65,7 @@ queryClient.getQueryCache().subscribe((event) => {
 
 queryClient.getMutationCache().subscribe((event) => {
   if (event.type === 'updated' && 'error' in event.mutation.state && event.mutation.state.error) {
-    const error = event.mutation.state.error as any;
+    const error = event.mutation.state.error as unknown;
 
     // 개발 환경에서만 콘솔 로그
     if (import.meta.env.DEV) {
