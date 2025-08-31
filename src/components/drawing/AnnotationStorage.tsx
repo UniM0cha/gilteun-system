@@ -47,7 +47,7 @@ export const AnnotationStorage = React.forwardRef<AnnotationStorageRef, Annotati
 
     // 미저장 주석들 (오프라인 대응)
     const pendingAnnotationsRef = useRef<PendingAnnotation[]>([]);
-    const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
+    const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     /**
      * 주석 데이터 로드 완료 처리

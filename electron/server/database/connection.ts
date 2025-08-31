@@ -61,7 +61,7 @@ class DatabaseManager {
     }
 
     try {
-      const migrationsFolder = path.join(__dirname, 'migrations');
+      const migrationsFolder = path.join(process.cwd(), 'electron', 'server', 'database', 'migrations');
       logger.info(`마이그레이션 실행: ${migrationsFolder}`);
 
       migrate(this.db, { migrationsFolder });

@@ -1,10 +1,7 @@
 import { app, BrowserWindow } from 'electron';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { GilteunServer } from './server/index.js';
 import { databaseManager } from './server/database/connection.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // The built directory structure
 //
@@ -15,14 +12,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // │ │ ├── main.js
 // │ │ └── preload.mjs
 // │
-process.env.APP_ROOT = path.join(__dirname, '..');
+// Use process.cwd() as the base directory
+const APP_ROOT = process.cwd();
+process.env.APP_ROOT = APP_ROOT;
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
-export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
+export const MAIN_DIST = path.join(APP_ROOT, 'dist-electron');
+export const RENDERER_DIST = path.join(APP_ROOT, 'dist');
 
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(APP_ROOT, 'public') : RENDERER_DIST;
 
 let win: BrowserWindow | null;
 let server: GilteunServer;
@@ -36,7 +35,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: path.join(MAIN_DIST, 'preload.mjs'),
     },
   });
 
