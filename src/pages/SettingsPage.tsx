@@ -1,4 +1,4 @@
-import { ArrowLeft, Moon, Save, Sun, Trash2, User, X } from 'lucide-react';
+import { ArrowLeft, Moon, Save, Sun, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/appStore';
@@ -68,14 +68,14 @@ export const SettingsPage: React.FC = () => {
     const savedAutoSave = localStorage.getItem('gilteun-auto-save') !== 'false';
     const savedThickness = localStorage.getItem('gilteun-annotation-thickness');
 
-    setAppSettings({
-      ...appSettings,
+    setAppSettings((prev) => ({
+      ...prev,
       darkMode: savedDarkMode,
       applePencilPressure: savedPencilPressure,
       palmRejection: savedPalmRejection,
       autoSave: savedAutoSave,
       annotationThickness: savedThickness ? parseInt(savedThickness) : 3,
-    });
+    }));
   }, []);
 
   // 프로필 설정 저장

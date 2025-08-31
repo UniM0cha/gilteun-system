@@ -79,7 +79,10 @@ export const CommandEditorPage: React.FC = () => {
     if (savedHistory) {
       try {
         const history = JSON.parse(savedHistory);
-        setCommandHistory(history.map((h: any) => ({ ...h, timestamp: new Date(h.timestamp) })));
+        setCommandHistory(history.map((h: { command: Command; timestamp: string }) => ({ 
+          ...h, 
+          timestamp: new Date(h.timestamp) 
+        })));
       } catch (error) {
         console.error('히스토리 로드 실패:', error);
       }
@@ -106,14 +109,8 @@ export const CommandEditorPage: React.FC = () => {
     }
 
     // WebSocket으로 명령 전송
-    sendCommand({
-      type: 'quick',
-      emoji: command.emoji,
-      text: command.text,
-      description: command.description,
-      sender: currentUser?.name || '익명',
-      timestamp: new Date().toISOString(),
-    });
+    const message = `${command.emoji} ${command.text} - ${command.description}`;
+    sendCommand(message);
 
     // 히스토리에 추가
     const newHistory = [{ command, timestamp: new Date() }, ...commandHistory].slice(0, 50); // 최대 50개

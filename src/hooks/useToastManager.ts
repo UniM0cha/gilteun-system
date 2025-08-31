@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -14,11 +14,11 @@ interface Toast {
 export const useToastManager = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
+  }, []);
 
-  const addToast = (toast: Omit<Toast, 'id'>) => {
+  const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const newToast: Toast = {
       ...toast,
       id: `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -28,12 +28,12 @@ export const useToastManager = () => {
 
     if (!toast.persistent) {
       setTimeout(() => {
-        removeToast(newToast.id);
+        setToasts((prev) => prev.filter((t) => t.id !== newToast.id));
       }, toast.duration || 4000);
     }
-  };
+  }, []);
 
-  const clearAll = () => setToasts([]);
+  const clearAll = useCallback(() => setToasts([]), []);
 
   return { toasts, addToast, removeToast, clearAll };
 };

@@ -36,3 +36,11 @@ gilteun-system.db*
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Test related files
+test-results/
+playwright-report/
+tests/reports/
+coverage/
+.nyc_output/
+*.lcov

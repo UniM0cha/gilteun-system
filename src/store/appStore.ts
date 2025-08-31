@@ -177,7 +177,7 @@ export const useAppStore = create<AppState>()(
               },
             });
 
-            set({ isInitialized: true });
+            set({ isInitialized: true, isLoading: false, loadingMessage: '' });
           } catch (error) {
             console.error('앱 초기화 실패:', error);
             set({

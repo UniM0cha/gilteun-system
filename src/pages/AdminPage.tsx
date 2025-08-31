@@ -13,6 +13,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/appStore';
 import { useWebSocketStore } from '../store/websocketStore';
+import type { User } from '../types';
 import { useHealthCheck, useWorships, useSongs } from '../hooks/useApi';
 import axios from 'axios';
 
@@ -54,7 +55,7 @@ interface ActivityLog {
 export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, serverInfo } = useAppStore();
-  const { connectedClients, connectionStatus } = useWebSocketStore();
+  const { connectedUsers: wsConnectedUsers, connectionStatus } = useWebSocketStore();
   
   const [activeTab, setActiveTab] = useState<'members' | 'server' | 'data'>('members');
   const [connectedUsers, setConnectedUsers] = useState<ConnectedUser[]>([]);
@@ -73,7 +74,7 @@ export const AdminPage: React.FC = () => {
   });
 
   // API Hooks
-  const { data: healthData } = useHealthCheck();
+  const { } = useHealthCheck();
   const { data: worshipsData } = useWorships();
   const { data: songsData } = useSongs();
 
@@ -88,7 +89,7 @@ export const AdminPage: React.FC = () => {
           total: 8,
         },
         uptime: Date.now() - (serverInfo?.lastPing || Date.now()),
-        connectedUsers: connectedClients.size,
+        connectedUsers: wsConnectedUsers.length,
       });
     };
 
@@ -96,19 +97,19 @@ export const AdminPage: React.FC = () => {
     const interval = setInterval(updateServerStats, 5000); // 5초마다 업데이트
 
     return () => clearInterval(interval);
-  }, [serverInfo, connectedClients]);
+  }, [serverInfo, wsConnectedUsers]);
 
   // 연결된 사용자 목록 업데이트
   useEffect(() => {
-    const users: ConnectedUser[] = Array.from(connectedClients.values()).map((client) => ({
-      id: client.userId,
-      name: client.userName,
+    const users: ConnectedUser[] = wsConnectedUsers.map((user: User) => ({
+      id: user.id,
+      name: user.name,
       role: '팀원', // 실제로는 사용자 역할 정보 필요
-      connectedAt: new Date(client.connectedAt),
-      lastActivity: new Date(),
+      connectedAt: new Date(user.createdAt || Date.now()),
+      lastActivity: new Date(user.lastActiveAt || Date.now()),
     }));
     setConnectedUsers(users);
-  }, [connectedClients]);
+  }, [wsConnectedUsers]);
 
   // 데이터베이스 통계 업데이트
   useEffect(() => {
@@ -142,16 +143,16 @@ export const AdminPage: React.FC = () => {
     ];
 
     // WebSocket 이벤트를 로그로 변환
-    connectedClients.forEach((client) => {
+    wsConnectedUsers.forEach((user: User) => {
       logs.push({
-        timestamp: new Date(client.connectedAt).toLocaleString('ko-KR'),
-        message: `클라이언트 연결: ${client.userName}`,
+        timestamp: new Date(user.createdAt || Date.now()).toLocaleString('ko-KR'),
+        message: `클라이언트 연결: ${user.name}`,
         type: 'connect',
       });
     });
 
     setActivityLogs(logs.slice(0, 20)); // 최대 20개
-  }, [connectedClients]);
+  }, [wsConnectedUsers]);
 
   // 백업 다운로드
   const handleBackup = async () => {
@@ -189,8 +190,8 @@ export const AdminPage: React.FC = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.zip';
-    input.onchange = async (e: any) => {
-      const file = e.target.files[0];
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       const formData = new FormData();

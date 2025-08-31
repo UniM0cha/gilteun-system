@@ -450,3 +450,31 @@ chore: 모든 의존성 최신 버전 업데이트 및 Express 5 마이그레이
 - TypeScript 타입 오류 수정
 - ESM 모듈 호환성 문제 해결
 ```
+
+## 개발 워크플로우 규칙
+
+### Phase 단위 개발 프로세스
+
+1. **Phase 완료 시 필수 확인사항**:
+   - TypeScript 타입 체크: `npm run type-check`
+   - ESLint 린트 검사: `npm run lint`
+   - 모든 경고와 오류를 해결한 후에만 Phase 완료 선언
+
+2. **커밋 규칙**:
+   - Phase가 끝날 때마다 자동으로 커밋하지 않음
+   - 사용자가 명시적으로 "커밋해줘" 또는 "커밋하고 푸시해줘"라고 요청할 때만 커밋
+   - 커밋 전 반드시 type-check와 lint 통과 확인
+
+3. **코드 품질 기준**:
+   - TypeScript 오류 0개
+   - ESLint 오류 0개
+   - ESLint 경고 0개 (max-warnings 0)
+   - 모든 import 경로 일관성 유지 (대소문자 포함)
+
+### 개발 시 주의사항
+
+- **import 경로 일관성**: 파일명 대소문자를 정확히 일치시켜야 함
+  - 예: `websocketStore.ts` (O), `webSocketStore.ts` (X)
+- **any 타입 사용 금지**: 명시적인 타입 정의 필수
+- **미사용 import 금지**: 사용하지 않는 import는 즉시 제거
+- **React Hook 의존성**: useEffect 등의 의존성 배열 정확히 관리

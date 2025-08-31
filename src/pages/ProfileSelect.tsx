@@ -15,6 +15,7 @@ export const ProfileSelectPage: React.FC = () => {
 
   const defaultServerUrl = 'http://localhost:3001';
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [showNewProfileDialog, setShowNewProfileDialog] = useState(false);
   const [newProfileForm, setNewProfileForm] = useState({
     name: '',
@@ -34,9 +35,9 @@ export const ProfileSelectPage: React.FC = () => {
         return;
       }
 
-      const { setLoading, setServerInfo, updateSettings } = useAppStore.getState();
+      const { setServerInfo, updateSettings } = useAppStore.getState();
       
-      setLoading(true, '서버 연결 중...');
+      setIsConnecting(true);
       try {
         const response = await fetch(`${defaultServerUrl}/health`, {
           method: 'GET',
@@ -72,7 +73,7 @@ export const ProfileSelectPage: React.FC = () => {
       } finally {
         // abort되지 않았을 때만 로딩 상태 해제
         if (!abortController.signal.aborted) {
-          setLoading(false);
+          setIsConnecting(false);
         }
       }
     };
@@ -136,7 +137,16 @@ export const ProfileSelectPage: React.FC = () => {
           <p className="text-lg text-slate-600">교회 찬양팀 예배 지원 시스템</p>
         </div>
 
-        {connectionError && (
+        {isConnecting && (
+          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <div className="flex items-center gap-2">
+              <Wifi className="h-5 w-5 animate-pulse text-blue-500" />
+              <p className="text-sm text-blue-700">서버 연결 중...</p>
+            </div>
+          </div>
+        )}
+
+        {connectionError && !isConnecting && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3">
             <div className="flex items-start gap-2">
               <Wifi className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
