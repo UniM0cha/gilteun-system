@@ -1,15 +1,14 @@
 import { Router } from 'express';
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { sql } from 'kysely';
 import { getDatabase } from '../database/connection';
 import type { NewWorship } from '../database/schema';
-import { songs, worships } from '../database/schema';
 import { logger } from '../utils/logger';
 
 const router = Router();
 
 /**
  * 예배 관리 API
- * Drizzle ORM을 사용한 SQLite 데이터베이스 연동
+ * Kysely를 사용한 SQLite 데이터베이스 연동
  */
 
 // 모든 예배 조회
@@ -22,50 +21,59 @@ router.get('/', async (req, res) => {
     const { limit = 10, offset = 0, date, startDate, endDate } = req.query;
 
     // 기본 쿼리 빌더
-    // 날짜 필터링 조건 구성
-    const conditions = [];
+    let query = db
+      .selectFrom('worships')
+      .selectAll()
+      .orderBy('date', 'desc')
+      .orderBy('created_at', 'desc')
+      .limit(Number(limit))
+      .offset(Number(offset));
+
+    // 날짜 필터링 조건 추가
     if (date) {
-      conditions.push(eq(worships.date, String(date)));
+      query = query.where('date', '=', String(date));
     }
     if (startDate && endDate) {
-      conditions.push(and(gte(worships.date, String(startDate)), lte(worships.date, String(endDate))));
+      query = query
+        .where('date', '>=', String(startDate))
+        .where('date', '<=', String(endDate));
     }
 
     // 쿼리 실행
-    const worshipsList = await db
-      .select({
-        id: worships.id,
-        title: worships.title,
-        date: worships.date,
-        time: worships.time,
-        description: worships.description,
-        createdAt: worships.createdAt,
-      })
-      .from(worships)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(worships.date), desc(worships.createdAt))
-      .limit(Number(limit))
-      .offset(Number(offset));
+    const worshipsList = await query.execute();
 
     // 각 예배의 찬양 개수 조회
     const worshipsWithSongsCount = await Promise.all(
       worshipsList.map(async (worship) => {
-        const songsCount = await db.select({ count: songs.id }).from(songs).where(eq(songs.worshipId, worship.id));
+        const result = await db
+          .selectFrom('songs')
+          .select(sql`count(*) as count`.as('count'))
+          .where('worship_id', '=', worship.id)
+          .executeTakeFirst();
 
         return {
           ...worship,
-          songsCount: songsCount.length,
+          songsCount: Number(result?.count || 0),
         };
       }),
     );
 
     // 전체 개수 조회 (페이징용)
-    const totalQuery = db.select({ count: worships.id }).from(worships);
-    if (conditions.length > 0) {
-      totalQuery.where(and(...conditions));
+    let totalQuery = db
+      .selectFrom('worships')
+      .select(sql`count(*) as count`.as('count'));
+    
+    if (date) {
+      totalQuery = totalQuery.where('date', '=', String(date));
     }
-    const totalResult = await totalQuery;
-    const total = totalResult.length;
+    if (startDate && endDate) {
+      totalQuery = totalQuery
+        .where('date', '>=', String(startDate))
+        .where('date', '<=', String(endDate));
+    }
+    
+    const totalResult = await totalQuery.executeTakeFirst();
+    const total = Number(totalResult?.count || 0);
 
     res.json({
       worships: worshipsWithSongsCount,
@@ -99,29 +107,37 @@ router.get('/:id', async (req, res) => {
     }
 
     const db = getDatabase();
-
+    
     // 예배 정보 조회
-    const worship = await db.select().from(worships).where(eq(worships.id, id)).get();
+    const worship = await db
+      .selectFrom('worships')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirst();
 
     if (!worship) {
       return res.status(404).json({
         error: 'Not Found',
-        message: `ID ${id}인 예배를 찾을 수 없습니다`,
+        message: `예배 ID ${id}를 찾을 수 없습니다`,
       });
     }
 
-    // 해당 예배의 찬양 개수 조회
-    const songsCount = await db.select({ count: songs.id }).from(songs).where(eq(songs.worshipId, id));
+    // 예배에 속한 찬양 목록 조회
+    const songsList = await db
+      .selectFrom('songs')
+      .selectAll()
+      .where('worship_id', '=', id)
+      .orderBy('order', 'asc')
+      .execute();
 
-    const worshipWithSongsCount = {
+    res.json({
       ...worship,
-      songsCount: songsCount.length,
-    };
+      songs: songsList,
+    });
 
-    logger.info(`예배 조회: ${worship.title}`);
-    res.json(worshipWithSongsCount);
+    logger.info(`예배 상세 조회: ${worship.title}`);
   } catch (error) {
-    logger.error('예배 조회 실패', error);
+    logger.error('예배 상세 조회 실패', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: '예배 정보를 조회하는 중 오류가 발생했습니다',
@@ -129,51 +145,39 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 새 예배 생성
+// 예배 생성
 router.post('/', async (req, res) => {
   try {
-    const { title, date, time, description } = req.body;
+    const worshipData: NewWorship = req.body;
 
-    // 유효성 검사
-    if (!title || !date) {
+    // 필수 필드 검증
+    if (!worshipData.title || !worshipData.date) {
       return res.status(400).json({
         error: 'Bad Request',
-        message: '제목(title)과 날짜(date)는 필수 항목입니다',
-        required: ['title', 'date'],
-        optional: ['time', 'description'],
-      });
-    }
-
-    // 날짜 형식 검증 (YYYY-MM-DD)
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(date)) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: '날짜는 YYYY-MM-DD 형식이어야 합니다',
-        example: '2024-03-15',
+        message: '예배 제목과 날짜는 필수입니다',
       });
     }
 
     const db = getDatabase();
 
-    // 새 예배 생성
-    const newWorshipData: NewWorship = {
-      title,
-      date,
-      time: time || null,
-      description: description || null,
-    };
+    // 예배 생성
+    const result = await db
+      .insertInto('worships')
+      .values({
+        title: worshipData.title,
+        date: worshipData.date,
+        time: worshipData.time || null,
+        description: worshipData.description || null,
+      })
+      .returning(['id', 'title', 'date', 'time', 'description', 'created_at'])
+      .executeTakeFirst();
 
-    const result = await db.insert(worships).values(newWorshipData).returning();
-    const newWorship = result[0];
+    if (!result) {
+      throw new Error('예배 생성 실패');
+    }
 
-    const worshipWithSongsCount = {
-      ...newWorship,
-      songsCount: 0,
-    };
-
-    logger.info(`새 예배 생성: ${newWorship.title} (ID: ${newWorship.id})`);
-    res.status(201).json(worshipWithSongsCount);
+    res.status(201).json(result);
+    logger.info(`새 예배 생성: ${result.title}`);
   } catch (error) {
     logger.error('예배 생성 실패', error);
     res.status(500).json({
@@ -183,7 +187,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 예배 정보 수정
+// 예배 수정
 router.put('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -194,59 +198,44 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    const { title, date, time, description } = req.body;
-
-    // 날짜 형식 검증 (제공된 경우)
-    if (date) {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(date)) {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: '날짜는 YYYY-MM-DD 형식이어야 합니다',
-          example: '2024-03-15',
-        });
-      }
-    }
-
+    const worshipData: Partial<NewWorship> = req.body;
     const db = getDatabase();
 
-    // 예배 존재 여부 확인
-    const existingWorship = await db.select().from(worships).where(eq(worships.id, id)).get();
+    // 기존 예배 확인
+    const existing = await db
+      .selectFrom('worships')
+      .select('id')
+      .where('id', '=', id)
+      .executeTakeFirst();
 
-    if (!existingWorship) {
+    if (!existing) {
       return res.status(404).json({
         error: 'Not Found',
-        message: `ID ${id}인 예배를 찾을 수 없습니다`,
+        message: `예배 ID ${id}를 찾을 수 없습니다`,
       });
     }
 
-    // 업데이트할 데이터 준비
+    // 예배 정보 업데이트
     const updateData: Partial<NewWorship> = {};
-    if (title !== undefined) updateData.title = title;
-    if (date !== undefined) updateData.date = date;
-    if (time !== undefined) updateData.time = time;
-    if (description !== undefined) updateData.description = description;
+    if (worshipData.title !== undefined) updateData.title = worshipData.title;
+    if (worshipData.date !== undefined) updateData.date = worshipData.date;
+    if (worshipData.time !== undefined) updateData.time = worshipData.time;
+    if (worshipData.description !== undefined) updateData.description = worshipData.description;
 
-    // 업데이트 실행
-    const result = await db.update(worships).set(updateData).where(eq(worships.id, id)).returning();
+    const result = await db
+      .updateTable('worships')
+      .set(updateData)
+      .where('id', '=', id)
+      .returning(['id', 'title', 'date', 'time', 'description', 'created_at'])
+      .executeTakeFirst();
 
-    const updatedWorship = result[0];
-
-    // 찬양 개수 추가
-    const songsCount = await db.select({ count: songs.id }).from(songs).where(eq(songs.worshipId, id));
-
-    const worshipWithSongsCount = {
-      ...updatedWorship,
-      songsCount: songsCount.length,
-    };
-
-    logger.info(`예배 정보 수정: ${updatedWorship.title} (ID: ${id})`);
-    res.json(worshipWithSongsCount);
+    res.json(result);
+    logger.info(`예배 수정: ID ${id}`);
   } catch (error) {
-    logger.error('예배 정보 수정 실패', error);
+    logger.error('예배 수정 실패', error);
     res.status(500).json({
       error: 'Internal Server Error',
-      message: '예배 정보를 수정하는 중 오류가 발생했습니다',
+      message: '예배를 수정하는 중 오류가 발생했습니다',
     });
   }
 });
@@ -264,30 +253,41 @@ router.delete('/:id', async (req, res) => {
 
     const db = getDatabase();
 
-    // 예배 존재 여부 확인
-    const existingWorship = await db.select().from(worships).where(eq(worships.id, id)).get();
+    // 예배에 속한 찬양들의 주석 먼저 삭제
+    const songsToDelete = await db
+      .selectFrom('songs')
+      .select('id')
+      .where('worship_id', '=', id)
+      .execute();
 
-    if (!existingWorship) {
+    for (const song of songsToDelete) {
+      await db
+        .deleteFrom('annotations')
+        .where('song_id', '=', song.id)
+        .execute();
+    }
+
+    // 예배에 속한 찬양 삭제
+    await db
+      .deleteFrom('songs')
+      .where('worship_id', '=', id)
+      .execute();
+
+    // 예배 삭제
+    const result = await db
+      .deleteFrom('worships')
+      .where('id', '=', id)
+      .executeTakeFirst();
+
+    if (result.numDeletedRows === BigInt(0)) {
       return res.status(404).json({
         error: 'Not Found',
-        message: `ID ${id}인 예배를 찾을 수 없습니다`,
+        message: `예배 ID ${id}를 찾을 수 없습니다`,
       });
     }
 
-    // 관련 찬양과 주석도 함께 삭제 (CASCADE)
-    // Phase 2에서 구현: 주석 데이터 정리
-
-    // 해당 예배의 찬양들 삭제
-    await db.delete(songs).where(eq(songs.worshipId, id));
-
-    // 예배 삭제
-    await db.delete(worships).where(eq(worships.id, id));
-
-    logger.info(`예배 삭제: ${existingWorship.title} (ID: ${id})`);
-    res.json({
-      message: '예배가 성공적으로 삭제되었습니다',
-      deletedWorship: existingWorship,
-    });
+    res.status(204).send();
+    logger.info(`예배 삭제: ID ${id}`);
   } catch (error) {
     logger.error('예배 삭제 실패', error);
     res.status(500).json({

@@ -1,17 +1,16 @@
 import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { Kysely, SqliteDialect, sql } from 'kysely';
 import path from 'path';
 import { app } from 'electron';
-import * as schema from './schema';
 import { logger } from '../utils/logger';
+import type { Database as DatabaseSchema } from './types';
 
 /**
- * SQLite 데이터베이스 연결 관리
+ * SQLite 데이터베이스 연결 관리 (Kysely 기반)
  */
 class DatabaseManager {
+  private db: Kysely<DatabaseSchema> | null = null;
   private sqlite: Database.Database | null = null;
-  private db: ReturnType<typeof drizzle> | null = null;
 
   /**
    * 데이터베이스 경로 결정
@@ -39,11 +38,15 @@ class DatabaseManager {
       this.sqlite.pragma('journal_mode = WAL'); // 성능 향상을 위한 WAL 모드
       this.sqlite.pragma('foreign_keys = ON'); // 외래키 제약 조건 활성화
 
-      // Drizzle ORM 초기화
-      this.db = drizzle(this.sqlite, { schema });
+      // Kysely 초기화
+      this.db = new Kysely<DatabaseSchema>({
+        dialect: new SqliteDialect({
+          database: this.sqlite,
+        }),
+      });
 
-      // 마이그레이션 실행
-      await this.runMigrations();
+      // 테이블 생성
+      await this.createTables();
 
       logger.info('데이터베이스 연결 성공');
     } catch (error) {
@@ -53,112 +56,108 @@ class DatabaseManager {
   }
 
   /**
-   * 마이그레이션 실행
+   * 테이블 생성 (없는 경우에만)
    */
-  private async runMigrations(): Promise<void> {
-    if (!this.db) {
-      throw new Error('데이터베이스가 초기화되지 않았습니다');
-    }
+  private async createTables(): Promise<void> {
+    if (!this.db) return;
+
+    logger.info('테이블 확인 및 생성 시작');
 
     try {
-      const migrationsFolder = path.join(process.cwd(), 'electron', 'server', 'database', 'migrations');
-      logger.info(`마이그레이션 실행: ${migrationsFolder}`);
+      // 예배 테이블
+      await sql`
+        CREATE TABLE IF NOT EXISTS worships (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          date TEXT NOT NULL,
+          time TEXT,
+          description TEXT,
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `.execute(this.db);
 
-      migrate(this.db, { migrationsFolder });
-      logger.info('마이그레이션 완료');
+      // 찬양 테이블
+      await sql`
+        CREATE TABLE IF NOT EXISTS songs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          worship_id INTEGER REFERENCES worships(id),
+          title TEXT NOT NULL,
+          key TEXT,
+          memo TEXT,
+          image_path TEXT,
+          "order" INTEGER,
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `.execute(this.db);
+
+      // 주석 테이블 (SVG 벡터 기반, 압축 지원)
+      await sql`
+        CREATE TABLE IF NOT EXISTS annotations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          song_id INTEGER NOT NULL REFERENCES songs(id),
+          user_id TEXT NOT NULL,
+          user_name TEXT NOT NULL,
+          layer TEXT NOT NULL,
+          svg_path TEXT NOT NULL,
+          color TEXT NOT NULL,
+          tool TEXT NOT NULL,
+          stroke_width REAL DEFAULT 2,
+          opacity REAL DEFAULT 1.0,
+          is_visible INTEGER DEFAULT 1,
+          version INTEGER DEFAULT 1,
+          compressed_size INTEGER,
+          checksum TEXT,
+          deleted_at TEXT,
+          updated_at TEXT DEFAULT (datetime('now')),
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `.execute(this.db);
+
+      // 사용자 테이블
+      await sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          last_active_at TEXT DEFAULT (datetime('now'))
+        )
+      `.execute(this.db);
+
+      // 명령 히스토리 테이블
+      await sql`
+        CREATE TABLE IF NOT EXISTS commands (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL,
+          user_name TEXT NOT NULL,
+          message TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `.execute(this.db);
+
+      // 성능 최적화 인덱스들
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_annotations_song_user 
+        ON annotations(song_id, user_id)
+      `.execute(this.db);
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_annotations_song_active 
+        ON annotations(song_id, deleted_at)
+      `.execute(this.db);
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_annotations_user_active 
+        ON annotations(user_id, deleted_at)
+      `.execute(this.db);
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_annotations_created_at 
+        ON annotations(created_at)
+      `.execute(this.db);
+
+      logger.info('테이블 생성/확인 완료');
     } catch (error) {
-      logger.warn('마이그레이션 실행 중 오류 (초기 설정일 수 있음)', error);
-      // 초기 테이블 생성
-      await this.createInitialTables();
-    }
-  }
-
-  /**
-   * 초기 테이블 생성 (마이그레이션 파일이 없는 경우)
-   */
-  private async createInitialTables(): Promise<void> {
-    if (!this.sqlite) return;
-
-    logger.info('초기 테이블 생성 시작');
-
-    // 테이블 생성 SQL
-    const createTablesSQL = `
-      -- 예배 테이블
-      CREATE TABLE IF NOT EXISTS worships (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        date TEXT NOT NULL,
-        time TEXT,
-        description TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-
-      -- 찬양 테이블
-      CREATE TABLE IF NOT EXISTS songs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        worship_id INTEGER REFERENCES worships(id),
-        title TEXT NOT NULL,
-        key TEXT,
-        memo TEXT,
-        image_path TEXT,
-        "order" INTEGER,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-
-      -- 주석 테이블 (SVG 벡터 기반, 압축 지원)
-      CREATE TABLE IF NOT EXISTS annotations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        song_id INTEGER NOT NULL REFERENCES songs(id),
-        user_id TEXT NOT NULL,
-        user_name TEXT NOT NULL,
-        layer TEXT NOT NULL,
-        svg_path TEXT NOT NULL,
-        color TEXT NOT NULL,
-        tool TEXT NOT NULL,
-        stroke_width REAL DEFAULT 2,
-        opacity REAL DEFAULT 1.0,
-        is_visible INTEGER DEFAULT 1,
-        version INTEGER DEFAULT 1,
-        compressed_size INTEGER,
-        checksum TEXT,
-        deleted_at TEXT,
-        updated_at TEXT DEFAULT (datetime('now')),
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-
-      -- 사용자 테이블
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        created_at TEXT DEFAULT (datetime('now')),
-        last_active_at TEXT DEFAULT (datetime('now'))
-      );
-
-      -- 명령 히스토리 테이블
-      CREATE TABLE IF NOT EXISTS commands (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT NOT NULL,
-        user_name TEXT NOT NULL,
-        message TEXT NOT NULL,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-
-      -- 주석 테이블 성능 최적화 인덱스들
-      CREATE INDEX IF NOT EXISTS idx_annotations_song_user 
-        ON annotations(song_id, user_id);
-      CREATE INDEX IF NOT EXISTS idx_annotations_song_active 
-        ON annotations(song_id, deleted_at);
-      CREATE INDEX IF NOT EXISTS idx_annotations_user_active 
-        ON annotations(user_id, deleted_at);
-      CREATE INDEX IF NOT EXISTS idx_annotations_created_at 
-        ON annotations(created_at);
-    `;
-
-    try {
-      this.sqlite.exec(createTablesSQL);
-      logger.info('초기 테이블 생성 완료');
-    } catch (error) {
-      logger.error('초기 테이블 생성 실패', error);
+      logger.error('테이블 생성 실패', error);
       throw error;
     }
   }
@@ -166,7 +165,7 @@ class DatabaseManager {
   /**
    * 데이터베이스 인스턴스 반환
    */
-  public getDatabase(): ReturnType<typeof drizzle> {
+  public getDatabase(): Kysely<DatabaseSchema> {
     if (!this.db) {
       throw new Error('데이터베이스가 초기화되지 않았습니다. initialize()를 먼저 호출하세요.');
     }
@@ -187,10 +186,13 @@ class DatabaseManager {
    * 연결 종료
    */
   public close(): void {
+    if (this.db) {
+      this.db.destroy();
+      this.db = null;
+    }
     if (this.sqlite) {
       this.sqlite.close();
       this.sqlite = null;
-      this.db = null;
       logger.info('데이터베이스 연결 종료');
     }
   }
@@ -200,11 +202,11 @@ class DatabaseManager {
    */
   public async healthCheck(): Promise<boolean> {
     try {
-      if (!this.sqlite) return false;
+      if (!this.db) return false;
 
       // 간단한 쿼리로 연결 상태 확인
-      const result = this.sqlite.prepare('SELECT 1 as test').get();
-      return result !== null;
+      await sql`SELECT 1 as test`.execute(this.db);
+      return true;
     } catch {
       return false;
     }

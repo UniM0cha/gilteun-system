@@ -1,7 +1,6 @@
 import express from 'express';
-import { eq, and, isNull, desc, sql } from 'drizzle-orm';
+import { sql } from 'kysely';
 import { getDatabase } from '../database/connection';
-import { annotations, songs } from '../database/schema';
 import { createHash } from 'crypto';
 import { compress, decompress } from '../utils/compression';
 
@@ -42,11 +41,6 @@ function processSVGData(svgPath: string) {
   };
 }
 
-/**
- * 활성 주석 필터 (삭제되지 않은 주석)
- */
-const activeAnnotationsFilter = isNull(annotations.deletedAt);
-
 // API 엔드포인트들
 
 /**
@@ -62,25 +56,27 @@ router.get('/song/:songId', async (req, res) => {
 
     const db = getDatabase();
     const result = await db
-      .select({
-        id: annotations.id,
-        songId: annotations.songId,
-        userId: annotations.userId,
-        userName: annotations.userName,
-        layer: annotations.layer,
-        svgPath: annotations.svgPath,
-        color: annotations.color,
-        tool: annotations.tool,
-        strokeWidth: annotations.strokeWidth,
-        opacity: annotations.opacity,
-        isVisible: annotations.isVisible,
-        version: annotations.version,
-        createdAt: annotations.createdAt,
-        updatedAt: annotations.updatedAt,
-      })
-      .from(annotations)
-      .where(and(eq(annotations.songId, songId), activeAnnotationsFilter))
-      .orderBy(desc(annotations.createdAt));
+      .selectFrom('annotations')
+      .select([
+        'id',
+        'song_id as songId',
+        'user_id as userId',
+        'user_name as userName',
+        'layer',
+        'svg_path as svgPath',
+        'color',
+        'tool',
+        'stroke_width as strokeWidth',
+        'opacity',
+        'is_visible as isVisible',
+        'version',
+        'created_at as createdAt',
+        'updated_at as updatedAt',
+      ])
+      .where('song_id', '=', songId)
+      .where('deleted_at', 'is', null)
+      .orderBy('created_at', 'desc')
+      .execute();
 
     // SVG 데이터 압축 해제
     const processedResult = result.map((annotation) => ({
@@ -113,14 +109,17 @@ router.get('/song/:songId/user/:userId', async (req, res) => {
 
     const db = getDatabase();
     const result = await db
-      .select()
-      .from(annotations)
-      .where(and(eq(annotations.songId, songId), eq(annotations.userId, userId), activeAnnotationsFilter))
-      .orderBy(desc(annotations.createdAt));
+      .selectFrom('annotations')
+      .selectAll()
+      .where('song_id', '=', songId)
+      .where('user_id', '=', userId)
+      .where('deleted_at', 'is', null)
+      .orderBy('created_at', 'desc')
+      .execute();
 
     const processedResult = result.map((annotation) => ({
       ...annotation,
-      svgPath: decompress(annotation.svgPath),
+      svg_path: decompress(annotation.svg_path),
     }));
 
     res.json({
@@ -149,8 +148,13 @@ router.post('/', async (req, res) => {
     const db = getDatabase();
 
     // 찬양 존재 여부 확인
-    const song = await db.select().from(songs).where(eq(songs.id, songId)).limit(1);
-    if (song.length === 0) {
+    const song = await db
+      .selectFrom('songs')
+      .select('id')
+      .where('id', '=', songId)
+      .executeTakeFirst();
+      
+    if (!song) {
       return res.status(404).json({ error: '찬양을 찾을 수 없습니다' });
     }
 
@@ -159,26 +163,31 @@ router.post('/', async (req, res) => {
 
     // 주석 저장
     const result = await db
-      .insert(annotations)
+      .insertInto('annotations')
       .values({
-        songId,
-        userId,
-        userName,
+        song_id: songId,
+        user_id: userId,
+        user_name: userName,
         layer: layer || `${userName}의 주석`,
-        svgPath: compressedData, // 압축된 데이터 저장
+        svg_path: compressedData, // 압축된 데이터 저장
         color,
         tool,
-        strokeWidth,
+        stroke_width: strokeWidth,
         opacity,
-        compressedSize,
+        compressed_size: compressedSize,
         checksum,
       })
-      .returning();
+      .returning(['id', 'song_id', 'user_id', 'user_name', 'layer', 'svg_path', 'color', 'tool', 'created_at'])
+      .executeTakeFirst();
+
+    if (!result) {
+      throw new Error('주석 생성 실패');
+    }
 
     // 클라이언트로 전송할 때는 압축 해제
     const savedAnnotation = {
-      ...result[0],
-      svgPath: svgPath, // 원본 데이터 반환
+      ...result,
+      svg_path: svgPath, // 원본 데이터 반환
     };
 
     res.status(201).json({
@@ -210,27 +219,31 @@ router.post('/bulk', async (req, res) => {
       const { compressedData, compressedSize, checksum } = processSVGData(annotation.svgPath);
 
       return {
-        songId: annotation.songId,
-        userId: annotation.userId,
-        userName: annotation.userName,
+        song_id: annotation.songId,
+        user_id: annotation.userId,
+        user_name: annotation.userName,
         layer: annotation.layer || `${annotation.userName}의 주석`,
-        svgPath: compressedData,
+        svg_path: compressedData,
         color: annotation.color,
         tool: annotation.tool,
-        strokeWidth: annotation.strokeWidth || 2,
+        stroke_width: annotation.strokeWidth || 2,
         opacity: annotation.opacity || 1.0,
-        compressedSize,
+        compressed_size: compressedSize,
         checksum,
       };
     });
 
     // 벌크 삽입
-    const result = await db.insert(annotations).values(processedAnnotations).returning();
+    const result = await db
+      .insertInto('annotations')
+      .values(processedAnnotations)
+      .returningAll()
+      .execute();
 
     // 응답용 데이터 (압축 해제)
     const responseData = result.map((annotation, index) => ({
       ...annotation,
-      svgPath: annotationList[index].svgPath, // 원본 데이터
+      svg_path: annotationList[index].svgPath, // 원본 데이터
     }));
 
     res.status(201).json({
@@ -264,15 +277,16 @@ router.patch('/:id', async (req, res) => {
       opacity: number;
       isVisible: boolean;
     }>;
+    
     const updateData: Record<string, unknown> = {
-      updatedAt: sql`datetime('now')`,
+      updated_at: sql`datetime('now')`,
     };
 
     // SVG 데이터 업데이트 시 재압축
     if (updates.svgPath) {
       const { compressedData, compressedSize, checksum } = processSVGData(updates.svgPath);
-      updateData.svgPath = compressedData;
-      updateData.compressedSize = compressedSize;
+      updateData.svg_path = compressedData;
+      updateData.compressed_size = compressedSize;
       updateData.checksum = checksum;
       updateData.version = sql`version + 1`; // 버전 증가
     }
@@ -281,24 +295,26 @@ router.patch('/:id', async (req, res) => {
     if (updates.layer !== undefined) updateData.layer = updates.layer;
     if (updates.color !== undefined) updateData.color = updates.color;
     if (updates.tool !== undefined) updateData.tool = updates.tool;
-    if (updates.strokeWidth !== undefined) updateData.strokeWidth = updates.strokeWidth;
+    if (updates.strokeWidth !== undefined) updateData.stroke_width = updates.strokeWidth;
     if (updates.opacity !== undefined) updateData.opacity = updates.opacity;
-    if (updates.isVisible !== undefined) updateData.isVisible = updates.isVisible;
+    if (updates.isVisible !== undefined) updateData.is_visible = updates.isVisible ? 1 : 0;
 
     const result = await db
-      .update(annotations)
+      .updateTable('annotations')
       .set(updateData)
-      .where(and(eq(annotations.id, id), activeAnnotationsFilter))
-      .returning();
+      .where('id', '=', id)
+      .where('deleted_at', 'is', null)
+      .returningAll()
+      .executeTakeFirst();
 
-    if (result.length === 0) {
+    if (!result) {
       return res.status(404).json({ error: '주석을 찾을 수 없습니다' });
     }
 
     // 응답 데이터 (SVG 압축 해제)
     const responseData = {
-      ...result[0],
-      svgPath: updates.svgPath || decompress(result[0].svgPath),
+      ...result,
+      svg_path: updates.svgPath || decompress(result.svg_path),
     };
 
     res.json({
@@ -324,15 +340,17 @@ router.delete('/:id', async (req, res) => {
 
     const db = getDatabase();
     const result = await db
-      .update(annotations)
+      .updateTable('annotations')
       .set({
-        deletedAt: sql`datetime('now')`,
-        updatedAt: sql`datetime('now')`,
+        deleted_at: sql`datetime('now')`,
+        updated_at: sql`datetime('now')`,
       })
-      .where(and(eq(annotations.id, id), activeAnnotationsFilter))
-      .returning();
+      .where('id', '=', id)
+      .where('deleted_at', 'is', null)
+      .returningAll()
+      .executeTakeFirst();
 
-    if (result.length === 0) {
+    if (!result) {
       return res.status(404).json({ error: '주석을 찾을 수 없습니다' });
     }
 
@@ -359,17 +377,19 @@ router.delete('/song/:songId/user/:userId', async (req, res) => {
     }
 
     const db = getDatabase();
-    const result = await db
-      .update(annotations)
+    await db
+      .updateTable('annotations')
       .set({
-        deletedAt: sql`datetime('now')`,
-        updatedAt: sql`datetime('now')`,
+        deleted_at: sql`datetime('now')`,
+        updated_at: sql`datetime('now')`,
       })
-      .where(and(eq(annotations.songId, songId), eq(annotations.userId, userId), activeAnnotationsFilter))
-      .returning();
+      .where('song_id', '=', songId)
+      .where('user_id', '=', userId)
+      .where('deleted_at', 'is', null)
+      .execute();
 
     res.json({
-      message: `사용자 ${userId}의 주석 ${result.length}개가 삭제되었습니다`,
+      message: `사용자 ${userId}의 주석이 삭제되었습니다`,
     });
   } catch (error) {
     console.error('사용자 주석 삭제 오류:', error);
@@ -390,17 +410,19 @@ router.get('/song/:songId/stats', async (req, res) => {
 
     const db = getDatabase();
     const result = await db
-      .select({
-        userId: annotations.userId,
-        userName: annotations.userName,
-        count: sql<number>`count(*)`,
-        totalSize: sql<number>`sum(${annotations.compressedSize})`,
-        latestUpdate: sql<string>`max(${annotations.updatedAt})`,
-      })
-      .from(annotations)
-      .where(and(eq(annotations.songId, songId), activeAnnotationsFilter))
-      .groupBy(annotations.userId, annotations.userName)
-      .orderBy(desc(sql`count(*)`));
+      .selectFrom('annotations')
+      .select([
+        'user_id as userId',
+        'user_name as userName',
+        sql<number>`count(*)`.as('count'),
+        sql<number>`sum(compressed_size)`.as('totalSize'),
+        sql<string>`max(updated_at)`.as('latestUpdate'),
+      ])
+      .where('song_id', '=', songId)
+      .where('deleted_at', 'is', null)
+      .groupBy(['user_id', 'user_name'])
+      .orderBy(sql`count(*)`, 'desc')
+      .execute();
 
     res.json({
       data: result,
@@ -427,36 +449,31 @@ router.get('/song/:songId/export', async (req, res) => {
 
     const db = getDatabase();
 
-    // WHERE 조건 구성
-    const whereConditions = [eq(annotations.songId, songId), activeAnnotationsFilter];
+    // 기본 쿼리
+    let query = db
+      .selectFrom('annotations')
+      .select(['svg_path', 'color', 'user_name', 'opacity'])
+      .where('song_id', '=', songId)
+      .where('deleted_at', 'is', null);
 
     // 특정 사용자들만 포함
     if (userIds) {
       const userIdList = userIds.split(',').filter((id) => id.trim());
       if (userIdList.length > 0) {
-        whereConditions.push(sql`${annotations.userId} IN (${userIdList.map((id) => `'${id}'`).join(',')})`);
+        query = query.where('user_id', 'in', userIdList);
       }
     }
 
-    const result = await db
-      .select({
-        svgPath: annotations.svgPath,
-        color: annotations.color,
-        userName: annotations.userName,
-        opacity: annotations.opacity,
-      })
-      .from(annotations)
-      .where(and(...whereConditions))
-      .orderBy(desc(annotations.createdAt));
+    const result = await query.orderBy('created_at', 'desc').execute();
 
     // SVG 병합
     let combinedSVG = `<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">`;
 
     result.forEach((annotation) => {
-      const decompressed = decompress(annotation.svgPath);
+      const decompressed = decompress(annotation.svg_path);
       // 각 주석을 그룹으로 감싸서 사용자별로 식별 가능하게 함
       combinedSVG += `
-        <g data-user="${annotation.userName}" opacity="${annotation.opacity || 1.0}">
+        <g data-user="${annotation.user_name}" opacity="${annotation.opacity || 1.0}">
           ${decompressed}
         </g>
       `;

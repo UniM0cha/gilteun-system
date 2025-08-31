@@ -1,9 +1,8 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import { IncomingMessage } from 'http';
 import { URL } from 'url';
+import { sql } from 'kysely';
 import { getDatabase } from '../database/connection';
-import { annotations, commands, users } from '../database/schema';
-import { desc, eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import type {
   AnnotationCompleteMessage,
@@ -202,33 +201,36 @@ export class GilteunWebSocketHandler {
 
       // 주석을 데이터베이스에 저장
       const result = await db
-        .insert(annotations)
+        .insertInto('annotations')
         .values({
-          songId: message.songId,
-          userId: client.userId,
-          userName: client.userName,
+          song_id: message.songId,
+          user_id: client.userId,
+          user_name: client.userName,
           layer: message.layer,
-          svgPath: message.svgPath,
+          svg_path: message.svgPath,
           color: message.color,
           tool: message.tool,
         })
-        .returning();
+        .returning(['id', 'song_id', 'user_id', 'user_name', 'layer', 'svg_path', 'color', 'tool'])
+        .executeTakeFirst();
 
-      const savedAnnotation = result[0];
+      if (!result) {
+        throw new Error('주석 저장 실패');
+      }
 
       // 저장된 주석 정보를 포함한 메시지로 브로드캐스트
       const completeMessage = {
         ...message,
         userId: client.userId,
         userName: client.userName,
-        annotationId: savedAnnotation.id,
+        annotationId: result.id,
         timestamp: Date.now(),
       };
 
       this.broadcastToSong(message.songId, completeMessage, client.userId);
 
       logger.info('주석 저장 완료', {
-        annotationId: savedAnnotation.id,
+        annotationId: result.id,
         userId: client.userId,
         songId: message.songId,
       });
@@ -262,15 +264,18 @@ export class GilteunWebSocketHandler {
 
       // 명령을 데이터베이스에 저장
       const result = await db
-        .insert(commands)
+        .insertInto('commands')
         .values({
-          userId: client.userId,
-          userName: client.userName,
+          user_id: client.userId,
+          user_name: client.userName,
           message: message.message,
         })
-        .returning();
+        .returning(['id', 'user_id', 'user_name', 'message'])
+        .executeTakeFirst();
 
-      const savedCommand = result[0];
+      if (!result) {
+        throw new Error('명령 저장 실패');
+      }
 
       // 모든 클라이언트에게 명령 브로드캐스트
       const broadcastMessage = {
@@ -278,14 +283,14 @@ export class GilteunWebSocketHandler {
         userId: client.userId,
         userName: client.userName,
         message: message.message,
-        commandId: savedCommand.id,
+        commandId: result.id,
         timestamp: Date.now(),
       };
 
       this.broadcastToAll(broadcastMessage, client.userId);
 
       logger.info('명령 전송 완료', {
-        commandId: savedCommand.id,
+        commandId: result.id,
         userId: client.userId,
         message: message.message,
       });
@@ -307,17 +312,23 @@ export class GilteunWebSocketHandler {
       switch (message.dataType) {
         case 'commands':
           // 최근 50개 명령 조회
-          data = await db.select().from(commands).orderBy(desc(commands.createdAt)).limit(50);
+          data = await db
+            .selectFrom('commands')
+            .selectAll()
+            .orderBy('created_at', 'desc')
+            .limit(50)
+            .execute();
           break;
 
         case 'annotations':
           // 현재 보고 있는 찬양의 주석들 (currentSong이 설정된 경우)
           if (client.currentSong) {
             data = await db
-              .select()
-              .from(annotations)
-              .where(eq(annotations.songId, client.currentSong))
-              .orderBy(desc(annotations.createdAt));
+              .selectFrom('annotations')
+              .selectAll()
+              .where('song_id', '=', client.currentSong)
+              .orderBy('created_at', 'desc')
+              .execute();
           }
           break;
 
@@ -519,23 +530,31 @@ export class GilteunWebSocketHandler {
       const db = getDatabase();
 
       // 기존 사용자 확인
-      const existingUser = await db.select().from(users).where(eq(users.id, userId)).get();
+      const existingUser = await db
+        .selectFrom('users')
+        .selectAll()
+        .where('id', '=', userId)
+        .executeTakeFirst();
 
       if (existingUser) {
         // 기존 사용자 활동 시간 업데이트
         await db
-          .update(users)
+          .updateTable('users')
           .set({
             name: userName,
-            lastActiveAt: new Date().toISOString(),
+            last_active_at: sql`datetime('now')`,
           })
-          .where(eq(users.id, userId));
+          .where('id', '=', userId)
+          .execute();
       } else {
         // 새 사용자 생성
-        await db.insert(users).values({
-          id: userId,
-          name: userName,
-        });
+        await db
+          .insertInto('users')
+          .values({
+            id: userId,
+            name: userName,
+          })
+          .execute();
       }
     } catch (error) {
       logger.error('사용자 정보 업데이트 실패', error);

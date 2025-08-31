@@ -1,15 +1,14 @@
 import { Router } from 'express';
-import { and, desc, eq } from 'drizzle-orm';
+import { sql } from 'kysely';
 import { getDatabase } from '../database/connection';
 import type { NewSong } from '../database/schema';
-import { songs, worships } from '../database/schema';
 import { logger } from '../utils/logger';
 
 const router = Router();
 
 /**
  * 찬양 관리 API
- * Drizzle ORM을 사용한 SQLite 데이터베이스 연동
+ * Kysely를 사용한 SQLite 데이터베이스 연동
  */
 
 // 찬양 목록 조회
@@ -20,8 +19,14 @@ router.get('/', async (req, res) => {
 
     const db = getDatabase();
 
-    // WHERE 조건 구성
-    const whereConditions = [];
+    // 기본 쿼리 빌더
+    let query = db
+      .selectFrom('songs')
+      .selectAll()
+      .orderBy('order', 'asc')
+      .orderBy('created_at', 'desc')
+      .limit(Number(limit))
+      .offset(Number(offset));
 
     // 예배 ID 필터링
     if (worshipId) {
@@ -32,29 +37,23 @@ router.get('/', async (req, res) => {
           message: '유효하지 않은 예배 ID입니다',
         });
       }
-      whereConditions.push(eq(songs.worshipId, worshipIdNum));
+      query = query.where('worship_id', '=', worshipIdNum);
     }
 
     // 쿼리 실행
-    const songsList = await db
-      .select()
-      .from(songs)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(songs.order, desc(songs.createdAt))
-      .limit(Number(limit))
-      .offset(Number(offset));
+    const songsList = await query.execute();
 
     // 전체 개수 조회 (페이징용)
-    const countConditions = [];
+    let countQuery = db
+      .selectFrom('songs')
+      .select(sql`count(*) as count`.as('count'));
+    
     if (worshipId) {
-      countConditions.push(eq(songs.worshipId, Number(worshipId)));
+      countQuery = countQuery.where('worship_id', '=', Number(worshipId));
     }
 
-    const totalResult = await db
-      .select({ count: songs.id })
-      .from(songs)
-      .where(countConditions.length > 0 ? and(...countConditions) : undefined);
-    const total = totalResult.length;
+    const totalResult = await countQuery.executeTakeFirst();
+    const total = Number(totalResult?.count || 0);
 
     res.json({
       songs: songsList,
@@ -91,22 +90,22 @@ router.get('/:id', async (req, res) => {
 
     // 찬양 정보 조회 (예배 정보 포함)
     const song = await db
-      .select({
-        id: songs.id,
-        worshipId: songs.worshipId,
-        title: songs.title,
-        key: songs.key,
-        memo: songs.memo,
-        imagePath: songs.imagePath,
-        order: songs.order,
-        createdAt: songs.createdAt,
-        worshipTitle: worships.title,
-        worshipDate: worships.date,
-      })
-      .from(songs)
-      .leftJoin(worships, eq(songs.worshipId, worships.id))
-      .where(eq(songs.id, id))
-      .get();
+      .selectFrom('songs')
+      .leftJoin('worships', 'songs.worship_id', 'worships.id')
+      .select([
+        'songs.id',
+        'songs.worship_id as worshipId',
+        'songs.title',
+        'songs.key',
+        'songs.memo',
+        'songs.image_path as imagePath',
+        'songs.order',
+        'songs.created_at as createdAt',
+        'worships.title as worshipTitle',
+        'worships.date as worshipDate',
+      ])
+      .where('songs.id', '=', id)
+      .executeTakeFirst();
 
     if (!song) {
       return res.status(404).json({
@@ -152,7 +151,11 @@ router.post('/', async (req, res) => {
     const db = getDatabase();
 
     // 예배 존재 여부 확인
-    const existingWorship = await db.select().from(worships).where(eq(worships.id, worshipIdNum)).get();
+    const existingWorship = await db
+      .selectFrom('worships')
+      .select('id')
+      .where('id', '=', worshipIdNum)
+      .executeTakeFirst();
 
     if (!existingWorship) {
       return res.status(404).json({
@@ -165,30 +168,36 @@ router.post('/', async (req, res) => {
     let finalOrder = order;
     if (!finalOrder) {
       const maxOrderResult = await db
-        .select({ maxOrder: songs.order })
-        .from(songs)
-        .where(eq(songs.worshipId, worshipIdNum))
-        .orderBy(desc(songs.order))
-        .get();
+        .selectFrom('songs')
+        .select(sql`max("order") as max_order`.as('maxOrder'))
+        .where('worship_id', '=', worshipIdNum)
+        .executeTakeFirst();
 
-      finalOrder = (maxOrderResult?.maxOrder || 0) + 1;
+      finalOrder = (Number(maxOrderResult?.maxOrder) || 0) + 1;
     }
 
     // 새 찬양 생성
     const newSongData: NewSong = {
-      worshipId: worshipIdNum,
+      worship_id: worshipIdNum,
       title,
       key: key || null,
       memo: memo || null,
-      imagePath: null, // Phase 3에서 파일 업로드 구현
+      image_path: null, // Phase 3에서 파일 업로드 구현
       order: finalOrder,
     };
 
-    const result = await db.insert(songs).values(newSongData).returning();
-    const newSong = result[0];
+    const result = await db
+      .insertInto('songs')
+      .values(newSongData)
+      .returning(['id', 'worship_id', 'title', 'key', 'memo', 'image_path', 'order', 'created_at'])
+      .executeTakeFirst();
 
-    logger.info(`새 찬양 생성: ${newSong.title} (ID: ${newSong.id})`);
-    res.status(201).json(newSong);
+    if (!result) {
+      throw new Error('찬양 생성 실패');
+    }
+
+    logger.info(`새 찬양 생성: ${result.title} (ID: ${result.id})`);
+    res.status(201).json(result);
   } catch (error) {
     logger.error('찬양 생성 실패', error);
     res.status(500).json({
@@ -213,7 +222,11 @@ router.put('/:id', async (req, res) => {
     const db = getDatabase();
 
     // 찬양 존재 여부 확인
-    const existingSong = await db.select().from(songs).where(eq(songs.id, id)).get();
+    const existingSong = await db
+      .selectFrom('songs')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirst();
 
     if (!existingSong) {
       return res.status(404).json({
@@ -230,12 +243,15 @@ router.put('/:id', async (req, res) => {
     if (order !== undefined) updateData.order = order;
 
     // 업데이트 실행
-    const result = await db.update(songs).set(updateData).where(eq(songs.id, id)).returning();
+    const result = await db
+      .updateTable('songs')
+      .set(updateData)
+      .where('id', '=', id)
+      .returning(['id', 'worship_id', 'title', 'key', 'memo', 'image_path', 'order', 'created_at'])
+      .executeTakeFirst();
 
-    const updatedSong = result[0];
-
-    logger.info(`찬양 정보 수정: ${updatedSong.title} (ID: ${id})`);
-    res.json(updatedSong);
+    logger.info(`찬양 정보 수정: ${result?.title} (ID: ${id})`);
+    res.json(result);
   } catch (error) {
     logger.error('찬양 정보 수정 실패', error);
     res.status(500).json({
@@ -259,7 +275,11 @@ router.delete('/:id', async (req, res) => {
     const db = getDatabase();
 
     // 찬양 존재 여부 확인
-    const existingSong = await db.select().from(songs).where(eq(songs.id, id)).get();
+    const existingSong = await db
+      .selectFrom('songs')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirst();
 
     if (!existingSong) {
       return res.status(404).json({
@@ -268,11 +288,17 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    // 관련 주석도 함께 삭제 (Phase 2에서 구현)
-    // Phase 2에서 구현: annotations 테이블에서 해당 찬양의 주석들 삭제
+    // 관련 주석도 함께 삭제
+    await db
+      .deleteFrom('annotations')
+      .where('song_id', '=', id)
+      .execute();
 
     // 찬양 삭제
-    await db.delete(songs).where(eq(songs.id, id));
+    await db
+      .deleteFrom('songs')
+      .where('id', '=', id)
+      .execute();
 
     logger.info(`찬양 삭제: ${existingSong.title} (ID: ${id})`);
     res.json({

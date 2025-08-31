@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-electron
 dist-ssr
 *.local
 
@@ -28,3 +29,10 @@ release
 
 # Local Serena workspace
 .serena/
+
+# Database files
+gilteun-system.db*
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

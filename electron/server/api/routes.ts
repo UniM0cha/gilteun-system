@@ -54,7 +54,7 @@ router.use('/annotations', annotationsRouter);
 router.use('/users', usersRouter);
 
 // 404 처리
-router.use('*', (req, res) => {
+router.use((req, res) => {
   logger.warn(`API 엔드포인트를 찾을 수 없습니다: ${req.originalUrl}`);
   res.status(404).json({
     error: 'Endpoint Not Found',

@@ -84,7 +84,7 @@ export class GilteunServer {
     this.app.use('/api', apiRoutes);
 
     // 404 처리
-    this.app.use('*', (req, res) => {
+    this.app.use((req, res) => {
       res.status(404).json({
         error: 'Not Found',
         message: `Route ${req.originalUrl} not found`,

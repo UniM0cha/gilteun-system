@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { defineConfig } from 'vite';
 import electron from 'vite-plugin-electron/simple';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,11 +17,16 @@ export default defineConfig({
       main: {
         // Shortcut of `build.lib.entry`.
         entry: 'electron/main.ts',
-        onstart(args) {
-          // Restart electron when dev server is ready
-          if (args) {
-            console.log('[startup] Electron app started')
-          }
+        onstart({ startup }) {
+          // Start Electron when dev server is ready
+          startup();
+        },
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['better-sqlite3'],
+            },
+          },
         },
       },
       preload: {
