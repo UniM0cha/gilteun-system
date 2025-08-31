@@ -20,7 +20,10 @@
     "db:generate": "drizzle-kit generate:sqlite",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:reset": "rimraf gilteun-system.db"
+    "db:reset": "rimraf gilteun-system.db",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@js-draw/math": "^1.30.1",
