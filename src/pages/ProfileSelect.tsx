@@ -11,20 +11,32 @@ import type { User } from '../types';
  */
 export const ProfileSelectPage: React.FC = () => {
   const navigate = useNavigate();
-  const { setCurrentUser, updateSettings, setServerInfo, setLoading } = useAppStore();
+  const setCurrentUser = useAppStore((state) => state.setCurrentUser);
 
   const defaultServerUrl = 'http://localhost:3001';
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // 앱 시작 시 서버 연결 확인
   useEffect(() => {
+    const abortController = new AbortController();
+
     const testConnection = async () => {
+      // 이미 서버 정보가 있으면 스킵
+      const currentServerInfo = useAppStore.getState().serverInfo;
+      if (currentServerInfo?.status === 'connected') {
+        return;
+      }
+
+      const { setLoading, setServerInfo, updateSettings } = useAppStore.getState();
+      
       setLoading(true, '서버 연결 중...');
       try {
         const response = await fetch(`${defaultServerUrl}/health`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
+          signal: abortController.signal,
         });
+        
         if (response.ok) {
           const data = await response.json();
           setServerInfo({
@@ -40,18 +52,30 @@ export const ProfileSelectPage: React.FC = () => {
           throw new Error(`서버 응답 오류 (${response.status})`);
         }
       } catch (error) {
+        // AbortError는 무시 (컴포넌트 언마운트 시)
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+        
         console.error('서버 연결 실패:', error);
         setConnectionError(
           error instanceof Error ? `서버 연결에 실패했습니다: ${error.message}` : '서버에 연결할 수 없습니다.',
         );
         setServerInfo(null);
       } finally {
-        setLoading(false);
+        // abort되지 않았을 때만 로딩 상태 해제
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     testConnection();
-  }, [defaultServerUrl, setServerInfo, setLoading, updateSettings]);
+
+    return () => {
+      abortController.abort();
+    };
+  }, []); // 최초 마운트 시 한 번만 실행
 
   const profiles = [
     { id: 'leader', name: '김찬양', role: '인도자', icon: '👨‍🎤', color: '#3b82f6' },
@@ -70,7 +94,7 @@ export const ProfileSelectPage: React.FC = () => {
     };
 
     setCurrentUser(user);
-    updateSettings({ userName: profile.name });
+    useAppStore.getState().updateSettings({ userName: profile.name });
     navigate('/worship');
   };
 
