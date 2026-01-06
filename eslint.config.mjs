@@ -6,7 +6,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
   {
-    ignores: ['dist/**', 'dist-electron/**', 'node_modules/**', 'gilteun-system-ui-mockup.tsx', 'public/sw.js'],
+    ignores: ['dist/**', 'dist-electron/**', 'out/**', 'node_modules/**', '_backup/**', 'gilteun-system-ui-mockup.tsx', 'public/sw.js'],
   },
   // TypeScript ESLint recommended
   ...tseslint.configs.recommended,
