@@ -1,164 +1,68 @@
-/**
- * WebSocket 메시지 타입 정의
- * 길튼 시스템 실시간 통신 프로토콜
- */
+// WebSocket 타입 정의
 
-export interface BaseMessage {
-  type: string;
-  timestamp: number;
-  userId?: string;
-  userName?: string;
+import type { WebSocket } from 'ws';
+
+// 연결된 클라이언트 정보
+export interface ConnectedClient {
+  ws: WebSocket;
+  profileId: string;
+  profileName: string;
+  profileColor: string;
+  songId: string | null;
+  lastActivity: number;
 }
 
-// 연결 관리 메시지
-export interface WelcomeMessage extends BaseMessage {
-  type: 'welcome';
-  message: string;
-  serverInfo: {
-    name: string;
-    version: string;
-    connectedUsers: number;
-  };
+// Room 정보 (songId 기반)
+export interface Room {
+  songId: string;
+  clients: Map<string, ConnectedClient>; // profileId -> client
 }
 
-export interface UserConnectMessage extends BaseMessage {
-  type: 'user:connect';
-  userId: string;
-  userName: string;
+// 스트로크 포인트
+export interface StrokePoint {
+  x: number;
+  y: number;
+  pressure?: number;
 }
 
-export interface UserDisconnectMessage extends BaseMessage {
-  type: 'user:disconnect';
-  userId: string;
-  userName: string;
+// 클라이언트 → 서버 이벤트
+export type ClientToServerEvent =
+  | { type: 'join'; profileId: string; profileName: string; profileColor: string; songId: string }
+  | { type: 'leave' }
+  | { type: 'stroke:start'; strokeId: string; tool: string; color: string; thickness: number }
+  | { type: 'stroke:point'; strokeId: string; x: number; y: number; pressure?: number }
+  | { type: 'stroke:end'; strokeId: string; svgPath: string }
+  | { type: 'stroke:delete'; strokeId: string }
+  | { type: 'cursor:move'; x: number; y: number }
+  | { type: 'ping' };
+
+// 서버 → 클라이언트 이벤트
+export type ServerToClientEvent =
+  | { type: 'joined'; participants: ParticipantInfo[] }
+  | { type: 'participant:joined'; participant: ParticipantInfo }
+  | { type: 'participant:left'; profileId: string }
+  | { type: 'stroke:started'; profileId: string; strokeId: string; tool: string; color: string; thickness: number }
+  | { type: 'stroke:points'; profileId: string; strokeId: string; points: StrokePoint[] }
+  | { type: 'stroke:ended'; profileId: string; strokeId: string; svgPath: string }
+  | { type: 'stroke:deleted'; profileId: string; strokeId: string }
+  | { type: 'cursor:moved'; profileId: string; x: number; y: number }
+  | { type: 'error'; message: string }
+  | { type: 'pong' };
+
+// 참여자 정보
+export interface ParticipantInfo {
+  profileId: string;
+  profileName: string;
+  profileColor: string;
 }
 
-export interface ServerStatusMessage extends BaseMessage {
-  type: 'server:status';
-  connectedUsers: number;
-  activeUsers: string[];
-}
-
-// 실시간 주석 메시지 (Figma 스타일)
-export interface AnnotationStartMessage extends BaseMessage {
-  type: 'annotation:start';
-  songId: number;
-  userId: string;
-  userName: string;
-  tool: 'pen' | 'highlighter' | 'eraser';
+// 진행 중인 스트로크 (버퍼링용)
+export interface PendingStroke {
+  strokeId: string;
+  profileId: string;
+  tool: string;
   color: string;
-  layer: string;
-}
-
-export interface AnnotationUpdateMessage extends BaseMessage {
-  type: 'annotation:update';
-  songId: number;
-  userId: string;
-  userName: string;
-  svgPath: string;
-  tool: 'pen' | 'highlighter' | 'eraser';
-  color: string;
-}
-
-export interface AnnotationCompleteMessage extends BaseMessage {
-  type: 'annotation:complete';
-  songId: number;
-  userId: string;
-  userName: string;
-  svgPath: string;
-  tool: 'pen' | 'highlighter' | 'eraser';
-  color: string;
-  layer: string;
-  annotationId?: number;
-}
-
-export interface AnnotationUndoMessage extends BaseMessage {
-  type: 'annotation:undo';
-  songId: number;
-  userId: string;
-  userName: string;
-  annotationId: number;
-}
-
-export interface AnnotationRedoMessage extends BaseMessage {
-  type: 'annotation:redo';
-  songId: number;
-  userId: string;
-  userName: string;
-  annotationId: number;
-}
-
-// 명령 시스템 메시지
-export interface CommandSendMessage extends BaseMessage {
-  type: 'command:send';
-  userId: string;
-  userName: string;
-  message: string;
-  commandId?: number;
-}
-
-export interface CommandBroadcastMessage extends BaseMessage {
-  type: 'command:broadcast';
-  userId: string;
-  userName: string;
-  message: string;
-  commandId: number;
-}
-
-// 데이터 동기화 메시지
-export interface SyncRequestMessage extends BaseMessage {
-  type: 'sync:request';
-  dataType: 'worships' | 'songs' | 'annotations' | 'commands';
-  lastSyncTime?: string;
-}
-
-export interface SyncResponseMessage extends BaseMessage {
-  type: 'sync:response';
-  dataType: 'worships' | 'songs' | 'annotations' | 'commands';
-  data: unknown[];
-  lastSyncTime: string;
-}
-
-// 기타 메시지
-export interface PingMessage extends BaseMessage {
-  type: 'ping';
-}
-
-export interface PongMessage extends BaseMessage {
-  type: 'pong';
-}
-
-export interface ErrorMessage extends BaseMessage {
-  type: 'error';
-  code: string;
-  message: string;
-  details?: unknown;
-}
-
-// 모든 메시지 타입의 유니온
-export type WebSocketMessage =
-  | WelcomeMessage
-  | UserConnectMessage
-  | UserDisconnectMessage
-  | ServerStatusMessage
-  | AnnotationStartMessage
-  | AnnotationUpdateMessage
-  | AnnotationCompleteMessage
-  | AnnotationUndoMessage
-  | AnnotationRedoMessage
-  | CommandSendMessage
-  | CommandBroadcastMessage
-  | SyncRequestMessage
-  | SyncResponseMessage
-  | PingMessage
-  | PongMessage
-  | ErrorMessage;
-
-// 클라이언트 정보
-export interface ClientInfo {
-  userId: string;
-  userName: string;
-  connectedAt: number;
-  lastActiveAt: number;
-  currentSong?: number;
+  thickness: number;
+  points: StrokePoint[];
+  startTime: number;
 }

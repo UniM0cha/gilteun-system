@@ -1,106 +1,103 @@
-import React, { FC } from 'react';
+// 카드 컴포넌트
 
-interface CardProps {
-  children: React.ReactNode;
-  className?: string;
+import { HTMLAttributes, forwardRef } from 'react';
+import { cn } from '@/lib/cn';
+
+// Props 타입
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  variant?: 'default' | 'outline' | 'elevated';
   padding?: 'none' | 'sm' | 'md' | 'lg';
-  shadow?: 'none' | 'sm' | 'md' | 'lg';
-  onClick?: () => void;
-  dataTestId?: string;
+  hoverable?: boolean;
 }
 
-/**
- * 카드 컨테이너 컴포넌트
- * - 콘텐츠 그룹화
- * - 다양한 패딩과 그림자 옵션
- * - 터치 인터랙션 지원
- */
-export const Card: FC<CardProps> = ({
-  children,
-  className = '',
-  padding = 'md',
-  shadow = 'sm',
-  onClick,
-  dataTestId,
-}) => {
-  // 패딩 클래스
-  const paddingClasses = {
-    none: '',
-    sm: 'p-3',
-    md: 'p-4',
-    lg: 'p-6',
-  };
+// 변형별 스타일
+const variantStyles = {
+  default: 'bg-white',
+  outline: 'bg-white border border-gray-200',
+  elevated: 'bg-white shadow-lg',
+};
 
-  // 그림자 클래스
-  const shadowClasses = {
-    none: '',
-    sm: 'shadow-sm',
-    md: 'shadow-md',
-    lg: 'shadow-lg',
-  };
+// 패딩 스타일
+const paddingStyles = {
+  none: '',
+  sm: 'p-3',
+  md: 'p-4',
+  lg: 'p-6',
+};
 
-  const cardClasses = [
-    'bg-white rounded-lg border border-gray-200',
-    paddingClasses[padding],
-    shadowClasses[shadow],
+export const Card = forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant = 'outline', padding = 'md', hoverable = false, children, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'rounded-xl',
+          variantStyles[variant],
+          paddingStyles[padding],
+          hoverable && 'cursor-pointer transition-shadow hover:shadow-md',
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  }
+);
 
-    // 클릭 가능한 카드인 경우
-    onClick &&
-      [
-        'cursor-pointer transition-all duration-200',
-        'hover:shadow-md hover:border-gray-300',
-        'active:scale-98 active:shadow-sm',
-        'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-      ]
-        .filter(Boolean)
-        .join(' '),
+Card.displayName = 'Card';
 
-    className,
-  ]
-    .filter(Boolean)
-    .join(' ');
+// 카드 헤더
+type CardHeaderProps = HTMLAttributes<HTMLDivElement>;
 
-  const Component = onClick ? 'button' : 'div';
-
+export function CardHeader({ className, children, ...props }: CardHeaderProps) {
   return (
-    <Component className={cardClasses} onClick={onClick} {...(onClick && { type: 'button' })} data-testid={dataTestId}>
+    <div className={cn('mb-4', className)} {...props}>
       {children}
-    </Component>
+    </div>
   );
-};
-
-interface CardHeaderProps {
-  children: React.ReactNode;
-  className?: string;
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({ children, className = '' }) => {
-  return <div className={`mb-4 border-b border-gray-200 pb-2 ${className}`}>{children}</div>;
-};
+// 카드 제목
+type CardTitleProps = HTMLAttributes<HTMLHeadingElement>;
 
-interface CardTitleProps {
-  children: React.ReactNode;
-  className?: string;
+export function CardTitle({ className, children, ...props }: CardTitleProps) {
+  return (
+    <h3 className={cn('text-lg font-semibold text-gray-900', className)} {...props}>
+      {children}
+    </h3>
+  );
 }
 
-export const CardTitle: React.FC<CardTitleProps> = ({ children, className = '' }) => {
-  return <h3 className={`text-lg leading-6 font-semibold text-gray-900 ${className}`}>{children}</h3>;
-};
+// 카드 설명
+type CardDescriptionProps = HTMLAttributes<HTMLParagraphElement>;
 
-interface CardContentProps {
-  children: React.ReactNode;
-  className?: string;
+export function CardDescription({ className, children, ...props }: CardDescriptionProps) {
+  return (
+    <p className={cn('text-sm text-gray-500', className)} {...props}>
+      {children}
+    </p>
+  );
 }
 
-export const CardContent: React.FC<CardContentProps> = ({ children, className = '' }) => {
-  return <div className={className}>{children}</div>;
-};
+// 카드 컨텐츠
+type CardContentProps = HTMLAttributes<HTMLDivElement>;
 
-interface CardFooterProps {
-  children: React.ReactNode;
-  className?: string;
+export function CardContent({ className, children, ...props }: CardContentProps) {
+  return (
+    <div className={cn(className)} {...props}>
+      {children}
+    </div>
+  );
 }
 
-export const CardFooter: React.FC<CardFooterProps> = ({ children, className = '' }) => {
-  return <div className={`mt-4 border-t border-gray-200 pt-4 ${className}`}>{children}</div>;
-};
+// 카드 푸터
+type CardFooterProps = HTMLAttributes<HTMLDivElement>;
+
+export function CardFooter({ className, children, ...props }: CardFooterProps) {
+  return (
+    <div className={cn('mt-4 flex items-center gap-2', className)} {...props}>
+      {children}
+    </div>
+  );
+}

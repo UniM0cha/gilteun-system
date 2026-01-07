@@ -1,76 +1,78 @@
-import React, { forwardRef } from 'react';
-import { Loader2 } from 'lucide-react';
+// 버튼 컴포넌트
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
-  size?: 'sm' | 'md' | 'lg';
-  loading?: boolean;
-  children: React.ReactNode;
+import { ButtonHTMLAttributes, forwardRef } from 'react';
+import { cn } from '@/lib/cn';
+
+// 버튼 변형
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+
+// 버튼 크기
+type ButtonSize = 'sm' | 'md' | 'lg';
+
+// Props 타입
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  isLoading?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
 }
 
-/**
- * iPad 터치 최적화된 버튼 컴포넌트
- * - 최소 44px 터치 영역 (Apple 가이드라인)
- * - 시각적 피드백 제공
- * - 다양한 variant 지원
- */
+// 변형별 스타일
+const variantStyles: Record<ButtonVariant, string> = {
+  primary: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
+  secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 active:bg-gray-400',
+  outline: 'border border-gray-300 text-gray-700 hover:bg-gray-100 active:bg-gray-200',
+  ghost: 'text-gray-700 hover:bg-gray-100 active:bg-gray-200',
+  danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+};
+
+// 크기별 스타일
+const sizeStyles: Record<ButtonSize, string> = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-base',
+  lg: 'px-6 py-3 text-lg',
+};
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', size = 'md', loading = false, disabled, children, className = '', ...props }, ref) => {
-    const baseClasses = [
-      'inline-flex items-center justify-center rounded-lg font-medium',
-      'transition-all duration-200 ease-in-out',
-      'focus:outline-none focus:ring-2 focus:ring-offset-2',
-      'active:scale-95', // 터치 피드백
-      'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
-    ];
-
-    // 사이즈별 클래스 (iPad 터치 최적화)
-    const sizeClasses = {
-      sm: 'h-10 px-3 text-sm min-w-[44px]', // 최소 44px 보장
-      md: 'h-11 px-4 text-base min-w-[44px]',
-      lg: 'h-12 px-6 text-lg min-w-[44px]',
-    };
-
-    // variant별 색상 클래스
-    const variantClasses = {
-      primary: [
-        'bg-blue-600 text-white shadow-sm',
-        'hover:bg-blue-700 focus:ring-blue-500',
-        'border border-transparent',
-      ].join(' '),
-      secondary: [
-        'bg-gray-100 text-gray-900 shadow-sm',
-        'hover:bg-gray-200 focus:ring-gray-500',
-        'border border-transparent',
-      ].join(' '),
-      outline: [
-        'bg-transparent text-gray-900 shadow-sm',
-        'hover:bg-gray-50 focus:ring-gray-500',
-        'border border-gray-300',
-      ].join(' '),
-      ghost: [
-        'bg-transparent text-gray-900',
-        'hover:bg-gray-100 focus:ring-gray-500',
-        'border border-transparent',
-      ].join(' '),
-      destructive: [
-        'bg-red-600 text-white shadow-sm',
-        'hover:bg-red-700 focus:ring-red-500',
-        'border border-transparent',
-      ].join(' '),
-    };
-
-    const buttonClasses = [...baseClasses, sizeClasses[size], variantClasses[variant], className].join(' ');
-
-    const isDisabled = disabled || loading;
-
+  (
+    {
+      className,
+      variant = 'primary',
+      size = 'md',
+      isLoading = false,
+      leftIcon,
+      rightIcon,
+      disabled,
+      children,
+      ...props
+    },
+    ref
+  ) => {
     return (
-      <button ref={ref} className={buttonClasses} disabled={isDisabled} {...props}>
-        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      <button
+        ref={ref}
+        className={cn(
+          'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
+          'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          variantStyles[variant],
+          sizeStyles[size],
+          className
+        )}
+        disabled={disabled || isLoading}
+        {...props}
+      >
+        {isLoading ? (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        ) : (
+          leftIcon
+        )}
         {children}
+        {rightIcon}
       </button>
     );
-  },
+  }
 );
 
 Button.displayName = 'Button';

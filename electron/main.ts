@@ -1,130 +1,107 @@
+// Electron 메인 프로세스
+
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
-import { GilteunServer } from './server/index.js';
-import { databaseManager } from './server/database/connection.js';
+import { createServer } from 'node:http';
+import { createApp } from './server/app.js';
+import { initializeDatabase, closeDatabase } from './server/database/connection.js';
+import { initWebSocketServer } from './server/websocket/server.js';
 
-// The built directory structure
-//
-// ├─┬─┬ dist
-// │ │ └── index.html
-// │ │
-// │ ├─┬ dist-electron
-// │ │ ├── main.js
-// │ │ └── preload.mjs
-// │
-// Use process.cwd() as the base directory
-const APP_ROOT = process.cwd();
-process.env.APP_ROOT = APP_ROOT;
+// 개발/프로덕션 환경 구분
+const isDev = process.env.NODE_ENV === 'development';
 
-// 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
-export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
-export const MAIN_DIST = path.join(APP_ROOT, 'dist-electron');
-export const RENDERER_DIST = path.join(APP_ROOT, 'dist');
+// Express 서버 포트
+const PORT = 3001;
 
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(APP_ROOT, 'public') : RENDERER_DIST;
+let mainWindow: BrowserWindow | null = null;
 
-let win: BrowserWindow | null;
-let server: GilteunServer;
-
-function createWindow() {
-  win = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    title: '길튼 시스템 - 관리자',
-    icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
+// 메인 윈도우 생성
+async function createWindow(): Promise<void> {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 800,
+    minHeight: 600,
     webPreferences: {
-      nodeIntegration: false,
+      preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
-      preload: path.join(MAIN_DIST, 'preload.mjs'),
+      nodeIntegration: false,
     },
+    titleBarStyle: 'hiddenInset', // macOS 스타일
+    show: false, // 준비될 때까지 숨김
   });
 
-  // 개발 모드에서 DevTools 열기
-  if (VITE_DEV_SERVER_URL) {
-    win.webContents.openDevTools();
-  }
-
-  // 서버 정보를 렌더러로 전송
-  win.webContents.on('did-finish-load', () => {
-    const serverInfo = {
-      host: server?.getHost() || 'localhost',
-      port: server?.getPort() || 3001,
-      status: 'running',
-      timestamp: new Date().toISOString(),
-    };
-    win?.webContents.send('server-info', serverInfo);
+  // 준비되면 표시
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
   });
 
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
+  // 개발 환경
+  if (isDev) {
+    await mainWindow.loadURL('http://localhost:5173');
+    mainWindow.webContents.openDevTools();
   } else {
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'));
+    // 프로덕션 환경
+    await mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
-// 서버 시작 및 창 생성
-async function initialize() {
+// 서버 시작
+async function startServer(): Promise<void> {
   try {
     // 데이터베이스 초기화
-    console.log('🔄 데이터베이스 초기화 중...');
-    await databaseManager.initialize();
-    console.log('✅ 데이터베이스 초기화 완료');
+    await initializeDatabase();
 
-    // Express 서버 시작
-    console.log('🔄 서버 시작 중...');
-    server = new GilteunServer(3001);
-    await server.start();
-    console.log('✅ 길튼 시스템 서버가 시작되었습니다');
+    // Express 앱 생성
+    const expressApp = createApp();
 
-    // Electron 창 생성
-    createWindow();
+    // HTTP 서버 생성 (Express + WebSocket 공유)
+    const httpServer = createServer(expressApp);
+
+    // WebSocket 서버 초기화 (HTTP 서버에 연결)
+    initWebSocketServer(httpServer);
+
+    // HTTP 서버 시작
+    httpServer.listen(PORT, () => {
+      console.log(`[Server] HTTP 서버 시작: http://localhost:${PORT}`);
+      console.log(`[Server] WebSocket 경로: ws://localhost:${PORT}/ws`);
+    });
   } catch (error) {
-    console.error('❌ 초기화 실패:', error);
-    app.quit();
+    console.error('[Server] 서버 시작 실패:', error);
+    throw error;
   }
 }
 
-// 서버 종료
-async function shutdown() {
+// 앱 준비 완료
+app.whenReady().then(async () => {
   try {
-    if (server) {
-      console.log('🔄 서버 종료 중...');
-      await server.stop();
-      console.log('✅ 길튼 시스템 서버가 종료되었습니다');
-    }
+    await startServer();
+    await createWindow();
 
-    // 데이터베이스 연결 종료
-    console.log('🔄 데이터베이스 연결 종료 중...');
-    databaseManager.close();
-    console.log('✅ 데이터베이스 연결 종료 완료');
+    // macOS: 모든 창이 닫혀도 앱은 유지
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
   } catch (error) {
-    console.error('❌ 종료 실패:', error);
-  }
-}
-
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', async () => {
-  if (process.platform !== 'darwin') {
-    await shutdown();
+    console.error('[App] 앱 시작 실패:', error);
     app.quit();
-    win = null;
   }
 });
 
-app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+// 모든 창 닫힘
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
   }
 });
 
-app.on('before-quit', async (event) => {
-  event.preventDefault();
-  await shutdown();
-  app.exit(0);
+// 앱 종료 전 정리
+app.on('before-quit', async () => {
+  await closeDatabase();
 });
-
-app.whenReady().then(initialize);

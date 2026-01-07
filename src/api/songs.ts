@@ -1,139 +1,121 @@
-import { ApiClient } from './client';
-import type { Song } from '../types';
+// 찬양 API 훅
 
-/**
- * 찬양 생성 요청 타입
- */
-export interface CreateSongRequest {
-  worshipId: number;
-  title: string;
-  key?: string;
-  memo?: string;
-  order?: number;
-}
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { queryKeys } from '@/lib/query-client';
+import { CONFIG } from '@/constants/config';
+import type { Song, CreateSongRequest, UpdateSongRequest } from '@/types';
 
-/**
- * 찬양 수정 요청 타입
- */
-export type UpdateSongRequest = Partial<Omit<CreateSongRequest, 'worshipId'>>;
-
-/**
- * 악보 업로드 요청 타입
- */
-export interface UploadScoreRequest {
-  songId: number;
-  file: File;
-}
-
-/**
- * 찬양 API 서비스
- * - 찬양 CRUD 작업
- * - 악보 이미지 관리
- */
-export class SongApi {
-  constructor(private client: ApiClient) {}
-
-  /**
-   * 찬양 조회
-   */
-  async getSong(id: number): Promise<Song> {
-    return this.client.get(`/api/songs/${id}`);
-  }
-
-  /**
-   * 찬양 생성
-   */
-  async createSong(data: CreateSongRequest): Promise<Song> {
-    return this.client.post('/api/songs', data);
-  }
-
-  /**
-   * 찬양 수정
-   */
-  async updateSong(id: number, data: UpdateSongRequest): Promise<Song> {
-    return this.client.patch(`/api/songs/${id}`, data);
-  }
-
-  /**
-   * 찬양 삭제
-   */
-  async deleteSong(id: number): Promise<void> {
-    return this.client.delete(`/api/songs/${id}`);
-  }
-
-  /**
-   * 악보 이미지 업로드
-   */
-  async uploadScore(
-    songId: number,
-    file: File,
-  ): Promise<{
-    imagePath: string;
-    originalName: string;
-    size: number;
-  }> {
-    const formData = new FormData();
-    formData.append('score', file);
-    formData.append('songId', songId.toString());
-
-    return this.client.upload(`/api/songs/${songId}/score`, formData);
-  }
-
-  /**
-   * 악보 이미지 삭제
-   */
-  async deleteScore(songId: number): Promise<void> {
-    return this.client.delete(`/api/songs/${songId}/score`);
-  }
-
-  /**
-   * 찬양 검색 (제목, 키, 메모 기준)
-   */
-  async searchSongs(
-    query: string,
-    params?: {
-      worshipId?: number;
-      limit?: number;
+// 예배별 찬양 목록 조회
+export function useSongsByWorship(worshipId: string) {
+  return useQuery({
+    queryKey: queryKeys.songs.byWorship(worshipId),
+    queryFn: async () => {
+      const response = await apiClient.get<Song[]>(`/songs/worship/${worshipId}`);
+      return response.data ?? [];
     },
-  ): Promise<Song[]> {
-    return this.client.get('/api/songs/search', {
-      q: query,
-      ...params,
-    });
-  }
+    enabled: !!worshipId,
+  });
+}
 
-  /**
-   * 인기 찬양 조회 (사용 빈도 기준)
-   */
-  async getPopularSongs(limit: number = 10): Promise<
-    Array<
-      Song & {
-        usageCount: number;
-        lastUsed: string;
+// 찬양 단건 조회
+export function useSong(id: string) {
+  return useQuery({
+    queryKey: queryKeys.songs.detail(id),
+    queryFn: async () => {
+      const response = await apiClient.get<Song>(`/songs/${id}`);
+      return response.data;
+    },
+    enabled: !!id,
+  });
+}
+
+// 찬양 생성
+export function useCreateSong() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateSongRequest) => {
+      const response = await apiClient.post<Song>('/songs', data);
+      return response.data!;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.songs.byWorship(variables.worshipId) });
+    },
+  });
+}
+
+// 찬양 수정
+export function useUpdateSong() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, worshipId: _worshipId, ...data }: UpdateSongRequest & { id: string; worshipId: string }) => {
+      const response = await apiClient.put<Song>(`/songs/${id}`, data);
+      return response.data!;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.songs.byWorship(variables.worshipId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.songs.detail(variables.id) });
+    },
+  });
+}
+
+// 찬양 삭제
+export function useDeleteSong() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/songs/${id}`);
+    },
+    onSuccess: () => {
+      // 모든 찬양 관련 쿼리 무효화
+      queryClient.invalidateQueries({ queryKey: ['songs'] });
+    },
+  });
+}
+
+// 찬양 순서 변경
+export function useReorderSongs() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ worshipId, songIds }: { worshipId: string; songIds: string[] }) => {
+      await apiClient.put(`/songs/worship/${worshipId}/reorder`, { songIds });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.songs.byWorship(variables.worshipId) });
+    },
+  });
+}
+
+// 악보 이미지 업로드
+export function useUploadSongImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ songId, file }: { songId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // API 서버로 직접 요청 (Vite 프록시 아닌 직접 연결)
+      const response = await fetch(`${CONFIG.API_BASE_URL}/songs/${songId}/image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || '이미지 업로드에 실패했습니다.');
       }
-    >
-  > {
-    return this.client.get('/api/songs/popular', { limit });
-  }
 
-  /**
-   * 찬양 복사 (다른 예배로)
-   */
-  async copySong(songId: number, targetWorshipId: number): Promise<Song> {
-    return this.client.post(`/api/songs/${songId}/copy`, {
-      targetWorshipId,
-    });
-  }
-
-  /**
-   * 찬양 통계 조회
-   */
-  async getSongStats(songId: number): Promise<{
-    annotationCount: number;
-    layerCount: number;
-    activeUsers: number;
-    lastModified: string;
-  }> {
-    return this.client.get(`/api/songs/${songId}/stats`);
-  }
+      const result = await response.json();
+      return result.data as Song;
+    },
+    onSuccess: () => {
+      // 모든 찬양 관련 쿼리 무효화
+      queryClient.invalidateQueries({ queryKey: ['songs'] });
+    },
+  });
 }

@@ -1,93 +1,129 @@
-import React, { forwardRef } from 'react';
-import { AlertCircle } from 'lucide-react';
+// 입력 컴포넌트
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+import { InputHTMLAttributes, TextareaHTMLAttributes, forwardRef } from 'react';
+import { cn } from '@/lib/cn';
+
+// Input Props
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
-  helper?: string;
+  hint?: string;
 }
 
-/**
- * iPad 터치 최적화된 입력 컴포넌트
- * - 44px 최소 높이 (Apple 가이드라인)
- * - 라벨, 에러, 도움말 지원
- * - 접근성 최적화
- */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helper, className = '', id, disabled, ...props }, ref) => {
-    // 고유 ID 생성 (접근성)
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
-    const errorId = error ? `${inputId}-error` : undefined;
-    const helperId = helper ? `${inputId}-helper` : undefined;
-
-    const inputClasses = [
-      'block w-full rounded-lg border px-3 py-3',
-      'text-base leading-tight', // iPad 확대 방지
-      'transition-colors duration-200',
-      'focus:outline-none focus:ring-2 focus:ring-offset-1',
-      'disabled:opacity-50 disabled:cursor-not-allowed',
-      'min-h-[44px]', // Apple 가이드라인
-
-      // 상태별 스타일
-      error
-        ? 'border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500'
-        : 'border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-blue-500',
-
-      // 배경색
-      disabled ? 'bg-gray-50' : 'bg-white',
-
-      className,
-    ].join(' ');
+  ({ className, label, error, hint, id, ...props }, ref) => {
+    const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
 
     return (
-      <div className="space-y-1">
-        {/* 라벨 */}
+      <div className="w-full">
         {label && (
-          <label
-            htmlFor={inputId}
-            className={`block text-sm leading-6 font-medium ${error ? 'text-red-700' : 'text-gray-700'}`}
-          >
+          <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-gray-700">
             {label}
           </label>
         )}
-
-        {/* 입력 필드 */}
-        <div className="relative">
-          <input
-            ref={ref}
-            id={inputId}
-            className={inputClasses}
-            disabled={disabled}
-            aria-describedby={[errorId, helperId].filter(Boolean).join(' ') || undefined}
-            aria-invalid={error ? 'true' : undefined}
-            {...props}
-          />
-
-          {/* 에러 아이콘 */}
-          {error && (
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-              <AlertCircle className="h-5 w-5 text-red-500" />
-            </div>
+        <input
+          ref={ref}
+          id={inputId}
+          className={cn(
+            'w-full rounded-lg border px-3 py-2 text-base transition-colors',
+            'placeholder:text-gray-400',
+            'focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
+            'disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50',
+            error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-300',
+            className
           )}
-        </div>
-
-        {/* 에러 메시지 */}
-        {error && (
-          <p id={errorId} className="flex items-center gap-1 text-sm text-red-600">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            {error}
-          </p>
-        )}
-
-        {/* 도움말 텍스트 */}
-        {helper && !error && (
-          <p id={helperId} className="text-sm text-gray-600">
-            {helper}
-          </p>
-        )}
+          {...props}
+        />
+        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        {hint && !error && <p className="mt-1 text-sm text-gray-500">{hint}</p>}
       </div>
     );
-  },
+  }
 );
 
 Input.displayName = 'Input';
+
+// Textarea Props
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string;
+  error?: string;
+  hint?: string;
+}
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, label, error, hint, id, ...props }, ref) => {
+    const textareaId = id || label?.toLowerCase().replace(/\s/g, '-');
+
+    return (
+      <div className="w-full">
+        {label && (
+          <label htmlFor={textareaId} className="mb-1.5 block text-sm font-medium text-gray-700">
+            {label}
+          </label>
+        )}
+        <textarea
+          ref={ref}
+          id={textareaId}
+          className={cn(
+            'w-full rounded-lg border px-3 py-2 text-base transition-colors',
+            'placeholder:text-gray-400',
+            'focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
+            'disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50',
+            'resize-none',
+            error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-300',
+            className
+          )}
+          {...props}
+        />
+        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        {hint && !error && <p className="mt-1 text-sm text-gray-500">{hint}</p>}
+      </div>
+    );
+  }
+);
+
+Textarea.displayName = 'Textarea';
+
+// Select Props
+interface SelectProps extends InputHTMLAttributes<HTMLSelectElement> {
+  label?: string;
+  error?: string;
+  options: { value: string; label: string }[];
+}
+
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
+  ({ className, label, error, options, id, ...props }, ref) => {
+    const selectId = id || label?.toLowerCase().replace(/\s/g, '-');
+
+    return (
+      <div className="w-full">
+        {label && (
+          <label htmlFor={selectId} className="mb-1.5 block text-sm font-medium text-gray-700">
+            {label}
+          </label>
+        )}
+        <select
+          ref={ref}
+          id={selectId}
+          className={cn(
+            'w-full rounded-lg border px-3 py-2 text-base transition-colors',
+            'focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
+            'disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50',
+            error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-gray-300',
+            className
+          )}
+          {...props}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      </div>
+    );
+  }
+);
+
+Select.displayName = 'Select';
