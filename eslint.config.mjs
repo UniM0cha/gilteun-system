@@ -1,47 +1,32 @@
-// ESLint 9 Flat Config
+import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import reactRefresh from 'eslint-plugin-react-refresh';
-import configPrettier from 'eslint-config-prettier';
 import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
 
-export default [
+export default tseslint.config(
   {
-    ignores: ['dist/**', 'dist-electron/**', 'out/**', 'node_modules/**', '_backup/**', 'gilteun-system-ui-mockup.tsx', 'public/sw.js'],
+    ignores: ['dist/**', 'out/**', 'node_modules/**', 'release/**'],
   },
-  // TypeScript ESLint recommended
+  js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['**/*.{ts,tsx}'],
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-      },
-    },
+    files: ['src/**/*.{ts,tsx}'],
     plugins: {
-      'react-refresh': reactRefresh,
       'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
     },
     rules: {
-      'react-refresh/only-export-components': 'off',
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
+      ...reactHooks.configs.recommended.rules,
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {
-    files: ['tests/**/*.ts'],
+    files: ['electron/**/*.ts'],
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-var-requires': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'error',
     },
-  },
-  {
-    files: ['src/utils/performanceBenchmark.ts'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
-  },
-  configPrettier,
-];
+  }
+);

@@ -1,39 +1,24 @@
-// @see - https://www.electron.build/configuration/configuration
 {
-  $schema: 'https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json',
-  appId: 'com.solstice.giltuen_system',
-  asar: true,
-  productName: '길튼 시스템',
-  directories: {
-    output: 'release/${version}',
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.gilteun.system",
+  "productName": "Gilteun System",
+  "directories": {
+    "output": "release/${version}"
   },
-  files: ['dist', 'dist-electron'],
-  mac: {
-    target: [
-      {
-        target: 'dmg',
-        arch: 'universal',
-      },
-    ],
-    artifactName: '${productName}-Mac-${version}-Installer.${ext}',
+  "files": [
+    "out/**/*"
+  ],
+  "mac": {
+    "target": ["dmg", "zip"],
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "category": "public.app-category.productivity"
   },
-  win: {
-    target: [
-      {
-        target: 'nsis',
-        arch: ['x64'],
-      },
-    ],
-    artifactName: '${productName}-Windows-${version}-Setup.${ext}',
+  "win": {
+    "target": ["nsis", "portable"],
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   },
-  nsis: {
-    oneClick: false,
-    perMachine: false,
-    allowToChangeInstallationDirectory: true,
-    deleteAppDataOnUninstall: false,
-  },
-  linux: {
-    target: ['AppImage'],
-    artifactName: '${productName}-Linux-${version}.${ext}',
-  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
 }

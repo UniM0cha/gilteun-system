@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#1f2937"/>
+  <g fill="#60a5fa">
+    <!-- 음표 -->
+    <ellipse cx="180" cy="360" rx="50" ry="40"/>
+    <rect x="220" y="140" width="16" height="220"/>
+    <ellipse cx="360" cy="320" rx="50" ry="40"/>
+    <rect x="400" y="100" width="16" height="220"/>
+    <rect x="220" y="100" width="196" height="16"/>
+    <!-- 십자가 -->
+    <rect x="246" y="420" width="20" height="60" fill="#fbbf24"/>
+    <rect x="231" y="435" width="50" height="15" fill="#fbbf24"/>
+  </g>
+</svg>

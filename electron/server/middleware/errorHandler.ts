@@ -1,40 +1,57 @@
-import { NextFunction, Request, Response } from 'express';
-import { logger } from '../utils/logger';
+// 에러 핸들러 미들웨어
 
-export interface AppError extends Error {
-  statusCode?: number;
-  isOperational?: boolean;
+import { Request, Response, NextFunction } from 'express';
+
+// 커스텀 에러 클래스
+export class AppError extends Error {
+  statusCode: number;
+  isOperational: boolean;
+
+  constructor(message: string, statusCode: number = 500) {
+    super(message);
+    this.statusCode = statusCode;
+    this.isOperational = true;
+
+    Error.captureStackTrace(this, this.constructor);
+  }
 }
 
-export const errorHandler = (error: AppError, req: Request, res: Response, _next: NextFunction): void => {
-  // Express 에러 미들웨어 시그니처 유지 목적의 인자 사용 처리
-  void _next;
-  const statusCode = error.statusCode || 500;
-  const message = error.message || '내부 서버 오류가 발생했습니다';
+// 404 에러 핸들러
+export function notFoundHandler(_req: Request, _res: Response, next: NextFunction): void {
+  next(new AppError('요청한 리소스를 찾을 수 없습니다.', 404));
+}
 
-  // 오류 로깅
-  logger.error('서버 오류', {
-    message: error.message,
-    stack: error.stack,
-    statusCode,
-    path: req.path,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-  });
+// 전역 에러 핸들러
+export function errorHandler(
+  err: Error,
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+): void {
+  // 기본값
+  let statusCode = 500;
+  let message = '서버 내부 오류가 발생했습니다.';
 
-  // 클라이언트에게 응답
+  // AppError인 경우
+  if (err instanceof AppError) {
+    statusCode = err.statusCode;
+    message = err.message;
+  } else if (err.message) {
+    // 일반 에러 (비즈니스 로직에서 던진 에러)
+    statusCode = 400;
+    message = err.message;
+  }
+
+  // 개발 환경에서만 스택 트레이스 출력
+  if (process.env.NODE_ENV === 'development') {
+    console.error('[Error]', err);
+  }
+
   res.status(statusCode).json({
-    error: statusCode >= 500 ? 'Internal Server Error' : 'Client Error',
-    message,
-    timestamp: new Date().toISOString(),
-    path: req.path,
-    ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+    success: false,
+    error: {
+      message,
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    },
   });
-};
-
-export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => unknown) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-};
+}

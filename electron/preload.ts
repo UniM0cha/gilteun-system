@@ -1,24 +1,29 @@
+// Electron Preload 스크립트
+// 메인 프로세스와 렌더러 프로세스 간 안전한 통신을 위한 브릿지
+
 import { contextBridge, ipcRenderer } from 'electron';
 
-// --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld('ipcRenderer', {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args;
-    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args));
-  },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.off(channel, ...omit);
-  },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.send(channel, ...omit);
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args;
-    return ipcRenderer.invoke(channel, ...omit);
-  },
+// 렌더러에 노출할 API
+const electronAPI = {
+  // 앱 정보
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
 
-  // You can expose other APTs you need here.
-  // ...
-});
+  // 플랫폼 정보
+  platform: process.platform,
+
+  // 파일 대화상자 (추후 구현)
+  openFileDialog: (): Promise<string | null> => ipcRenderer.invoke('dialog:openFile'),
+
+  // 디렉토리 대화상자 (추후 구현)
+  openDirectoryDialog: (): Promise<string | null> => ipcRenderer.invoke('dialog:openDirectory'),
+};
+
+// 안전하게 렌더러에 노출
+contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+
+// TypeScript 타입 정의 (렌더러에서 사용)
+declare global {
+  interface Window {
+    electronAPI: typeof electronAPI;
+  }
+}
