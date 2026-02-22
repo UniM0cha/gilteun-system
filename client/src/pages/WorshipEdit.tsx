@@ -402,7 +402,7 @@ export default function WorshipEdit() {
             <h2 className="text-xl font-bold text-slate-800 mb-6">예배 정보</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="min-w-0">
+              <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4" />
@@ -418,7 +418,7 @@ export default function WorshipEdit() {
                 />
               </div>
 
-              <div className="min-w-0">
+              <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
@@ -429,11 +429,11 @@ export default function WorshipEdit() {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="text-lg"
+                  className="text-lg appearance-none"
                 />
               </div>
 
-              <div className="min-w-0">
+              <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <Tag className="w-4 h-4" />

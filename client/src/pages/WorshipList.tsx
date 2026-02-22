@@ -21,6 +21,8 @@ export default function WorshipList() {
 
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
 
   // 프로필 미선택 시 홈으로 리다이렉트
   useEffect(() => {
@@ -34,10 +36,21 @@ export default function WorshipList() {
     ? roles.find((r) => r.id === currentProfile.roleId)
     : undefined;
 
+  // 데이터에서 연도 목록 추출
+  const availableYears = [...new Set(worships.map((w) => new Date(w.date).getFullYear()))]
+    .sort((a, b) => b - a);
+
   const filteredWorships = worships.filter((worship) => {
     const matchesType = !selectedTypeId || worship.typeId === selectedTypeId;
     const matchesSearch = worship.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesSearch;
+    const matchesDate = (() => {
+      if (!selectedYear) return true;
+      const worshipDate = new Date(worship.date);
+      if (worshipDate.getFullYear() !== parseInt(selectedYear)) return false;
+      if (selectedMonth && worshipDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
+      return true;
+    })();
+    return matchesType && matchesSearch && matchesDate;
   });
 
   const formatDate = (dateString: string) => {
@@ -59,7 +72,7 @@ export default function WorshipList() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-5xl mx-auto">
         {/* 헤더 */}
         <div className="flex items-center gap-4 mb-8">
@@ -122,7 +135,7 @@ export default function WorshipList() {
             </div>
 
             {/* 예배 유형 필터 */}
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-semibold text-slate-700 mb-2">예배 유형</label>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -152,6 +165,46 @@ export default function WorshipList() {
                     </Button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* 날짜 필터 */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">날짜</label>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    setSelectedYear(e.target.value);
+                    if (!e.target.value) setSelectedMonth('');
+                  }}
+                  className="px-4 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm transition-colors"
+                >
+                  <option value="">전체 연도</option>
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>{year}년</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  disabled={!selectedYear}
+                  className="px-4 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">전체 월</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                    <option key={month} value={month}>{month}월</option>
+                  ))}
+                </select>
+                {(selectedYear || selectedMonth) && (
+                  <button
+                    onClick={() => { setSelectedYear(''); setSelectedMonth(''); }}
+                    className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                    title="날짜 필터 초기화"
+                  >
+                    <X className="w-4 h-4 text-slate-500" />
+                  </button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -240,14 +293,14 @@ export default function WorshipList() {
                 <Music className="w-12 h-12 text-slate-400" />
               </div>
               <h3 className="text-2xl font-bold text-slate-800 mb-2">
-                {searchQuery || selectedTypeId ? '검색 결과가 없습니다' : '아직 예배가 없습니다'}
+                {searchQuery || selectedTypeId || selectedYear ? '검색 결과가 없습니다' : '아직 예배가 없습니다'}
               </h3>
               <p className="text-slate-600 mb-8">
-                {searchQuery || selectedTypeId
+                {searchQuery || selectedTypeId || selectedYear
                   ? '다른 검색어나 필터를 시도해보세요'
                   : '새 예배를 만들어 악보를 추가하세요'}
               </p>
-              {!searchQuery && !selectedTypeId && (
+              {!searchQuery && !selectedTypeId && !selectedYear && (
                 <Button size="lg" asChild>
                   <Link to="/worship-edit/new">
                     <Plus className="w-5 h-5" />
@@ -262,19 +315,19 @@ export default function WorshipList() {
         {/* 통계 */}
         {worships.length > 0 && (
           <div className="mt-6 grid grid-cols-3 gap-4">
-            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 p-6">
+            <Card className="bg-linear-to-br from-blue-50 to-blue-100 border-2 border-blue-200 p-6">
               <CardContent className="p-0">
                 <div className="text-sm font-semibold text-blue-700 mb-1">전체 예배</div>
                 <div className="text-3xl font-bold text-blue-900">{worships.length}개</div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 p-6">
+            <Card className="bg-linear-to-br from-green-50 to-green-100 border-2 border-green-200 p-6">
               <CardContent className="p-0">
                 <div className="text-sm font-semibold text-green-700 mb-1">필터링된 예배</div>
                 <div className="text-3xl font-bold text-green-900">{filteredWorships.length}개</div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 p-6">
+            <Card className="bg-linear-to-br from-purple-50 to-purple-100 border-2 border-purple-200 p-6">
               <CardContent className="p-0">
                 <div className="text-sm font-semibold text-purple-700 mb-1">예배 유형</div>
                 <div className="text-3xl font-bold text-purple-900">{worshipTypes.length}개</div>
