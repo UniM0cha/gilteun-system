@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Save, Trash2, User } from 'lucide-react';
-import { useProfileStore } from '@/store/profileStore';
-import { useRoleStore } from '@/store/roleStore';
+import { ArrowLeft, Save, Trash2, User, Users } from 'lucide-react';
+import { useProfiles, useAddProfile, useUpdateProfile, useDeleteProfile, useRoles } from '@/hooks/queries';
 import { PROFILE_COLORS } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +11,11 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 export default function ProfileEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profiles, addProfile, updateProfile, deleteProfile, fetchProfiles } =
-    useProfileStore();
-  const { roles, fetchRoles } = useRoleStore();
+  const { data: profiles = [] } = useProfiles();
+  const { data: roles = [] } = useRoles();
+  const addProfileMutation = useAddProfile();
+  const updateProfileMutation = useUpdateProfile();
+  const deleteProfileMutation = useDeleteProfile();
 
   const isNewProfile = id === 'new';
   const existingProfile = isNewProfile
@@ -24,11 +25,6 @@ export default function ProfileEdit() {
   const [name, setName] = useState('');
   const [roleId, setRoleId] = useState('');
   const [color, setColor] = useState('bg-blue-500');
-
-  useEffect(() => {
-    fetchProfiles();
-    fetchRoles();
-  }, [fetchProfiles, fetchRoles]);
 
   useEffect(() => {
     if (existingProfile) {
@@ -48,16 +44,16 @@ export default function ProfileEdit() {
       return;
     }
     if (isNewProfile) {
-      await addProfile({ name: name.trim(), roleId, color });
+      await addProfileMutation.mutateAsync({ name: name.trim(), roleId, color });
     } else if (id) {
-      await updateProfile(id, { name: name.trim(), roleId, color });
+      await updateProfileMutation.mutateAsync({ id, name: name.trim(), roleId, color });
     }
     navigate('/profile-setup');
   };
 
   const handleDelete = async () => {
     if (id && !isNewProfile) {
-      await deleteProfile(id);
+      await deleteProfileMutation.mutateAsync(id);
       navigate('/profile-setup');
     }
   };
@@ -114,22 +110,38 @@ export default function ProfileEdit() {
               <label className="block text-sm font-semibold text-slate-700 mb-3">
                 역할 *
               </label>
-              <div className="grid grid-cols-3 gap-3">
-                {roles.map((role) => (
-                  <button
-                    key={role.id}
-                    onClick={() => setRoleId(role.id)}
-                    className={`flex items-center justify-center gap-2 py-4 rounded-xl font-semibold transition-all ${
-                      roleId === role.id
-                        ? 'bg-blue-600 text-white shadow-lg scale-105'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    <span className="text-2xl">{role.icon}</span>
-                    <span>{role.name}</span>
-                  </button>
-                ))}
-              </div>
+              {roles.length > 0 ? (
+                <div className="grid grid-cols-3 gap-3">
+                  {roles.map((role) => (
+                    <button
+                      key={role.id}
+                      onClick={() => setRoleId(role.id)}
+                      className={`flex items-center justify-center gap-2 py-4 rounded-xl font-semibold transition-all ${
+                        roleId === role.id
+                          ? 'bg-blue-600 text-white shadow-lg scale-105'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span className="text-2xl">{role.icon}</span>
+                      <span>{role.name}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full px-5 py-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl text-yellow-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-5 h-5" />
+                    <span className="font-semibold">역할이 없습니다</span>
+                  </div>
+                  <p className="text-sm mb-3">먼저 역할을 생성해주세요.</p>
+                  <Button asChild size="sm" className="bg-yellow-600 hover:bg-yellow-700">
+                    <Link to="/role-management">
+                      <Users className="w-4 h-4" />
+                      역할 관리
+                    </Link>
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* 색상 선택 */}
@@ -154,7 +166,12 @@ export default function ProfileEdit() {
 
             {/* 액션 */}
             <div className="flex gap-4">
-              <Button size="lg" className="flex-1" onClick={handleSave}>
+              <Button
+                size="lg"
+                className="flex-1"
+                onClick={handleSave}
+                disabled={roles.length === 0}
+              >
                 <Save className="w-5 h-5" />
                 저장하기
               </Button>

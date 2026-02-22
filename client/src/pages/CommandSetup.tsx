@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, Plus, Trash2, RotateCcw, Save } from 'lucide-react';
-import { useCommandStore } from '@/store/commandStore';
+import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Settings } from 'lucide-react';
+import { useCommands, useAddCommand, useDeleteCommand, useResetCommands } from '@/hooks/queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,19 +17,18 @@ import {
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function CommandSetup() {
-  const { commands, addCommand, deleteCommand, resetToDefault, fetchCommands } =
-    useCommandStore();
+  const { data: commands = [] } = useCommands();
+  const addCommandMutation = useAddCommand();
+  const deleteCommandMutation = useDeleteCommand();
+  const resetCommandsMutation = useResetCommands();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newEmoji, setNewEmoji] = useState('🎵');
   const [newLabel, setNewLabel] = useState('');
 
-  useEffect(() => {
-    fetchCommands();
-  }, [fetchCommands]);
-
   const handleAdd = async () => {
     if (newLabel.trim()) {
-      await addCommand(newEmoji, newLabel.trim());
+      await addCommandMutation.mutateAsync({ emoji: newEmoji, label: newLabel.trim() });
       setNewLabel('');
       setNewEmoji('🎵');
       setDialogOpen(false);
@@ -64,7 +63,7 @@ export default function CommandSetup() {
             title="명령 초기화"
             description="기본 명령으로 초기화하시겠습니까?"
             confirmLabel="초기화"
-            onConfirm={resetToDefault}
+            onConfirm={() => resetCommandsMutation.mutate()}
             destructive
           />
         </div>
@@ -145,41 +144,69 @@ export default function CommandSetup() {
               </Dialog>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {commands.map((command) => (
-                <Card
-                  key={command.id}
-                  className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 shadow-md border-2 border-transparent"
-                >
-                  <CardContent className="p-0">
-                    <div className="flex flex-col items-center gap-3 mb-3">
-                      <span className="text-6xl">{command.emoji}</span>
-                      <span className="text-sm font-semibold text-slate-700 text-center">
-                        {command.label}
-                      </span>
-                      {command.isDefault && (
-                        <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs font-semibold rounded-full">
-                          기본 명령
+            {commands.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {commands.map((command) => (
+                  <Card
+                    key={command.id}
+                    className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 shadow-md border-2 border-transparent"
+                  >
+                    <CardContent className="p-0">
+                      <div className="flex flex-col items-center gap-3 mb-3">
+                        <span className="text-6xl">{command.emoji}</span>
+                        <span className="text-sm font-semibold text-slate-700 text-center">
+                          {command.label}
                         </span>
-                      )}
-                    </div>
-                    <ConfirmDialog
-                      trigger={
-                        <Button variant="destructive" className="w-full border-2 border-red-200">
-                          <Trash2 className="w-4 h-4" />
-                          <span className="text-sm font-semibold">삭제</span>
-                        </Button>
-                      }
-                      title="명령 삭제"
-                      description={`"${command.label}" 명령을 삭제하시겠습니까?`}
-                      confirmLabel="삭제"
-                      onConfirm={() => deleteCommand(command.id)}
-                      destructive
-                    />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                        {command.isDefault && (
+                          <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs font-semibold rounded-full">
+                            기본 명령
+                          </span>
+                        )}
+                      </div>
+                      <ConfirmDialog
+                        trigger={
+                          <Button variant="destructive" className="w-full border-2 border-red-200">
+                            <Trash2 className="w-4 h-4" />
+                            <span className="text-sm font-semibold">삭제</span>
+                          </Button>
+                        }
+                        title="명령 삭제"
+                        description={`"${command.label}" 명령을 삭제하시겠습니까?`}
+                        confirmLabel="삭제"
+                        onConfirm={() => deleteCommandMutation.mutate(command.id)}
+                        destructive
+                      />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
+                <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Settings className="w-8 h-8 text-slate-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-700 mb-2">
+                  아직 명령이 없습니다
+                </h3>
+                <p className="text-slate-500 mb-6">
+                  새 명령을 추가하거나 초기화 버튼으로 기본 명령을 불러오세요
+                </p>
+                <div className="flex items-center justify-center gap-3">
+                  <Button onClick={() => setDialogOpen(true)}>
+                    <Plus className="w-5 h-5" />
+                    새 명령 추가
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="bg-orange-50 text-orange-600 hover:bg-orange-100"
+                    onClick={() => resetCommandsMutation.mutate()}
+                  >
+                    <RotateCcw className="w-5 h-5" />
+                    기본 명령 초기화
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

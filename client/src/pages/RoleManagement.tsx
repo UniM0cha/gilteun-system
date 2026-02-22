@@ -1,32 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, Plus, Edit, Trash2, Check, X, AlertCircle } from 'lucide-react';
-import { useRoleStore } from '@/store/roleStore';
-import { useProfileStore } from '@/store/profileStore';
+import { ArrowLeft, Plus, Edit, Trash2, Check, X, AlertCircle, Users } from 'lucide-react';
+import { useRoles, useAddRole, useUpdateRole, useDeleteRole } from '@/hooks/queries';
+import { useProfiles } from '@/hooks/queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function RoleManagement() {
-  const { roles, addRole, updateRole, deleteRole, fetchRoles } = useRoleStore();
-  const { profiles, fetchProfiles } = useProfileStore();
+  const { data: roles = [] } = useRoles();
+  const { data: profiles = [] } = useProfiles();
+  const addRoleMutation = useAddRole();
+  const updateRoleMutation = useUpdateRole();
+  const deleteRoleMutation = useDeleteRole();
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', icon: '' });
-
-  useEffect(() => {
-    fetchRoles();
-    fetchProfiles();
-  }, [fetchRoles, fetchProfiles]);
 
   const isRoleInUse = (roleId: string) =>
     profiles.some((p) => p.roleId === roleId);
 
   const handleAdd = async () => {
     if (!formData.name.trim() || !formData.icon.trim()) return;
-    await addRole(formData.name, formData.icon);
+    await addRoleMutation.mutateAsync({ name: formData.name, icon: formData.icon });
     setFormData({ name: '', icon: '' });
     setIsAdding(false);
   };
@@ -41,13 +39,17 @@ export default function RoleManagement() {
 
   const handleUpdate = async () => {
     if (!editingId || !formData.name.trim() || !formData.icon.trim()) return;
-    await updateRole(editingId, formData.name, formData.icon);
+    await updateRoleMutation.mutateAsync({ id: editingId, name: formData.name, icon: formData.icon });
     setEditingId(null);
     setFormData({ name: '', icon: '' });
   };
 
   const handleDelete = async (id: string) => {
-    await deleteRole(id);
+    if (isRoleInUse(id)) {
+      alert('이 역할을 사용하는 프로필이 있습니다. 먼저 프로필의 역할을 변경해주세요.');
+      return;
+    }
+    await deleteRoleMutation.mutateAsync(id);
   };
 
   const handleCancel = () => {
@@ -121,6 +123,7 @@ export default function RoleManagement() {
         )}
 
         {/* 역할 목록 */}
+        {roles.length > 0 ? (
         <div className="space-y-3">
           {roles.map((role) => {
             const inUse = isRoleInUse(role.id);
@@ -220,6 +223,23 @@ export default function RoleManagement() {
             );
           })}
         </div>
+        ) : (
+          <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
+            <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-700 mb-2">
+              아직 역할이 없습니다
+            </h3>
+            <p className="text-slate-500 mb-6">
+              새 역할 추가 버튼을 눌러 역할을 만드세요
+            </p>
+            <Button onClick={() => setIsAdding(true)}>
+              <Plus className="w-5 h-5" />
+              새 역할 추가
+            </Button>
+          </div>
+        )}
 
         {roles.length > 0 && (
           <Card className="mt-6 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">

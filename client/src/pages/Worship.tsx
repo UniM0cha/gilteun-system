@@ -23,10 +23,9 @@ import { useSwipeable } from 'react-swipeable';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useWorshipStore, type Sheet } from '@/store/worshipStore';
-import { useCommandStore } from '@/store/commandStore';
-import { useProfileStore } from '@/store/profileStore';
-import { useRoleStore } from '@/store/roleStore';
+import { useWorship, useCommands, useProfiles, useRoles } from '@/hooks/queries';
+import { useAppStore } from '@/store/appStore';
+import { useWorshipSocket } from '@/hooks/useWorshipSocket';
 import SheetCanvas, { type SheetCanvasRef, type EraserType } from '@/components/SheetCanvas';
 import { useDrawingSync } from '@/hooks/useDrawingSync';
 import { getSocket } from '@/hooks/useSocket';
@@ -53,18 +52,12 @@ export default function Worship() {
   const navigate = useNavigate();
   const canvasRef = useRef<SheetCanvasRef>(null);
 
-  const { fetchWorship } = useWorshipStore();
-  const { commands, fetchCommands } = useCommandStore();
-  const { currentProfileId, profiles, fetchProfiles } = useProfileStore();
-  const { roles, fetchRoles } = useRoleStore();
+  const { data: worshipData } = useWorship(id);
+  const { data: commands = [] } = useCommands();
+  const { data: profiles = [] } = useProfiles();
+  const { data: roles = [] } = useRoles();
+  const currentProfileId = useAppStore((s) => s.currentProfileId);
 
-  const [worship, setWorship] = useState<{
-    id: string;
-    title: string;
-    date: string;
-    typeId: string;
-    sheets: Sheet[];
-  } | null>(null);
   const [currentSheetId, setCurrentSheetId] = useState<string | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#000000');
@@ -78,11 +71,19 @@ export default function Worship() {
   const currentProfile = profiles.find((p) => p.id === currentProfileId);
   const currentRole = currentProfile ? roles.find((r) => r.id === currentProfile.roleId) : null;
 
-  const sheets = worship?.sheets || [];
+  const sheets = worshipData?.sheets || [];
   const currentSheet = sheets.find((s) => s.id === currentSheetId) || null;
   const currentPage = sheets.findIndex((s) => s.id === currentSheetId);
 
   const socket = getSocket();
+
+  // Socket.IO + TanStack Query 브릿지 (sheets:updated, worship:updated)
+  useWorshipSocket(id, (updatedSheets) => {
+    // 현재 보는 악보가 삭제되면 첫 번째로 이동
+    if (currentSheetId && !updatedSheets.find((s) => s.id === currentSheetId)) {
+      setCurrentSheetId(updatedSheets[0]?.id || null);
+    }
+  });
 
   // 드로잉 동기화 훅
   const {
@@ -106,24 +107,12 @@ export default function Worship() {
     }
   }, [currentProfileId, navigate]);
 
-  // 데이터 로드
+  // worshipData 로드 시 첫 번째 시트 선택
   useEffect(() => {
-    fetchCommands();
-    fetchProfiles();
-    fetchRoles();
-  }, [fetchCommands, fetchProfiles, fetchRoles]);
-
-  useEffect(() => {
-    if (!id) return;
-    fetchWorship(id).then((w) => {
-      if (w) {
-        setWorship(w);
-        if (w.sheets.length > 0 && !currentSheetId) {
-          setCurrentSheetId(w.sheets[0].id);
-        }
-      }
-    });
-  }, [id, fetchWorship]);
+    if (worshipData && worshipData.sheets.length > 0 && !currentSheetId) {
+      setCurrentSheetId(worshipData.sheets[0].id);
+    }
+  }, [worshipData, currentSheetId]);
 
   // Socket: 예배 입장/퇴장
   useEffect(() => {
@@ -142,7 +131,7 @@ export default function Worship() {
     socket.emit('page:change', { worshipId: id, sheetId: currentSheetId });
   }, [id, currentSheetId, socket]);
 
-  // Socket: 접속자 현황 + 명령 + 스포트라이트 + 예배 업데이트
+  // Socket: 접속자 현황 + 명령 + 스포트라이트
   useEffect(() => {
     const handlePresence = (data: { worshipId: string; users: PresenceUser[] }) => {
       if (data.worshipId === id) {
@@ -210,40 +199,16 @@ export default function Worship() {
       );
     };
 
-    const handleSheetsUpdated = (data: { worshipId: string; sheets: Sheet[] }) => {
-      if (data.worshipId !== id) return;
-      setWorship((prev) => {
-        if (!prev) return prev;
-        return { ...prev, sheets: data.sheets };
-      });
-      // 현재 보는 악보가 삭제되면 첫 번째로 이동
-      if (currentSheetId && !data.sheets.find((s) => s.id === currentSheetId)) {
-        setCurrentSheetId(data.sheets[0]?.id || null);
-      }
-    };
-
-    const handleWorshipUpdated = (data: { worshipId: string; worship: any }) => {
-      if (data.worshipId !== id) return;
-      setWorship((prev) => {
-        if (!prev) return prev;
-        return { ...prev, ...data.worship };
-      });
-    };
-
     socket.on('presence:update', handlePresence);
     socket.on('command:received', handleCommand);
     socket.on('page:spotlight', handleSpotlight);
-    socket.on('sheets:updated', handleSheetsUpdated);
-    socket.on('worship:updated', handleWorshipUpdated);
 
     return () => {
       socket.off('presence:update', handlePresence);
       socket.off('command:received', handleCommand);
       socket.off('page:spotlight', handleSpotlight);
-      socket.off('sheets:updated', handleSheetsUpdated);
-      socket.off('worship:updated', handleWorshipUpdated);
     };
-  }, [id, currentSheetId, socket]);
+  }, [id, socket]);
 
   const goToPage = useCallback(
     (index: number) => {
@@ -314,7 +279,7 @@ export default function Worship() {
             <Menu className="w-6 h-6" />
           </Button>
           <div className="h-8 w-px bg-slate-600" />
-          <h1 className="text-xl font-bold text-white">{worship?.title || '예배'}</h1>
+          <h1 className="text-xl font-bold text-white">{worshipData?.title || '예배'}</h1>
         </div>
 
         <div className="flex items-center gap-3">

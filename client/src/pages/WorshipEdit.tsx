@@ -18,7 +18,17 @@ import {
 } from 'lucide-react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { useWorshipStore, type Sheet } from '@/store/worshipStore';
+import {
+  useWorship,
+  useWorshipTypes,
+  useAddWorship,
+  useUpdateWorship,
+  useAddSheet,
+  useUpdateSheet,
+  useDeleteSheet,
+  useReorderSheets,
+} from '@/hooks/queries';
+import type { Sheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -204,17 +214,14 @@ export default function WorshipEdit() {
   const isNew = id === 'new';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    worshipTypes,
-    fetchWorship,
-    fetchWorshipTypes,
-    addWorship,
-    updateWorship,
-    addSheet,
-    updateSheet,
-    deleteSheet,
-    reorderSheets,
-  } = useWorshipStore();
+  const { data: worshipData } = useWorship(isNew ? undefined : id);
+  const { data: worshipTypes = [] } = useWorshipTypes();
+  const addWorshipMutation = useAddWorship();
+  const updateWorshipMutation = useUpdateWorship();
+  const addSheetMutation = useAddSheet();
+  const updateSheetMutation = useUpdateSheet();
+  const deleteSheetMutation = useDeleteSheet();
+  const reorderSheetsMutation = useReorderSheets();
 
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
@@ -225,23 +232,16 @@ export default function WorshipEdit() {
   const [worshipId, setWorshipId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // 기존 예배 데이터 로드
   useEffect(() => {
-    fetchWorshipTypes();
-  }, [fetchWorshipTypes]);
-
-  useEffect(() => {
-    if (!isNew && id) {
-      fetchWorship(id).then((worship) => {
-        if (worship) {
-          setTitle(worship.title);
-          setDate(worship.date);
-          setTypeId(worship.typeId);
-          setSheets(worship.sheets || []);
-          setWorshipId(worship.id);
-        }
-      });
+    if (worshipData) {
+      setTitle(worshipData.title);
+      setDate(worshipData.date);
+      setTypeId(worshipData.typeId);
+      setSheets(worshipData.sheets || []);
+      setWorshipId(worshipData.id);
     }
-  }, [id, isNew, fetchWorship]);
+  }, [worshipData]);
 
   // 새 예배일 때 기본 유형 설정
   useEffect(() => {
@@ -273,21 +273,19 @@ export default function WorshipEdit() {
         alert('악보를 추가하려면 먼저 예배 날짜를 선택해주세요.');
         return;
       }
-      const worship = await addWorship(title.trim(), date, typeId);
-      if (!worship) {
-        alert('예배 생성에 실패했습니다.');
-        return;
-      }
+      const worship = await addWorshipMutation.mutateAsync({ title: title.trim(), date, typeId });
       currentWorshipId = worship.id;
       setWorshipId(worship.id);
     }
 
     for (const file of imageFiles) {
       const sheetTitle = file.name.replace(/\.[^/.]+$/, '');
-      const sheet = await addSheet(currentWorshipId, file, sheetTitle);
-      if (sheet) {
-        setSheets((prev) => [...prev, sheet]);
-      }
+      const sheet = await addSheetMutation.mutateAsync({
+        worshipId: currentWorshipId,
+        file,
+        title: sheetTitle,
+      });
+      setSheets((prev) => [...prev, sheet]);
     }
 
     if (fileInputRef.current) {
@@ -296,7 +294,7 @@ export default function WorshipEdit() {
   };
 
   const handleDeleteSheet = async (sheetId: string) => {
-    await deleteSheet(sheetId);
+    await deleteSheetMutation.mutateAsync(sheetId);
     setSheets((prev) => prev.filter((s) => s.id !== sheetId));
   };
 
@@ -312,7 +310,7 @@ export default function WorshipEdit() {
       alert('제목을 입력해주세요.');
       return;
     }
-    await updateSheet(editingSheetId, trimmedTitle);
+    await updateSheetMutation.mutateAsync({ id: editingSheetId, title: trimmedTitle });
     setSheets((prev) =>
       prev.map((s) => (s.id === editingSheetId ? { ...s, title: trimmedTitle } : s)),
     );
@@ -340,10 +338,10 @@ export default function WorshipEdit() {
     setSheets(newSheets);
 
     if (worshipId) {
-      await reorderSheets(
+      await reorderSheetsMutation.mutateAsync({
         worshipId,
-        newSheets.map((s) => s.id),
-      );
+        orderedIds: newSheets.map((s) => s.id),
+      });
     }
   };
 
@@ -364,9 +362,9 @@ export default function WorshipEdit() {
     setSaving(true);
     try {
       if (worshipId) {
-        await updateWorship(worshipId, { title: title.trim(), date, typeId });
+        await updateWorshipMutation.mutateAsync({ id: worshipId, title: title.trim(), date, typeId });
       } else {
-        await addWorship(title.trim(), date, typeId);
+        await addWorshipMutation.mutateAsync({ title: title.trim(), date, typeId });
       }
       navigate('/worship-list');
     } finally {

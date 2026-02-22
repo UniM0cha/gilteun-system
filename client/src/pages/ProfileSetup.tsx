@@ -1,20 +1,14 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { ArrowLeft, Edit, Plus, Trash2, User } from 'lucide-react';
-import { useProfileStore } from '@/store/profileStore';
-import { useRoleStore } from '@/store/roleStore';
+import { useProfiles, useDeleteProfile, useRoles } from '@/hooks/queries';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function ProfileSetup() {
-  const { profiles, deleteProfile, fetchProfiles } = useProfileStore();
-  const { roles, fetchRoles } = useRoleStore();
-
-  useEffect(() => {
-    fetchProfiles();
-    fetchRoles();
-  }, [fetchProfiles, fetchRoles]);
+  const { data: profiles = [] } = useProfiles();
+  const { data: roles = [] } = useRoles();
+  const deleteProfileMutation = useDeleteProfile();
 
   const getRoleById = (roleId: string) => roles.find((r) => r.id === roleId);
 
@@ -80,7 +74,7 @@ export default function ProfileSetup() {
                       }
                       title="프로필 삭제"
                       description="정말 이 프로필을 삭제하시겠습니까?"
-                      onConfirm={() => deleteProfile(profile.id)}
+                      onConfirm={() => deleteProfileMutation.mutate(profile.id)}
                       destructive
                     />
                   </div>
