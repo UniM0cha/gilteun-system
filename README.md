@@ -6,7 +6,7 @@
 
 - **예배 관리**: 예배 생성/편집/삭제, 예배 유형별 분류
 - **악보 관리**: 이미지 업로드, 드래그앤드롭 순서 변경, 인라인 제목 편집
-- **실시간 드로잉**: 악보 위 자유 그리기 + 모든 접속자에게 실시간 동기화
+- **실시간 드로잉**: 악보 위 자유 그리기 + 실시간 동기화, 핀치줌, 드래그 획 지우개
 - **좌표 정규화**: 다양한 화면 크기에서 동일한 드로잉 표시
 - **명령 브로드캐스트**: 예배 중 명령 버튼으로 모든 접속자에게 알림
 - **페이지 호출**: 특정 악보 페이지로 다른 사용자를 초대
@@ -91,9 +91,9 @@ tail -f /tmp/gilteun-server.error.log
 ## 기술 스택
 
 - **백엔드**: Express v5, Socket.IO, Drizzle ORM, SQLite (better-sqlite3)
-- **프론트엔드**: React 19, Vite, TypeScript, Tailwind CSS v4, Zustand
+- **프론트엔드**: React 19, Vite, TypeScript, Tailwind CSS v4, TanStack Query, Zustand
 - **실시간**: Socket.IO (드로잉 동기화, 명령 브로드캐스트, 접속자 현황)
-- **UI**: Radix UI, lucide-react, sonner, @dnd-kit/react
+- **UI**: shadcn/ui (Radix 기반), lucide-react, sonner, @dnd-kit/react, react-swipeable
 
 ## 프로젝트 구조
 
@@ -108,8 +108,8 @@ gilteun-system/
 │   └── src/
 │       ├── pages/       # 페이지 컴포넌트
 │       ├── components/  # 공통 컴포넌트
-│       ├── hooks/       # 커스텀 훅
-│       ├── store/       # Zustand 스토어
+│       ├── hooks/       # 커스텀 훅 (useSocket, useDrawingSync, queries)
+│       ├── store/       # Zustand 스토어 (appStore)
 │       └── lib/         # 유틸리티
 └── 길튼 시스템/     # UI 목업 (참고용)
 ```
