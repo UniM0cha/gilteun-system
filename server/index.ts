@@ -50,7 +50,7 @@ initSocket(io);
 // Production: serve client build
 if (config.isProduction) {
   app.use(express.static(config.clientDistDir));
-  app.get('*', (req, res) => {
+  app.get('{*path}', (req, res) => {
     if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads') && !req.path.startsWith('/socket.io')) {
       res.sendFile(path.join(config.clientDistDir, 'index.html'));
     }
