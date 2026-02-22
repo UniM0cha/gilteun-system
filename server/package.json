@@ -10,21 +10,22 @@
     "db:seed": "tsx db/seed.ts"
   },
   "dependencies": {
-    "express": "^5.1.0",
-    "socket.io": "^4.8.3",
-    "drizzle-orm": "^0.45.1",
     "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.5",
+    "drizzle-orm": "^0.45.1",
+    "express": "^5.1.0",
     "multer": "^2.0.2",
     "nanoid": "^5.1.5",
-    "cors": "^2.8.5"
+    "sharp": "^0.34.5",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "tsx": "^4.21.0",
-    "drizzle-kit": "^0.31.9",
-    "@types/express": "^5.0.6",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/multer": "^2.0.0",
     "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.0.0",
+    "drizzle-kit": "^0.31.9",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.3"
   }
 }

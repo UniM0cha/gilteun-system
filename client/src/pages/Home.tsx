@@ -6,6 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
+const quickLinks = [
+  { to: '/profile-setup', icon: UserCircle, label: '프로필 관리' },
+  { to: '/role-management', icon: Users, label: '역할 관리' },
+  { to: '/command-setup', icon: Settings, label: '명령 설정' },
+  { to: '/worship-type-settings', icon: Tag, label: '예배 유형 관리' },
+];
+
 export default function Home() {
   const { data: profiles = [] } = useProfiles();
   const { data: roles = [] } = useRoles();
@@ -98,46 +105,19 @@ export default function Home() {
 
         {/* 빠른 설정 */}
         <div className="grid grid-cols-2 gap-4">
-          <Card className="p-0">
-            <CardContent className="p-0">
-              <Button asChild variant="ghost" className="w-full p-6 h-auto rounded-2xl">
-                <Link to="/profile-setup">
-                  <UserCircle className="w-6 h-6 text-slate-600" />
-                  <span className="text-lg font-semibold text-slate-700">프로필 관리</span>
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card className="p-0">
-            <CardContent className="p-0">
-              <Button asChild variant="ghost" className="w-full p-6 h-auto rounded-2xl">
-                <Link to="/role-management">
-                  <Users className="w-6 h-6 text-slate-600" />
-                  <span className="text-lg font-semibold text-slate-700">역할 관리</span>
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card className="p-0">
-            <CardContent className="p-0">
-              <Button asChild variant="ghost" className="w-full p-6 h-auto rounded-2xl">
-                <Link to="/command-setup">
-                  <Settings className="w-6 h-6 text-slate-600" />
-                  <span className="text-lg font-semibold text-slate-700">명령 설정</span>
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card className="p-0">
-            <CardContent className="p-0">
-              <Button asChild variant="ghost" className="w-full p-6 h-auto rounded-2xl">
-                <Link to="/worship-type-settings">
-                  <Tag className="w-6 h-6 text-slate-600" />
-                  <span className="text-lg font-semibold text-slate-700">예배 유형 관리</span>
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+          {quickLinks.map(({ to, icon: Icon, label }) => (
+            <Button
+              key={to}
+              asChild
+              variant="ghost"
+              className="w-full p-6 h-auto rounded-2xl bg-white shadow-sm border hover:bg-slate-100"
+            >
+              <Link to={to}>
+                <Icon className="w-6 h-6 text-slate-600" />
+                <span className="text-lg font-semibold text-slate-700">{label}</span>
+              </Link>
+            </Button>
+          ))}
         </div>
       </div>
     </div>

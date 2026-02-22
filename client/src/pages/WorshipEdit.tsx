@@ -89,7 +89,7 @@ function SortableSheetItem({
               <DialogTrigger asChild>
                 <div className="relative w-20 h-24 rounded-lg overflow-hidden border-2 border-blue-300 cursor-pointer shadow-md">
                   <img
-                    src={sheet.imagePath}
+                    src={`/uploads/${sheet.imagePath}`}
                     alt={sheet.title}
                     className="w-full h-full object-cover"
                   />
@@ -105,7 +105,7 @@ function SortableSheetItem({
                 <DialogTitle className="sr-only">{sheet.title} 미리보기</DialogTitle>
                 <div className="relative flex flex-col items-center">
                   <img
-                    src={sheet.imagePath}
+                    src={`/uploads/${sheet.imagePath}`}
                     alt={sheet.title}
                     className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
                   />
@@ -252,12 +252,11 @@ export default function WorshipEdit() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const imageFiles = files.filter(
-      (file) => file.type === 'image/jpeg' || file.type === 'image/png',
-    );
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/heic', 'image/heif'];
+    const imageFiles = files.filter((file) => allowedTypes.includes(file.type));
 
     if (imageFiles.length !== files.length) {
-      alert('JPG, PNG 이미지 파일만 업로드 가능합니다.');
+      alert('JPG, PNG, HEIC 이미지 파일만 업로드 가능합니다.');
     }
 
     if (imageFiles.length === 0) return;
@@ -496,7 +495,7 @@ export default function WorshipEdit() {
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/jpeg,image/png"
+                accept="image/jpeg,image/png,image/heic,image/heif"
                 onChange={handleFileUpload}
                 className="hidden"
               />
@@ -509,7 +508,7 @@ export default function WorshipEdit() {
                 <div className="flex-1 text-sm text-blue-800">
                   <div className="font-semibold mb-1">악보 업로드 안내</div>
                   <ul className="space-y-1 text-blue-700">
-                    <li>JPG, PNG 이미지 파일만 지원합니다</li>
+                    <li>JPG, PNG, HEIC 이미지 파일을 지원합니다</li>
                     <li>여러 파일을 한 번에 선택하여 업로드할 수 있습니다</li>
                     <li>드래그하여 악보 순서를 자유롭게 변경하세요</li>
                     <li>이미지 클릭 시 미리보기가 가능합니다</li>

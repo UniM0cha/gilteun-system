@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import sharp from 'sharp';
 import { db } from '../db/index.js';
 import { sheets, drawingPaths } from '../db/schema.js';
 import { config } from '../config.js';
@@ -28,19 +29,31 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   fileFilter: (_req, file, cb) => {
-    const allowed = ['.jpg', '.jpeg', '.png'];
+    const allowed = ['.jpg', '.jpeg', '.png', '.heic', '.heif'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Only JPG and PNG files are allowed'));
+      cb(new Error('JPG, PNG, HEIC 파일만 업로드 가능합니다'));
     }
   },
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 
+// HEIC/HEIF → JPEG 변환
+async function convertToJpegIfNeeded(filePath: string): Promise<string> {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.heic' || ext === '.heif') {
+    const jpegPath = filePath.replace(/\.(heic|heif)$/i, '.jpeg');
+    await sharp(filePath).jpeg({ quality: 90 }).toFile(jpegPath);
+    fs.unlinkSync(filePath); // 원본 HEIC 삭제
+    return jpegPath;
+  }
+  return filePath;
+}
+
 // POST /api/worships/:worshipId/sheets - 악보 추가
-router.post('/worships/:worshipId/sheets', upload.single('image'), (req, res) => {
+router.post('/worships/:worshipId/sheets', upload.single('image'), async (req, res) => {
   try {
     const { worshipId } = req.params;
     const file = req.file;
@@ -48,6 +61,11 @@ router.post('/worships/:worshipId/sheets', upload.single('image'), (req, res) =>
       res.status(400).json({ error: 'Image file is required' });
       return;
     }
+
+    // HEIC → JPEG 변환
+    const originalPath = file.path;
+    const convertedPath = await convertToJpegIfNeeded(originalPath);
+    const finalFilename = path.basename(convertedPath);
 
     const title = req.body.title || file.originalname.replace(/\.[^/.]+$/, '');
 
@@ -60,7 +78,7 @@ router.post('/worships/:worshipId/sheets', upload.single('image'), (req, res) =>
     const maxOrder = existingSheets.reduce((max, s) => Math.max(max, s.order), -1);
 
     const id = nanoid();
-    const imagePath = `sheets/${file.filename}`;
+    const imagePath = `sheets/${finalFilename}`;
     const now = new Date().toISOString();
 
     db.insert(sheets)

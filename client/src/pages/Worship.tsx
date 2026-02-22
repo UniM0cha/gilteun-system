@@ -562,7 +562,7 @@ export default function Worship() {
                   <SheetCanvas
                     key={currentSheet.id}
                     ref={canvasRef}
-                    imageUrl={currentSheet.imagePath || null}
+                    imageUrl={currentSheet.imagePath ? `/uploads/${currentSheet.imagePath}` : null}
                     isDrawMode={isDrawMode}
                     penColor={selectedColor}
                     penWidth={penWidth}
