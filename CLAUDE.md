@@ -63,6 +63,10 @@ npm run db:migrate
 | 드래그앤드롭 | @dnd-kit/react v0.3.2 |
 | UI | shadcn/ui (Radix 기반), lucide-react, sonner, cmdk, vaul, react-swipeable |
 
+## Git 컨벤션
+
+- **커밋 메시지에 `Co-Authored-By` 태그 절대 붙이지 않기**
+
 ## 코드 컨벤션
 
 - **ESM**: 모든 패키지 `"type": "module"` 사용

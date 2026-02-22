@@ -577,7 +577,7 @@ export default function Worship() {
                         {/* 펜 굵기 */}
                         <div>
                           <div className="text-xs font-semibold text-slate-400 mb-2">펜 굵기</div>
-                          <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
+                          <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2 w-fit">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -639,7 +639,7 @@ export default function Worship() {
                         {eraserType === 'area' && (
                           <div>
                             <div className="text-xs font-semibold text-slate-400 mb-2">지우개 크기</div>
-                            <div className="flex items-center gap-2 bg-orange-700 rounded-lg px-3 py-2">
+                            <div className="flex items-center gap-2 bg-orange-700 rounded-lg px-3 py-2 w-fit">
                               <Button
                                 variant="ghost"
                                 size="icon"
