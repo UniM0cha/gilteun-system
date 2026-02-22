@@ -1,27 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Plus, Calendar, Music, Edit, Trash2, Play, ArrowLeft, Filter, X } from 'lucide-react';
-import { useWorshipStore } from '@/store/worshipStore';
-import { useProfileStore } from '@/store/profileStore';
-import { useRoleStore } from '@/store/roleStore';
+import { useWorships, useWorshipTypes, useDeleteWorship, useProfiles, useRoles } from '@/hooks/queries';
+import { useAppStore } from '@/store/appStore';
 import { getColorOption } from '@/lib/colors';
 
 export default function WorshipList() {
-  const { worships, worshipTypes, deleteWorship, fetchWorships, fetchWorshipTypes } =
-    useWorshipStore();
-  const { currentProfileId, profiles, fetchProfiles } = useProfileStore();
-  const { roles, fetchRoles } = useRoleStore();
+  const { data: worships = [] } = useWorships();
+  const { data: worshipTypes = [] } = useWorshipTypes();
+  const { data: profiles = [] } = useProfiles();
+  const { data: roles = [] } = useRoles();
+  const deleteWorshipMutation = useDeleteWorship();
+  const currentProfileId = useAppStore((s) => s.currentProfileId);
   const navigate = useNavigate();
 
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    fetchWorships();
-    fetchWorshipTypes();
-    fetchProfiles();
-    fetchRoles();
-  }, [fetchWorships, fetchWorshipTypes, fetchProfiles, fetchRoles]);
 
   // 프로필 미선택 시 홈으로 리다이렉트
   useEffect(() => {
@@ -57,7 +51,7 @@ export default function WorshipList() {
 
   const handleDelete = async (id: string) => {
     if (confirm('이 예배를 삭제하시겠습니까?')) {
-      await deleteWorship(id);
+      await deleteWorshipMutation.mutateAsync(id);
     }
   };
 

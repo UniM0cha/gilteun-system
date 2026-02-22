@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Save, Trash2, User } from 'lucide-react';
-import { useProfileStore } from '@/store/profileStore';
-import { useRoleStore } from '@/store/roleStore';
+import { useProfiles, useAddProfile, useUpdateProfile, useDeleteProfile, useRoles } from '@/hooks/queries';
 import { PROFILE_COLORS } from '@/lib/colors';
 
 export default function ProfileEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profiles, addProfile, updateProfile, deleteProfile, fetchProfiles } =
-    useProfileStore();
-  const { roles, fetchRoles } = useRoleStore();
+  const { data: profiles = [] } = useProfiles();
+  const { data: roles = [] } = useRoles();
+  const addProfileMutation = useAddProfile();
+  const updateProfileMutation = useUpdateProfile();
+  const deleteProfileMutation = useDeleteProfile();
 
   const isNewProfile = id === 'new';
   const existingProfile = isNewProfile
@@ -20,11 +21,6 @@ export default function ProfileEdit() {
   const [name, setName] = useState('');
   const [roleId, setRoleId] = useState('');
   const [color, setColor] = useState('bg-blue-500');
-
-  useEffect(() => {
-    fetchProfiles();
-    fetchRoles();
-  }, [fetchProfiles, fetchRoles]);
 
   useEffect(() => {
     if (existingProfile) {
@@ -44,16 +40,16 @@ export default function ProfileEdit() {
       return;
     }
     if (isNewProfile) {
-      await addProfile({ name: name.trim(), roleId, color });
+      await addProfileMutation.mutateAsync({ name: name.trim(), roleId, color });
     } else if (id) {
-      await updateProfile(id, { name: name.trim(), roleId, color });
+      await updateProfileMutation.mutateAsync({ id, name: name.trim(), roleId, color });
     }
     navigate('/profile-setup');
   };
 
   const handleDelete = async () => {
     if (id && !isNewProfile && confirm('이 프로필을 삭제하시겠습니까?')) {
-      await deleteProfile(id);
+      await deleteProfileMutation.mutateAsync(id);
       navigate('/profile-setup');
     }
   };

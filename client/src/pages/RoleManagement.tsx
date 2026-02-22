@@ -1,28 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowLeft, Plus, Edit, Trash2, Check, X, AlertCircle } from 'lucide-react';
-import { useRoleStore } from '@/store/roleStore';
-import { useProfileStore } from '@/store/profileStore';
+import { useRoles, useAddRole, useUpdateRole, useDeleteRole } from '@/hooks/queries';
+import { useProfiles } from '@/hooks/queries';
 
 export default function RoleManagement() {
-  const { roles, addRole, updateRole, deleteRole, fetchRoles } = useRoleStore();
-  const { profiles, fetchProfiles } = useProfileStore();
+  const { data: roles = [] } = useRoles();
+  const { data: profiles = [] } = useProfiles();
+  const addRoleMutation = useAddRole();
+  const updateRoleMutation = useUpdateRole();
+  const deleteRoleMutation = useDeleteRole();
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', icon: '' });
-
-  useEffect(() => {
-    fetchRoles();
-    fetchProfiles();
-  }, [fetchRoles, fetchProfiles]);
 
   const isRoleInUse = (roleId: string) =>
     profiles.some((p) => p.roleId === roleId);
 
   const handleAdd = async () => {
     if (!formData.name.trim() || !formData.icon.trim()) return;
-    await addRole(formData.name, formData.icon);
+    await addRoleMutation.mutateAsync({ name: formData.name, icon: formData.icon });
     setFormData({ name: '', icon: '' });
     setIsAdding(false);
   };
@@ -37,7 +35,7 @@ export default function RoleManagement() {
 
   const handleUpdate = async () => {
     if (!editingId || !formData.name.trim() || !formData.icon.trim()) return;
-    await updateRole(editingId, formData.name, formData.icon);
+    await updateRoleMutation.mutateAsync({ id: editingId, name: formData.name, icon: formData.icon });
     setEditingId(null);
     setFormData({ name: '', icon: '' });
   };
@@ -48,7 +46,7 @@ export default function RoleManagement() {
       return;
     }
     if (confirm('이 역할을 삭제하시겠습니까?')) {
-      await deleteRole(id);
+      await deleteRoleMutation.mutateAsync(id);
     }
   };
 

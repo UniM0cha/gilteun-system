@@ -1,22 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowLeft, Plus, Trash2, RotateCcw, Save } from 'lucide-react';
-import { useCommandStore } from '@/store/commandStore';
+import { useCommands, useAddCommand, useDeleteCommand, useResetCommands } from '@/hooks/queries';
 
 export default function CommandSetup() {
-  const { commands, addCommand, deleteCommand, resetToDefault, fetchCommands } =
-    useCommandStore();
+  const { data: commands = [] } = useCommands();
+  const addCommandMutation = useAddCommand();
+  const deleteCommandMutation = useDeleteCommand();
+  const resetCommandsMutation = useResetCommands();
+
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newEmoji, setNewEmoji] = useState('🎵');
   const [newLabel, setNewLabel] = useState('');
 
-  useEffect(() => {
-    fetchCommands();
-  }, [fetchCommands]);
-
   const handleAdd = async () => {
     if (newLabel.trim()) {
-      await addCommand(newEmoji, newLabel.trim());
+      await addCommandMutation.mutateAsync({ emoji: newEmoji, label: newLabel.trim() });
       setNewLabel('');
       setNewEmoji('🎵');
       setIsAddingNew(false);
@@ -25,7 +24,7 @@ export default function CommandSetup() {
 
   const handleResetToDefault = async () => {
     if (confirm('기본 명령으로 초기화하시겠습니까?')) {
-      await resetToDefault();
+      await resetCommandsMutation.mutateAsync();
     }
   };
 
@@ -85,7 +84,7 @@ export default function CommandSetup() {
                   )}
                 </div>
                 <button
-                  onClick={() => deleteCommand(command.id)}
+                  onClick={() => deleteCommandMutation.mutate(command.id)}
                   className="w-full flex items-center justify-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl transition-all active:scale-95 border-2 border-red-200 hover:bg-red-100"
                 >
                   <Trash2 className="w-4 h-4" />

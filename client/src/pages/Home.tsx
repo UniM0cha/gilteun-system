@@ -1,18 +1,13 @@
-import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Plus, UserCircle, Music, Settings, Tag, Users } from 'lucide-react';
-import { useProfileStore } from '@/store/profileStore';
-import { useRoleStore } from '@/store/roleStore';
+import { useProfiles, useRoles } from '@/hooks/queries';
+import { useAppStore } from '@/store/appStore';
 
 export default function Home() {
-  const { profiles, setCurrentProfile, fetchProfiles } = useProfileStore();
-  const { roles, fetchRoles } = useRoleStore();
+  const { data: profiles = [] } = useProfiles();
+  const { data: roles = [] } = useRoles();
+  const setCurrentProfile = useAppStore((s) => s.setCurrentProfile);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    fetchProfiles();
-    fetchRoles();
-  }, [fetchProfiles, fetchRoles]);
 
   const getRoleById = (roleId: string) => roles.find((r) => r.id === roleId);
 

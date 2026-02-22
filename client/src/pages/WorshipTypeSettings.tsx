@@ -1,20 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowLeft, Plus, Edit, Trash2, Save, X } from 'lucide-react';
-import { useWorshipStore } from '@/store/worshipStore';
+import { useWorshipTypes, useAddWorshipType, useUpdateWorshipType, useDeleteWorshipType } from '@/hooks/queries';
 import { COLOR_OPTIONS, getColorOption } from '@/lib/colors';
 
 export default function WorshipTypeSettings() {
-  const { worshipTypes, addWorshipType, updateWorshipType, deleteWorshipType, fetchWorshipTypes } =
-    useWorshipStore();
+  const { data: worshipTypes = [] } = useWorshipTypes();
+  const addMutation = useAddWorshipType();
+  const updateMutation = useUpdateWorshipType();
+  const deleteMutation = useDeleteWorshipType();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', color: 'blue' });
-
-  useEffect(() => {
-    fetchWorshipTypes();
-  }, [fetchWorshipTypes]);
 
   const handleEdit = (type: { id: string; name: string; color: string }) => {
     setEditingTypeId(type.id);
@@ -34,9 +32,9 @@ export default function WorshipTypeSettings() {
       return;
     }
     if (editingTypeId) {
-      await updateWorshipType(editingTypeId, formData.name.trim(), formData.color);
+      await updateMutation.mutateAsync({ id: editingTypeId, name: formData.name.trim(), color: formData.color });
     } else {
-      await addWorshipType(formData.name.trim(), formData.color);
+      await addMutation.mutateAsync({ name: formData.name.trim(), color: formData.color });
     }
     setIsEditing(false);
     setEditingTypeId(null);
@@ -51,7 +49,7 @@ export default function WorshipTypeSettings() {
 
   const handleDelete = async (id: string) => {
     if (confirm('이 예배 유형을 삭제하시겠습니까?')) {
-      await deleteWorshipType(id);
+      await deleteMutation.mutateAsync(id);
     }
   };
 
