@@ -27,3 +27,12 @@ out
 
 # Local Serena workspace
 .serena/
+
+# Server database files
+server/data/*.db
+server/data/*.db-wal
+server/data/*.db-shm
+
+# Server uploads (keep .gitkeep)
+server/uploads/sheets/*
+!server/uploads/sheets/.gitkeep
