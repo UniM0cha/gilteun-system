@@ -100,6 +100,8 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
     const [historyIndex, setHistoryIndex] = useState(0);
 
     const lastMoveTimeRef = useRef(0);
+    const redrawCanvasRef = useRef<() => void>(() => {});
+    const erasedPathIdsRef = useRef<Set<string>>(new Set());
 
     // 모든 paths 합치기 (remote + local)
     const allPaths = [...remotePaths, ...localPaths];
@@ -114,6 +116,8 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
         const rect = container.getBoundingClientRect();
         canvas.width = rect.width;
         canvas.height = rect.height;
+        // canvas.width/height 재설정 시 캔버스 자동 클리어됨 → 다시 그리기
+        redrawCanvasRef.current();
       };
 
       resizeCanvas();
@@ -194,6 +198,9 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       ctx.globalCompositeOperation = 'source-over';
     }, [allPaths, remoteInProgress, currentPath, penColor, penWidth, eraserType, eraserWidth]);
 
+    // redraw ref 갱신 (ResizeObserver에서 사용)
+    redrawCanvasRef.current = redrawCanvas;
+
     // 변경 시 리드로우
     useEffect(() => {
       redrawCanvas();
@@ -218,7 +225,8 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       const x = clientX - rect.left;
       const y = clientY - rect.top;
 
-      return normalizePoint(x, y, canvas.width, canvas.height);
+      // rect.width/height를 사용하여 CSS transform(줌) 자동 보정
+      return normalizePoint(x, y, rect.width, rect.height);
     };
 
     // 획 지우개: 클릭 지점 근처의 path 찾기
@@ -276,23 +284,21 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
 
     const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
       if (!isDrawMode) return;
+      // 2-finger 이상 → 부모의 핀치 핸들러로 위임
+      if ('touches' in e && e.touches.length >= 2) return;
       e.preventDefault();
       const point = getCoordinates(e);
       if (!point) return;
 
+      e.stopPropagation();
+
       if (eraserType === 'stroke') {
+        setIsDrawing(true);
+        erasedPathIdsRef.current = new Set();
         const pathId = findPathAtPoint(point);
         if (pathId) {
-          // 로컬에 있으면 로컬에서 삭제
-          setLocalPaths((prev) => {
-            const filtered = prev.filter((p) => p.id !== pathId);
-            const newHistory = history.slice(0, historyIndex + 1);
-            newHistory.push(filtered);
-            setHistory(newHistory);
-            setHistoryIndex(newHistory.length - 1);
-            return filtered;
-          });
-          // 서버에도 삭제 전송
+          erasedPathIdsRef.current.add(pathId);
+          setLocalPaths((prev) => prev.filter((p) => p.id !== pathId));
           onDrawDelete?.(pathId);
         }
         return;
@@ -319,9 +325,26 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
 
     const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
       if (!isDrawing || !isDrawMode) return;
+      // 2-finger 시작 시 진행 중인 그리기 취소
+      if ('touches' in e && e.touches.length >= 2) {
+        handleEnd();
+        return;
+      }
       e.preventDefault();
+      e.stopPropagation();
       const point = getCoordinates(e);
       if (!point) return;
+
+      // 드래그 획 지우개: 연속으로 path 삭제
+      if (eraserType === 'stroke') {
+        const pathId = findPathAtPoint(point);
+        if (pathId && !erasedPathIdsRef.current.has(pathId)) {
+          erasedPathIdsRef.current.add(pathId);
+          setLocalPaths((prev) => prev.filter((p) => p.id !== pathId));
+          onDrawDelete?.(pathId);
+        }
+        return;
+      }
 
       setCurrentPath((prev) => [...prev, point]);
 
@@ -335,6 +358,23 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
 
     const handleEnd = () => {
       if (!isDrawing) return;
+
+      // 드래그 획 지우개: 삭제 결과를 히스토리에 한 번으로 기록
+      if (eraserType === 'stroke') {
+        if (erasedPathIdsRef.current.size > 0) {
+          setLocalPaths((prev) => {
+            const newHistory = history.slice(0, historyIndex + 1);
+            newHistory.push(prev);
+            setHistory(newHistory);
+            setHistoryIndex(newHistory.length - 1);
+            return prev;
+          });
+        }
+        erasedPathIdsRef.current = new Set();
+        setIsDrawing(false);
+        return;
+      }
+
       setIsDrawing(false);
 
       if (currentPath.length > 1) {

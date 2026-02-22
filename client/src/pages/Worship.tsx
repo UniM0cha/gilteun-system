@@ -18,12 +18,14 @@ import {
   FileMusic,
   Upload,
   Megaphone,
+  Palette,
 } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useWorship, useCommands, useProfiles, useRoles } from '@/hooks/queries';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useWorship, useCommands } from '@/hooks/queries';
 import { useAppStore } from '@/store/appStore';
 import { useWorshipSocket } from '@/hooks/useWorshipSocket';
 import SheetCanvas, { type SheetCanvasRef, type EraserType } from '@/components/SheetCanvas';
@@ -54,12 +56,12 @@ export default function Worship() {
 
   const { data: worshipData } = useWorship(id);
   const { data: commands = [] } = useCommands();
-  const { data: profiles = [] } = useProfiles();
-  const { data: roles = [] } = useRoles();
   const currentProfileId = useAppStore((s) => s.currentProfileId);
 
   const [currentSheetId, setCurrentSheetId] = useState<string | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(false);
+  const isDrawModeRef = useRef(isDrawMode);
+  isDrawModeRef.current = isDrawMode;
   const [selectedColor, setSelectedColor] = useState('#000000');
   const [penWidth, setPenWidth] = useState(3);
   const [eraserType, setEraserType] = useState<EraserType>('none');
@@ -67,9 +69,26 @@ export default function Worship() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showCommandPanel, setShowCommandPanel] = useState(false);
   const [presenceUsers, setPresenceUsers] = useState<PresenceUser[]>([]);
+  const [showNavBar, setShowNavBar] = useState(true);
+  const navBarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const currentProfile = profiles.find((p) => p.id === currentProfileId);
-  const currentRole = currentProfile ? roles.find((r) => r.id === currentProfile.roleId) : null;
+  // 핀치줌 상태
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const scaleRef = useRef(1);
+  scaleRef.current = scale;
+  const pinchRef = useRef<{
+    startDist: number;
+    startScale: number;
+    startCenter: { x: number; y: number };
+    startTranslate: { x: number; y: number };
+  } | null>(null);
+  const panRef = useRef<{
+    startX: number;
+    startY: number;
+    startTranslate: { x: number; y: number };
+  } | null>(null);
+  const lastTapRef = useRef(0);
 
   const sheets = worshipData?.sheets || [];
   const currentSheet = sheets.find((s) => s.id === currentSheetId) || null;
@@ -154,9 +173,13 @@ export default function Worship() {
       senderRole: string;
       senderRoleIcon: string;
     }) => {
+      const toastId = `command-${Date.now()}`;
       toast.custom(
         () => (
-          <div className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-[350px] border-4 border-blue-500">
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-[350px] border-4 border-blue-500 cursor-pointer"
+            onClick={() => toast.dismiss(toastId)}
+          >
             <div className="text-6xl">{data.emoji}</div>
             <div className="flex-1">
               <div className="text-2xl font-bold text-slate-800">{data.label}</div>
@@ -168,7 +191,7 @@ export default function Worship() {
             </div>
           </div>
         ),
-        { duration: 3000, position: 'top-center' },
+        { duration: 3000, position: 'top-center', id: toastId },
       );
     };
 
@@ -178,11 +201,15 @@ export default function Worship() {
       senderName: string;
       senderRole: string;
     }) => {
+      const toastId = `spotlight-${Date.now()}`;
       toast.custom(
         () => (
           <div
-            className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-[350px] border-4 border-amber-500 cursor-pointer hover:bg-amber-50 transition-colors"
-            onClick={() => setCurrentSheetId(data.sheetId)}
+            className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-[350px] border-4 border-amber-500 cursor-pointer active:bg-amber-50 transition-colors"
+            onClick={() => {
+              setCurrentSheetId(data.sheetId);
+              toast.dismiss(toastId);
+            }}
           >
             <div className="text-4xl">📢</div>
             <div className="flex-1">
@@ -195,7 +222,7 @@ export default function Worship() {
             </div>
           </div>
         ),
-        { duration: 5000, position: 'top-center' },
+        { duration: 5000, position: 'top-center', id: toastId },
       );
     };
 
@@ -210,18 +237,127 @@ export default function Worship() {
     };
   }, [id, socket]);
 
+  // 네비게이션 바 자동 숨김 (5초)
+  const flashNavBar = useCallback(() => {
+    setShowNavBar(true);
+    if (navBarTimerRef.current) clearTimeout(navBarTimerRef.current);
+    navBarTimerRef.current = setTimeout(() => setShowNavBar(false), 3000);
+  }, []);
+
+  // 최초 로드 및 시트 변경 시 네비 바 표시
+  useEffect(() => {
+    if (currentSheetId) {
+      flashNavBar();
+    }
+  }, [currentSheetId, flashNavBar]);
+
+  // 클린업
+  useEffect(() => {
+    return () => {
+      if (navBarTimerRef.current) clearTimeout(navBarTimerRef.current);
+    };
+  }, []);
+
   const goToPage = useCallback(
     (index: number) => {
       if (index >= 0 && index < sheets.length) {
         setCurrentSheetId(sheets[index].id);
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+        flashNavBar();
       }
     },
-    [sheets],
+    [sheets, flashNavBar],
   );
 
+  // 핀치줌 유틸
+  const getTouchDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const getTouchCenter = (touches: React.TouchList) => ({
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2,
+  });
+
+  // 핀치줌 핸들러 (악보 영역)
+  const handleSheetTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      // 핀치 시작
+      const dist = getTouchDistance(e.touches);
+      const center = getTouchCenter(e.touches);
+      pinchRef.current = {
+        startDist: dist,
+        startScale: scaleRef.current,
+        startCenter: center,
+        startTranslate: { ...translate },
+      };
+      panRef.current = null;
+      e.preventDefault();
+    } else if (e.touches.length === 1) {
+      // 더블탭 감지
+      const now = Date.now();
+      if (now - lastTapRef.current < 300) {
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+        e.preventDefault();
+        lastTapRef.current = 0;
+        return;
+      }
+      lastTapRef.current = now;
+
+      // zoom > 1 + 보기모드 → 패닝 시작
+      if (scaleRef.current > 1 && !isDrawModeRef.current) {
+        panRef.current = {
+          startX: e.touches[0].clientX,
+          startY: e.touches[0].clientY,
+          startTranslate: { ...translate },
+        };
+      }
+    }
+  }, [translate]);
+
+  const handleSheetTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchRef.current) {
+      const dist = getTouchDistance(e.touches);
+      const center = getTouchCenter(e.touches);
+      const newScale = Math.min(3, Math.max(1, pinchRef.current.startScale * (dist / pinchRef.current.startDist)));
+      const dx = center.x - pinchRef.current.startCenter.x;
+      const dy = center.y - pinchRef.current.startCenter.y;
+
+      if (newScale <= 1) {
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+      } else {
+        setScale(newScale);
+        setTranslate({
+          x: pinchRef.current.startTranslate.x + dx,
+          y: pinchRef.current.startTranslate.y + dy,
+        });
+      }
+      e.preventDefault();
+    } else if (e.touches.length === 1 && panRef.current && scaleRef.current > 1) {
+      // 1-finger 패닝 (zoom > 1, 보기모드)
+      const dx = e.touches[0].clientX - panRef.current.startX;
+      const dy = e.touches[0].clientY - panRef.current.startY;
+      setTranslate({
+        x: panRef.current.startTranslate.x + dx,
+        y: panRef.current.startTranslate.y + dy,
+      });
+      e.preventDefault();
+    }
+  }, []);
+
+  const handleSheetTouchEnd = useCallback(() => {
+    pinchRef.current = null;
+    panRef.current = null;
+  }, []);
+
   const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => goToPage(currentPage + 1),
-    onSwipedRight: () => goToPage(currentPage - 1),
+    onSwipedLeft: () => { if (!isDrawModeRef.current && scaleRef.current <= 1) goToPage(currentPage + 1); },
+    onSwipedRight: () => { if (!isDrawModeRef.current && scaleRef.current <= 1) goToPage(currentPage - 1); },
     trackMouse: true,
     delta: 50,
     preventScrollOnSwipe: true,
@@ -234,19 +370,6 @@ export default function Worship() {
       commandId: command.id,
       profileId: currentProfileId,
     });
-
-    toast.custom(
-      () => (
-        <div className="bg-white rounded-2xl shadow-2xl p-4 flex items-center gap-3 min-w-[250px] border-2 border-green-400">
-          <div className="text-4xl">{command.emoji}</div>
-          <div className="flex-1">
-            <div className="text-lg font-bold text-slate-800">{command.label}</div>
-            <div className="text-sm text-green-600">전송됨</div>
-          </div>
-        </div>
-      ),
-      { duration: 1500, position: 'top-center' },
-    );
   };
 
   const handleSpotlightCall = () => {
@@ -293,12 +416,6 @@ export default function Worship() {
             <Users className="w-5 h-5" />
             <span>{presenceUsers.length}명 접속</span>
           </Button>
-          {currentRole && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg">
-              <div className="w-3 h-3 bg-blue-300 rounded-full animate-pulse" />
-              <span className="text-white font-semibold">{currentRole.name}</span>
-            </div>
-          )}
         </div>
       </header>
 
@@ -369,7 +486,11 @@ export default function Worship() {
         )}
 
         {/* 중앙 악보 뷰어 */}
-        <main className="flex-1 flex flex-col bg-slate-900" {...(!isDrawMode ? swipeHandlers : {})}>
+        <main
+          className="flex-1 flex flex-col bg-slate-900"
+          style={isDrawMode ? { touchAction: 'none', overscrollBehaviorX: 'none' } : undefined}
+          {...swipeHandlers}
+        >
           {/* 도구 바 */}
           <div className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -399,112 +520,156 @@ export default function Worship() {
 
               {isDrawMode && (
                 <>
-                  <div className="h-8 w-px bg-slate-600" />
-                  <div className="flex items-center gap-2">
-                    {penColors.map((pen) => (
-                      <button
-                        key={pen.value}
-                        onClick={() => {
-                          setSelectedColor(pen.value);
-                          setEraserType('none');
-                        }}
-                        className={`w-10 h-10 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
-                          selectedColor === pen.value && eraserType === 'none'
-                            ? 'ring-4 ring-white scale-110'
-                            : ''
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <div className="h-8 w-px bg-slate-600" />
-
-                  {/* 펜 굵기 */}
-                  <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
-                      onClick={() => setPenWidth((p) => Math.max(p - 1, 1))}
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
-                    <div className="text-slate-300 font-semibold min-w-[30px] text-center">
-                      {penWidth}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
-                      onClick={() => setPenWidth((p) => Math.min(p + 1, 20))}
-                    >
-                      <PlusIcon className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  <div className="h-8 w-px bg-slate-600" />
-
-                  {/* 지우개 */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEraserType((p) => (p === 'area' ? 'none' : 'area'))}
-                      className={cn(
-                        'px-3 py-2.5',
-                        eraserType === 'area'
-                          ? 'bg-orange-600 text-white hover:bg-orange-700'
-                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      )}
-                      title="영역 지우개"
-                    >
-                      <Eraser className="w-5 h-5" />
-                      <span className="text-sm">영역</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEraserType((p) => (p === 'stroke' ? 'none' : 'stroke'))}
-                      className={cn(
-                        'px-3 py-2.5',
-                        eraserType === 'stroke'
-                          ? 'bg-red-600 text-white hover:bg-red-700'
-                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      )}
-                      title="획 지우개"
-                    >
-                      <Trash className="w-5 h-5" />
-                      <span className="text-sm">획</span>
-                    </Button>
-                  </div>
-
-                  {eraserType === 'area' && (
-                    <>
-                      <div className="h-8 w-px bg-slate-600" />
-                      <div className="flex items-center gap-2 bg-orange-700 rounded-lg px-3 py-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
-                          onClick={() => setEraserWidth((p) => Math.max(p - 2, 5))}
-                        >
-                          <Minus className="w-4 h-4" />
-                        </Button>
-                        <div className="text-white font-semibold min-w-[30px] text-center">
-                          {eraserWidth}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="bg-slate-700 text-slate-300 hover:bg-slate-600 px-4 py-2.5 rounded-xl"
+                      >
+                        <Palette className="w-5 h-5" />
+                        <span className="text-sm">도구</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 bg-slate-800 border-slate-700 p-4" align="start">
+                      <div className="space-y-4">
+                        {/* 색상 팔레트 */}
+                        <div>
+                          <div className="text-xs font-semibold text-slate-400 mb-2">색상</div>
+                          <div className="flex items-center gap-2">
+                            {penColors.map((pen) => (
+                              <button
+                                key={pen.value}
+                                onClick={() => {
+                                  setSelectedColor(pen.value);
+                                  setEraserType('none');
+                                }}
+                                className={`w-10 h-10 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
+                                  selectedColor === pen.value && eraserType === 'none'
+                                    ? 'ring-4 ring-white scale-110'
+                                    : ''
+                                }`}
+                              />
+                            ))}
+                          </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
-                          onClick={() => setEraserWidth((p) => Math.min(p + 2, 50))}
-                        >
-                          <PlusIcon className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </>
-                  )}
 
-                  <div className="h-8 w-px bg-slate-600" />
+                        {/* 펜 굵기 */}
+                        <div>
+                          <div className="text-xs font-semibold text-slate-400 mb-2">펜 굵기</div>
+                          <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
+                              onClick={() => setPenWidth((p) => Math.max(p - 1, 1))}
+                            >
+                              <Minus className="w-4 h-4" />
+                            </Button>
+                            <div className="text-slate-300 font-semibold min-w-[30px] text-center">
+                              {penWidth}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
+                              onClick={() => setPenWidth((p) => Math.min(p + 1, 20))}
+                            >
+                              <PlusIcon className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* 지우개 */}
+                        <div>
+                          <div className="text-xs font-semibold text-slate-400 mb-2">지우개</div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEraserType((p) => (p === 'area' ? 'none' : 'area'))}
+                              className={cn(
+                                'px-3 py-2.5 flex-1',
+                                eraserType === 'area'
+                                  ? 'bg-orange-600 text-white hover:bg-orange-700'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              )}
+                            >
+                              <Eraser className="w-5 h-5" />
+                              <span className="text-sm">영역</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEraserType((p) => (p === 'stroke' ? 'none' : 'stroke'))}
+                              className={cn(
+                                'px-3 py-2.5 flex-1',
+                                eraserType === 'stroke'
+                                  ? 'bg-red-600 text-white hover:bg-red-700'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              )}
+                            >
+                              <Trash className="w-5 h-5" />
+                              <span className="text-sm">획</span>
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* 지우개 크기 (영역 선택 시) */}
+                        {eraserType === 'area' && (
+                          <div>
+                            <div className="text-xs font-semibold text-slate-400 mb-2">지우개 크기</div>
+                            <div className="flex items-center gap-2 bg-orange-700 rounded-lg px-3 py-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
+                                onClick={() => setEraserWidth((p) => Math.max(p - 2, 5))}
+                              >
+                                <Minus className="w-4 h-4" />
+                              </Button>
+                              <div className="text-white font-semibold min-w-[30px] text-center">
+                                {eraserWidth}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
+                                onClick={() => setEraserWidth((p) => Math.min(p + 2, 50))}
+                              >
+                                <PlusIcon className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 실행취소/다시실행 */}
+                        <div>
+                          <div className="text-xs font-semibold text-slate-400 mb-2">실행취소</div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
+                              onClick={() => canvasRef.current?.undo()}
+                            >
+                              <Undo className="w-5 h-5" />
+                              <span className="text-sm">되돌리기</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
+                              onClick={() => canvasRef.current?.redo()}
+                            >
+                              <Redo className="w-5 h-5" />
+                              <span className="text-sm">다시실행</span>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
 
                   <Button
                     variant="ghost"
@@ -555,9 +720,22 @@ export default function Worship() {
           </div>
 
           {/* 악보 영역 */}
-          <div className="flex-1 relative overflow-hidden">
+          <div
+            className="flex-1 relative overflow-hidden"
+            style={{ touchAction: 'none' }}
+            onClick={() => !isDrawMode && flashNavBar()}
+            onTouchStart={handleSheetTouchStart}
+            onTouchMove={handleSheetTouchMove}
+            onTouchEnd={handleSheetTouchEnd}
+          >
             <div className="absolute inset-0 flex items-center justify-center p-4">
-              <div className="relative bg-white rounded-2xl shadow-2xl aspect-[3/4] h-full overflow-hidden">
+              <div
+                className="relative bg-white rounded-2xl shadow-2xl aspect-[3/4] h-full overflow-hidden"
+                style={scale !== 1 ? {
+                  transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
+                  transformOrigin: 'center center',
+                } : undefined}
+              >
                 {currentSheet ? (
                   <SheetCanvas
                     key={currentSheet.id}
@@ -590,7 +768,10 @@ export default function Worship() {
 
             {/* 페이지 네비게이션 */}
             {sheets.length > 0 && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-800/90 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-2xl">
+              <div className={cn(
+                "absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-800/90 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-2xl transition-opacity duration-300",
+                showNavBar ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -619,10 +800,10 @@ export default function Worship() {
 
         {/* 우측 명령 패널 */}
         {showCommandPanel && (
-          <aside className="w-80 bg-slate-800 border-l border-slate-700 overflow-y-auto">
+          <aside className="w-44 lg:w-80 bg-slate-800 border-l border-slate-700 overflow-y-auto">
             <div className="p-4">
               <h2 className="text-lg font-bold text-white mb-4">명령 전송</h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {commands.map((command) => (
                   <button
                     key={command.id}

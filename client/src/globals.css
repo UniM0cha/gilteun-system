@@ -100,6 +100,16 @@
   }
 }
 
+/* 터치 기기에서 sonner 토스트 호버 일시정지 방지 */
+@media (hover: none) and (pointer: coarse) {
+  [data-sonner-toaster] {
+    pointer-events: none;
+  }
+  [data-sonner-toast] {
+    pointer-events: auto;
+  }
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
