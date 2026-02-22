@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { useWorshipStore, type Sheet } from '@/store/worshipStore';
 import { useCommandStore } from '@/store/commandStore';
 import { useProfileStore } from '@/store/profileStore';
@@ -298,34 +300,34 @@ export default function Worship() {
       {/* 상단 헤더 */}
       <header className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link
-            to="/worship-list"
-            className="p-2 hover:bg-slate-700 rounded-lg transition-colors active:scale-95"
-          >
-            <ArrowLeft className="w-6 h-6 text-slate-300" />
-          </Link>
-          <button
+          <Button variant="ghost" size="icon" className="hover:bg-slate-700 text-slate-300" asChild>
+            <Link to="/worship-list">
+              <ArrowLeft className="w-6 h-6" />
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hover:bg-slate-700 text-slate-300"
             onClick={() => setShowSidebar(!showSidebar)}
-            className="p-2 hover:bg-slate-700 rounded-lg transition-colors active:scale-95"
           >
-            <Menu className="w-6 h-6 text-slate-300" />
-          </button>
+            <Menu className="w-6 h-6" />
+          </Button>
           <div className="h-8 w-px bg-slate-600" />
           <h1 className="text-xl font-bold text-white">{worship?.title || '예배'}</h1>
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            to={`/worship-edit/${id}`}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors active:scale-95"
-          >
-            <Edit className="w-5 h-5" />
-            <span className="font-semibold">편집</span>
-          </Link>
-          <button className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors">
+          <Button variant="ghost" size="sm" className="bg-slate-700 text-slate-300 hover:bg-slate-600" asChild>
+            <Link to={`/worship-edit/${id}`}>
+              <Edit className="w-5 h-5" />
+              <span>편집</span>
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" className="bg-slate-700 text-slate-300 hover:bg-slate-600 cursor-default">
             <Users className="w-5 h-5" />
-            <span className="font-semibold">{presenceUsers.length}명 접속</span>
-          </button>
+            <span>{presenceUsers.length}명 접속</span>
+          </Button>
           {currentRole && (
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg">
               <div className="w-3 h-3 bg-blue-300 rounded-full animate-pulse" />
@@ -389,13 +391,12 @@ export default function Worship() {
                 <div className="text-center py-12 bg-slate-700 rounded-xl">
                   <FileMusic className="w-12 h-12 text-slate-500 mx-auto mb-3" />
                   <p className="text-slate-400 text-sm mb-4">악보가 없습니다</p>
-                  <Link
-                    to={`/worship-edit/${id}`}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold"
-                  >
-                    <Edit className="w-4 h-4" />
-                    편집 페이지에서 추가
-                  </Link>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700" asChild>
+                    <Link to={`/worship-edit/${id}`}>
+                      <Edit className="w-4 h-4" />
+                      편집 페이지에서 추가
+                    </Link>
+                  </Button>
                 </div>
               )}
             </div>
@@ -407,13 +408,16 @@ export default function Worship() {
           {/* 도구 바 */}
           <div className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setIsDrawMode(!isDrawMode)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all ${
+                className={cn(
+                  'px-5 py-2.5 rounded-xl',
                   isDrawMode
-                    ? 'bg-green-600 text-white shadow-lg'
+                    ? 'bg-green-600 text-white shadow-lg hover:bg-green-700'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
+                )}
               >
                 {isDrawMode ? (
                   <>
@@ -426,7 +430,7 @@ export default function Worship() {
                     보기 모드
                   </>
                 )}
-              </button>
+              </Button>
 
               {isDrawMode && (
                 <>
@@ -451,115 +455,137 @@ export default function Worship() {
 
                   {/* 펜 굵기 */}
                   <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
                       onClick={() => setPenWidth((p) => Math.max(p - 1, 1))}
-                      className="p-1 hover:bg-slate-600 rounded transition-colors"
                     >
-                      <Minus className="w-4 h-4 text-slate-300" />
-                    </button>
+                      <Minus className="w-4 h-4" />
+                    </Button>
                     <div className="text-slate-300 font-semibold min-w-[30px] text-center">
                       {penWidth}
                     </div>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
                       onClick={() => setPenWidth((p) => Math.min(p + 1, 20))}
-                      className="p-1 hover:bg-slate-600 rounded transition-colors"
                     >
-                      <PlusIcon className="w-4 h-4 text-slate-300" />
-                    </button>
+                      <PlusIcon className="w-4 h-4" />
+                    </Button>
                   </div>
 
                   <div className="h-8 w-px bg-slate-600" />
 
                   {/* 지우개 */}
                   <div className="flex items-center gap-2">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setEraserType((p) => (p === 'area' ? 'none' : 'area'))}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg font-semibold transition-all ${
+                      className={cn(
+                        'px-3 py-2.5',
                         eraserType === 'area'
-                          ? 'bg-orange-600 text-white'
+                          ? 'bg-orange-600 text-white hover:bg-orange-700'
                           : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      }`}
+                      )}
                       title="영역 지우개"
                     >
                       <Eraser className="w-5 h-5" />
                       <span className="text-sm">영역</span>
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setEraserType((p) => (p === 'stroke' ? 'none' : 'stroke'))}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg font-semibold transition-all ${
+                      className={cn(
+                        'px-3 py-2.5',
                         eraserType === 'stroke'
-                          ? 'bg-red-600 text-white'
+                          ? 'bg-red-600 text-white hover:bg-red-700'
                           : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      }`}
+                      )}
                       title="획 지우개"
                     >
                       <Trash className="w-5 h-5" />
                       <span className="text-sm">획</span>
-                    </button>
+                    </Button>
                   </div>
 
                   {eraserType === 'area' && (
                     <>
                       <div className="h-8 w-px bg-slate-600" />
                       <div className="flex items-center gap-2 bg-orange-700 rounded-lg px-3 py-2">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
                           onClick={() => setEraserWidth((p) => Math.max(p - 2, 5))}
-                          className="p-1 hover:bg-orange-600 rounded transition-colors"
                         >
-                          <Minus className="w-4 h-4 text-white" />
-                        </button>
+                          <Minus className="w-4 h-4" />
+                        </Button>
                         <div className="text-white font-semibold min-w-[30px] text-center">
                           {eraserWidth}
                         </div>
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
                           onClick={() => setEraserWidth((p) => Math.min(p + 2, 50))}
-                          className="p-1 hover:bg-orange-600 rounded transition-colors"
                         >
-                          <PlusIcon className="w-4 h-4 text-white" />
-                        </button>
+                          <PlusIcon className="w-4 h-4" />
+                        </Button>
                       </div>
                     </>
                   )}
 
                   <div className="h-8 w-px bg-slate-600" />
 
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="bg-slate-700 hover:bg-slate-600 text-slate-300"
                     onClick={() => canvasRef.current?.undo()}
-                    className="p-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
                   >
-                    <Undo className="w-5 h-5 text-slate-300" />
-                  </button>
-                  <button
+                    <Undo className="w-5 h-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="bg-slate-700 hover:bg-slate-600 text-slate-300"
                     onClick={() => canvasRef.current?.redo()}
-                    className="p-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
                   >
-                    <Redo className="w-5 h-5 text-slate-300" />
-                  </button>
+                    <Redo className="w-5 h-5" />
+                  </Button>
                 </>
               )}
             </div>
 
             <div className="flex items-center gap-3">
               {currentSheet && (
-                <button
+                <Button
+                  size="sm"
+                  className="bg-amber-600 text-white hover:bg-amber-700 px-4 py-2.5 rounded-xl"
                   onClick={handleSpotlightCall}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl font-semibold hover:bg-amber-700 transition-colors active:scale-95"
                   title="현재 페이지를 다른 사용자에게 호출"
                 >
                   <Megaphone className="w-5 h-5" />
                   <span className="text-sm">호출</span>
-                </button>
+                </Button>
               )}
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowCommandPanel(!showCommandPanel)}
-                className={`px-5 py-2.5 rounded-xl font-semibold transition-all ${
+                className={cn(
+                  'px-5 py-2.5 rounded-xl',
                   showCommandPanel
-                    ? 'bg-purple-600 text-white shadow-lg'
+                    ? 'bg-purple-600 text-white shadow-lg hover:bg-purple-700'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
+                )}
               >
                 명령 패널
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -600,23 +626,27 @@ export default function Worship() {
             {/* 페이지 네비게이션 */}
             {sheets.length > 0 && (
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-800/90 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-2xl">
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="bg-slate-700 hover:bg-slate-600 text-white"
                   onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage <= 0}
-                  className="p-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl transition-colors"
                 >
-                  <ChevronLeft className="w-6 h-6 text-white" />
-                </button>
+                  <ChevronLeft className="w-6 h-6" />
+                </Button>
                 <span className="text-white font-semibold text-lg min-w-[100px] text-center">
                   {currentPage + 1} / {sheets.length}
                 </span>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="bg-slate-700 hover:bg-slate-600 text-white"
                   onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage >= sheets.length - 1}
-                  className="p-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl transition-colors"
                 >
-                  <ChevronRight className="w-6 h-6 text-white" />
-                </button>
+                  <ChevronRight className="w-6 h-6" />
+                </Button>
               </div>
             )}
           </div>

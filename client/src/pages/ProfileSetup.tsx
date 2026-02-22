@@ -3,6 +3,9 @@ import { Link } from 'react-router';
 import { ArrowLeft, Edit, Plus, Trash2, User } from 'lucide-react';
 import { useProfileStore } from '@/store/profileStore';
 import { useRoleStore } from '@/store/roleStore';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function ProfileSetup() {
   const { profiles, deleteProfile, fetchProfiles } = useProfileStore();
@@ -15,33 +18,25 @@ export default function ProfileSetup() {
 
   const getRoleById = (roleId: string) => roles.find((r) => r.id === roleId);
 
-  const handleDelete = (id: string) => {
-    if (confirm('이 프로필을 삭제하시겠습니까?')) {
-      deleteProfile(id);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
-          <Link
-            to="/"
-            className="p-3 bg-white rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95"
-          >
-            <ArrowLeft className="w-6 h-6 text-slate-600" />
-          </Link>
+          <Button variant="outline" size="icon" asChild>
+            <Link to="/">
+              <ArrowLeft className="w-6 h-6" />
+            </Link>
+          </Button>
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-slate-800">프로필 관리</h1>
             <p className="text-slate-600">프로필을 추가하거나 수정하세요</p>
           </div>
-          <Link
-            to="/profile-setup/new"
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg active:scale-95"
-          >
-            <Plus className="w-5 h-5" />
-            새 프로필
-          </Link>
+          <Button asChild>
+            <Link to="/profile-setup/new">
+              <Plus className="w-5 h-5" />
+              새 프로필
+            </Link>
+          </Button>
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl p-8">
@@ -66,24 +61,28 @@ export default function ProfileSetup() {
                       <div className="font-bold text-lg text-slate-800">
                         {profile.name}
                       </div>
-                      <span className="inline-block px-3 py-1 rounded-full text-sm font-semibold mt-1 bg-slate-200 text-slate-700">
+                      <Badge variant="secondary" className="mt-1">
                         {getRoleById(profile.roleId)?.name}
-                      </span>
+                      </Badge>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Link
-                      to={`/profile-setup/${profile.id}`}
-                      className="p-3 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-xl transition-colors active:scale-95"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(profile.id)}
-                      className="p-3 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl transition-colors active:scale-95"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link to={`/profile-setup/${profile.id}`}>
+                        <Edit className="w-5 h-5" />
+                      </Link>
+                    </Button>
+                    <ConfirmDialog
+                      trigger={
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="w-5 h-5" />
+                        </Button>
+                      }
+                      title="프로필 삭제"
+                      description="정말 이 프로필을 삭제하시겠습니까?"
+                      onConfirm={() => deleteProfile(profile.id)}
+                      destructive
+                    />
                   </div>
                 </div>
               ))}
@@ -99,13 +98,12 @@ export default function ProfileSetup() {
               <p className="text-slate-500 mb-6">
                 새 프로필 버튼을 눌러 프로필을 만드세요
               </p>
-              <Link
-                to="/profile-setup/new"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-md active:scale-95"
-              >
-                <Plus className="w-5 h-5" />
-                새 프로필 추가
-              </Link>
+              <Button asChild>
+                <Link to="/profile-setup/new">
+                  <Plus className="w-5 h-5" />
+                  새 프로필 추가
+                </Link>
+              </Button>
             </div>
           )}
         </div>
