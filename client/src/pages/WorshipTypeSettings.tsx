@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Save, X, Tag } from 'lucide-react';
 import { useWorshipTypes, useAddWorshipType, useUpdateWorshipType, useDeleteWorshipType } from '@/hooks/queries';
 import { COLOR_OPTIONS, getColorOption } from '@/lib/colors';
 
@@ -177,11 +177,20 @@ export default function WorshipTypeSettings() {
           </div>
           {worshipTypes.length === 0 && (
             <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
-              <Plus className="w-8 h-8 text-slate-400 mx-auto mb-4" />
+              <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Tag className="w-8 h-8 text-slate-400" />
+              </div>
               <h3 className="text-lg font-semibold text-slate-700 mb-2">
                 아직 예배 유형이 없습니다
               </h3>
-              <p className="text-slate-500">새 유형 추가 버튼을 눌러 예배 유형을 만드세요</p>
+              <p className="text-slate-500 mb-6">새 유형 추가 버튼을 눌러 예배 유형을 만드세요</p>
+              <button
+                onClick={handleAdd}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                새 유형 추가
+              </button>
             </div>
           )}
         </div>
