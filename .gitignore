@@ -25,23 +25,5 @@ out
 *.sln
 *.sw?
 
-worktree
-release
-
 # Local Serena workspace
 .serena/
-
-# Database files
-gilteun-system.db*
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
-
-# Test related files
-test-results/
-playwright-report/
-tests/reports/
-coverage/
-.nyc_output/
-*.lcov
