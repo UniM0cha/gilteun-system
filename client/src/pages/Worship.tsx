@@ -177,7 +177,7 @@ export default function Worship() {
       toast.custom(
         () => (
           <div
-            className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-[350px] border-4 border-blue-500 cursor-pointer"
+            className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-87.5 border-4 border-blue-500 cursor-pointer"
             onClick={() => toast.dismiss(toastId)}
           >
             <div className="text-6xl">{data.emoji}</div>
@@ -205,7 +205,7 @@ export default function Worship() {
       toast.custom(
         () => (
           <div
-            className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-[350px] border-4 border-amber-500 cursor-pointer active:bg-amber-50 transition-colors"
+            className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-87.5 border-4 border-amber-500 cursor-pointer active:bg-amber-50 transition-colors"
             onClick={() => {
               setCurrentSheetId(data.sheetId);
               toast.dismiss(toastId);
@@ -586,7 +586,7 @@ export default function Worship() {
                             >
                               <Minus className="w-4 h-4" />
                             </Button>
-                            <div className="text-slate-300 font-semibold min-w-[30px] text-center">
+                            <div className="text-slate-300 font-semibold min-w-7.5 text-center">
                               {penWidth}
                             </div>
                             <Button
@@ -648,7 +648,7 @@ export default function Worship() {
                               >
                                 <Minus className="w-4 h-4" />
                               </Button>
-                              <div className="text-white font-semibold min-w-[30px] text-center">
+                              <div className="text-white font-semibold min-w-7.5 text-center">
                                 {eraserWidth}
                               </div>
                               <Button
@@ -750,7 +750,7 @@ export default function Worship() {
           >
             <div className="absolute inset-0 flex items-center justify-center p-4">
               <div
-                className="relative bg-white rounded-2xl shadow-2xl aspect-[3/4] h-full overflow-hidden"
+                className="relative bg-white rounded-2xl shadow-2xl aspect-3/4 h-full overflow-hidden"
                 style={scale !== 1 ? {
                   transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
                   transformOrigin: 'center center',
@@ -789,7 +789,7 @@ export default function Worship() {
             {/* 페이지 네비게이션 */}
             {sheets.length > 0 && (
               <div className={cn(
-                "absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-800/90 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-2xl transition-opacity duration-300",
+                "absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-800/70 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-2xl transition-opacity duration-300",
                 showNavBar ? "opacity-100" : "opacity-0 pointer-events-none"
               )}>
                 <Button
@@ -801,7 +801,7 @@ export default function Worship() {
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </Button>
-                <span className="text-white font-semibold text-lg min-w-[100px] text-center">
+                <span className="text-white font-semibold text-lg min-w-25 text-center">
                   {currentPage + 1} / {sheets.length}
                 </span>
                 <Button

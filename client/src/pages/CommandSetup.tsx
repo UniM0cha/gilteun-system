@@ -41,7 +41,7 @@ export default function CommandSetup() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" asChild>
@@ -114,7 +114,7 @@ export default function CommandSetup() {
                         className="text-lg"
                       />
                     </div>
-                    <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl">
+                    <div className="p-6 bg-linear-to-br from-slate-50 to-slate-100 rounded-2xl">
                       <div className="text-sm font-semibold text-slate-600 mb-3 text-center">
                         미리보기
                       </div>
@@ -149,7 +149,7 @@ export default function CommandSetup() {
                 {commands.map((command) => (
                   <Card
                     key={command.id}
-                    className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 shadow-md border-2 border-transparent"
+                    className="bg-linear-to-br from-slate-50 to-slate-100 rounded-2xl p-6 shadow-md border-2 border-transparent"
                   >
                     <CardContent className="p-0">
                       <div className="flex flex-col items-center gap-3 mb-3">
@@ -211,7 +211,7 @@ export default function CommandSetup() {
         </Card>
 
         {/* 안내 */}
-        <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-100">
+        <div className="bg-linear-to-br from-blue-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-100">
           <h3 className="font-bold text-slate-800 mb-2">명령 사용 안내</h3>
           <ul className="space-y-2 text-sm text-slate-600">
             <li>- 모든 명령을 삭제할 수 있으며, 삭제된 기본 명령은 초기화 시 복구됩니다</li>

@@ -27,11 +27,11 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl mb-6 shadow-lg">
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-linear-to-br from-blue-500 to-purple-600 rounded-3xl mb-6 shadow-lg">
             <Music className="w-12 h-12 text-white" />
           </div>
           <h1 className="text-5xl font-bold text-slate-800 mb-3">길튼 시스템</h1>
@@ -59,7 +59,7 @@ export default function Home() {
                     <button
                       key={profile.id}
                       onClick={() => handleProfileSelect(profile.id)}
-                      className="group relative bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 hover:shadow-xl transition-all duration-200 border-2 border-transparent hover:border-blue-300 active:scale-95 text-left"
+                      className="group relative bg-linear-to-br from-slate-50 to-slate-100 rounded-2xl p-6 hover:shadow-xl transition-all duration-200 border-2 border-transparent hover:border-blue-300 active:scale-95 text-left"
                     >
                       <div className="flex items-center gap-4">
                         <div

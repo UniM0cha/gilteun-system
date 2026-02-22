@@ -519,7 +519,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
         />
 
         {!imageUrl && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50 pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-amber-50 to-orange-50 pointer-events-none">
             <div className="text-center">
               <div className="text-6xl mb-4">📄</div>
               <p className="text-xl text-slate-500">악보를 업로드하세요</p>

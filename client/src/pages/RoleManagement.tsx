@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { toast } from 'sonner';
 import { ArrowLeft, Plus, Edit, Trash2, Check, X, AlertCircle, Users } from 'lucide-react';
 import { useRoles, useAddRole, useUpdateRole, useDeleteRole } from '@/hooks/queries';
 import { useProfiles } from '@/hooks/queries';
@@ -46,7 +47,7 @@ export default function RoleManagement() {
 
   const handleDelete = async (id: string) => {
     if (isRoleInUse(id)) {
-      alert('이 역할을 사용하는 프로필이 있습니다. 먼저 프로필의 역할을 변경해주세요.');
+      toast.error('이 역할을 사용하는 프로필이 있습니다. 먼저 프로필의 역할을 변경해주세요.');
       return;
     }
     await deleteRoleMutation.mutateAsync(id);
@@ -59,7 +60,7 @@ export default function RoleManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" asChild>
@@ -175,7 +176,7 @@ export default function RoleManagement() {
                   ) : (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-3xl shadow-md">
+                        <div className="w-16 h-16 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-3xl shadow-md">
                           {role.icon}
                         </div>
                         <div>
@@ -242,7 +243,7 @@ export default function RoleManagement() {
         )}
 
         {roles.length > 0 && (
-          <Card className="mt-6 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
+          <Card className="mt-6 bg-linear-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
             <CardContent>
               <div className="text-sm font-semibold text-blue-700 mb-1">전체 역할</div>
               <div className="text-3xl font-bold text-blue-900">{roles.length}개</div>

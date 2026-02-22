@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { toast } from 'sonner';
 import { ArrowLeft, Plus, Edit, Trash2, Save, X, Tag } from 'lucide-react';
 import { useWorshipTypes, useAddWorshipType, useUpdateWorshipType, useDeleteWorshipType } from '@/hooks/queries';
 import { COLOR_OPTIONS, getColorOption } from '@/lib/colors';
@@ -32,7 +33,7 @@ export default function WorshipTypeSettings() {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      alert('예배 유형 이름을 입력해주세요.');
+      toast.error('예배 유형 이름을 입력해주세요.');
       return;
     }
     if (editingTypeId) {

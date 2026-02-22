@@ -13,7 +13,7 @@ export default function ProfileSetup() {
   const getRoleById = (roleId: string) => roles.find((r) => r.id === roleId);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" asChild>
@@ -43,7 +43,7 @@ export default function ProfileSetup() {
               {profiles.map((profile) => (
                 <div
                   key={profile.id}
-                  className="flex items-center justify-between p-5 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl hover:shadow-md transition-all border-2 border-transparent hover:border-blue-200"
+                  className="flex items-center justify-between p-5 bg-linear-to-r from-slate-50 to-slate-100 rounded-xl hover:shadow-md transition-all border-2 border-transparent hover:border-blue-200"
                 >
                   <div className="flex items-center gap-4">
                     <div

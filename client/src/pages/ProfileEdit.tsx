@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { ArrowLeft, Save, Trash2, User, Users } from 'lucide-react';
 import { useProfiles, useAddProfile, useUpdateProfile, useDeleteProfile, useRoles } from '@/hooks/queries';
 import { PROFILE_COLORS } from '@/lib/colors';
@@ -40,7 +41,7 @@ export default function ProfileEdit() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      alert('이름을 입력해주세요.');
+      toast.error('이름을 입력해주세요.');
       return;
     }
     if (isNewProfile) {
@@ -59,7 +60,7 @@ export default function ProfileEdit() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" asChild>

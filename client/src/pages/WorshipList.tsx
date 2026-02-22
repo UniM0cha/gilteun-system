@@ -212,7 +212,6 @@ export default function WorshipList() {
                             variant="destructive"
                             size="icon"
                             onClick={(e) => {
-                              e.preventDefault();
                               e.stopPropagation();
                             }}
                           >

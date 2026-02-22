@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   Save,
@@ -93,7 +94,7 @@ function SortableSheetItem({
                     alt={sheet.title}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 flex items-center justify-center">
+                  <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-2 flex items-center justify-center">
                     <Eye className="w-4 h-4 text-white" />
                   </div>
                 </div>
@@ -116,7 +117,7 @@ function SortableSheetItem({
               </DialogContent>
             </Dialog>
           ) : (
-            <div className="w-20 h-24 bg-gradient-to-br from-amber-50 to-orange-100 rounded-lg flex items-center justify-center text-3xl border-2 border-slate-200">
+            <div className="w-20 h-24 bg-linear-to-br from-amber-50 to-orange-100 rounded-lg flex items-center justify-center text-3xl border-2 border-slate-200">
               📄
             </div>
           )}
@@ -181,7 +182,7 @@ function SortableSheetItem({
           )}
         </div>
 
-        <div className="text-2xl font-bold text-slate-300 min-w-[40px] text-center">
+        <div className="text-2xl font-bold text-slate-300 min-w-10 text-center">
           {index + 1}
         </div>
 
@@ -250,13 +251,13 @@ export default function WorshipEdit() {
     }
   }, [isNew, worshipTypes, typeId]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const allowedTypes = ['image/jpeg', 'image/png', 'image/heic', 'image/heif'];
     const imageFiles = files.filter((file) => allowedTypes.includes(file.type));
 
     if (imageFiles.length !== files.length) {
-      alert('JPG, PNG, HEIC 이미지 파일만 업로드 가능합니다.');
+      toast.error('JPG, PNG, HEIC 이미지 파일만 업로드 가능합니다.');
     }
 
     if (imageFiles.length === 0) return;
@@ -265,11 +266,11 @@ export default function WorshipEdit() {
     let currentWorshipId = worshipId;
     if (!currentWorshipId) {
       if (!title.trim()) {
-        alert('악보를 추가하려면 먼저 예배 제목을 입력해주세요.');
+        toast.error('악보를 추가하려면 먼저 예배 제목을 입력해주세요.');
         return;
       }
       if (!date) {
-        alert('악보를 추가하려면 먼저 예배 날짜를 선택해주세요.');
+        toast.error('악보를 추가하려면 먼저 예배 날짜를 선택해주세요.');
         return;
       }
       const worship = await addWorshipMutation.mutateAsync({ title: title.trim(), date, typeId });
@@ -306,7 +307,7 @@ export default function WorshipEdit() {
     if (!editingSheetId) return;
     const trimmedTitle = editingTitle.trim();
     if (!trimmedTitle) {
-      alert('제목을 입력해주세요.');
+      toast.error('제목을 입력해주세요.');
       return;
     }
     await updateSheetMutation.mutateAsync({ id: editingSheetId, title: trimmedTitle });
@@ -346,15 +347,15 @@ export default function WorshipEdit() {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      alert('예배 제목을 입력해주세요.');
+      toast.error('예배 제목을 입력해주세요.');
       return;
     }
     if (!date) {
-      alert('예배 날짜를 선택해주세요.');
+      toast.error('예배 날짜를 선택해주세요.');
       return;
     }
     if (!typeId) {
-      alert('예배 유형을 선택해주세요.');
+      toast.error('예배 유형을 선택해주세요.');
       return;
     }
 
@@ -372,7 +373,7 @@ export default function WorshipEdit() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-5xl mx-auto">
         {/* 헤더 */}
         <div className="flex items-center gap-4 mb-8">
@@ -401,7 +402,7 @@ export default function WorshipEdit() {
             <h2 className="text-xl font-bold text-slate-800 mb-6">예배 정보</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4" />
@@ -417,7 +418,7 @@ export default function WorshipEdit() {
                 />
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
@@ -432,7 +433,7 @@ export default function WorshipEdit() {
                 />
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <Tag className="w-4 h-4" />
@@ -555,19 +556,19 @@ export default function WorshipEdit() {
 
         {/* 통계 카드 */}
         <div className="grid grid-cols-3 gap-4">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 shadow-none">
+          <Card className="bg-linear-to-br from-blue-50 to-blue-100 border-2 border-blue-200 shadow-none">
             <CardContent>
               <div className="text-sm font-semibold text-blue-700 mb-1">총 악보</div>
               <div className="text-3xl font-bold text-blue-900">{sheets.length}개</div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 shadow-none">
+          <Card className="bg-linear-to-br from-green-50 to-green-100 border-2 border-green-200 shadow-none">
             <CardContent>
               <div className="text-sm font-semibold text-green-700 mb-1">예배 날짜</div>
               <div className="text-xl font-bold text-green-900">{date || '미정'}</div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 shadow-none">
+          <Card className="bg-linear-to-br from-purple-50 to-purple-100 border-2 border-purple-200 shadow-none">
             <CardContent>
               <div className="text-sm font-semibold text-purple-700 mb-1">상태</div>
               <div className="text-xl font-bold text-purple-900">
