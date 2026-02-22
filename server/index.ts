@@ -35,8 +35,11 @@ const httpServer = createServer(app);
 app.use(cors());
 app.use(express.json());
 
-// Static files for uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Static files for uploads (이미지 파일명이 nanoid 기반이라 immutable 캐싱 안전)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '1y',
+  immutable: true,
+}));
 
 // API routes
 registerRoutes(app);

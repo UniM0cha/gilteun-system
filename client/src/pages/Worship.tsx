@@ -30,7 +30,7 @@ import { useAppStore } from '@/store/appStore';
 import { useWorshipSocket } from '@/hooks/useWorshipSocket';
 import SheetCanvas, { type SheetCanvasRef, type EraserType } from '@/components/SheetCanvas';
 import { useDrawingSync } from '@/hooks/useDrawingSync';
-import { getSocket } from '@/hooks/useSocket';
+import { getSocket, setWorshipRoom } from '@/hooks/useSocket';
 
 const penColors = [
   { color: 'bg-red-500', value: '#ef4444' },
@@ -138,11 +138,33 @@ export default function Worship() {
     if (!id || !currentProfileId) return;
 
     socket.emit('join:worship', { worshipId: id, profileId: currentProfileId });
+    setWorshipRoom({ worshipId: id, profileId: currentProfileId });
 
     return () => {
       socket.emit('leave:worship', { worshipId: id });
+      setWorshipRoom(null);
     };
   }, [id, currentProfileId, socket]);
+
+  // Socket: 연결 상태 토스트
+  const hasDisconnectedRef = useRef(false);
+  useEffect(() => {
+    const onDisconnect = () => {
+      hasDisconnectedRef.current = true;
+      toast.error('서버 연결이 끊어졌습니다', { id: 'socket-status' });
+    };
+    const onConnect = () => {
+      if (hasDisconnectedRef.current) {
+        toast.success('서버에 다시 연결되었습니다', { id: 'socket-status' });
+      }
+    };
+    socket.on('disconnect', onDisconnect);
+    socket.on('connect', onConnect);
+    return () => {
+      socket.off('disconnect', onDisconnect);
+      socket.off('connect', onConnect);
+    };
+  }, [socket]);
 
   // Socket: 페이지 변경 알림
   useEffect(() => {

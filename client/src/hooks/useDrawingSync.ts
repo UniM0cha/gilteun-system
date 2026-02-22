@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { getSocket } from './useSocket';
+import { getSocket, setSheetRoom } from './useSocket';
 
 export interface Point {
   x: number;
@@ -50,11 +50,13 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
 
     currentSheetIdRef.current = sheetId;
     socket.emit('join:sheet', { sheetId });
+    setSheetRoom({ sheetId });
 
     return () => {
       if (currentSheetIdRef.current) {
         socket.emit('leave:sheet', { sheetId: currentSheetIdRef.current });
         currentSheetIdRef.current = null;
+        setSheetRoom(null);
       }
     };
   }, [sheetId, enabled, socket]);
