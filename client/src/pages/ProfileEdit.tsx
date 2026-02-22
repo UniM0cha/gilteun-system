@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Save, Trash2, User } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, User, Users } from 'lucide-react';
 import { useProfiles, useAddProfile, useUpdateProfile, useDeleteProfile, useRoles } from '@/hooks/queries';
 import { PROFILE_COLORS } from '@/lib/colors';
 
@@ -106,22 +106,39 @@ export default function ProfileEdit() {
             <label className="block text-sm font-semibold text-slate-700 mb-3">
               역할 *
             </label>
-            <div className="grid grid-cols-3 gap-3">
-              {roles.map((role) => (
-                <button
-                  key={role.id}
-                  onClick={() => setRoleId(role.id)}
-                  className={`flex items-center justify-center gap-2 py-4 rounded-xl font-semibold transition-all ${
-                    roleId === role.id
-                      ? 'bg-blue-600 text-white shadow-lg scale-105'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+            {roles.length > 0 ? (
+              <div className="grid grid-cols-3 gap-3">
+                {roles.map((role) => (
+                  <button
+                    key={role.id}
+                    onClick={() => setRoleId(role.id)}
+                    className={`flex items-center justify-center gap-2 py-4 rounded-xl font-semibold transition-all ${
+                      roleId === role.id
+                        ? 'bg-blue-600 text-white shadow-lg scale-105'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span className="text-2xl">{role.icon}</span>
+                    <span>{role.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="w-full px-5 py-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl text-yellow-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-5 h-5" />
+                  <span className="font-semibold">역할이 없습니다</span>
+                </div>
+                <p className="text-sm mb-3">먼저 역할을 생성해주세요.</p>
+                <Link
+                  to="/role-management"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg font-semibold hover:bg-yellow-700 transition-colors"
                 >
-                  <span className="text-2xl">{role.icon}</span>
-                  <span>{role.name}</span>
-                </button>
-              ))}
-            </div>
+                  <Users className="w-4 h-4" />
+                  역할 관리
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* 색상 선택 */}
@@ -148,7 +165,8 @@ export default function ProfileEdit() {
           <div className="flex gap-4">
             <button
               onClick={handleSave}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg active:scale-95"
+              disabled={roles.length === 0}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg active:scale-95"
             >
               <Save className="w-5 h-5" />
               저장하기

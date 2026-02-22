@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, Plus, Trash2, RotateCcw, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Settings } from 'lucide-react';
 import { useCommands, useAddCommand, useDeleteCommand, useResetCommands } from '@/hooks/queries';
 
 export default function CommandSetup() {
@@ -66,33 +66,63 @@ export default function CommandSetup() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {commands.map((command) => (
-              <div
-                key={command.id}
-                className="relative bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 shadow-md border-2 border-transparent transition-all"
-              >
-                <div className="flex flex-col items-center gap-3 mb-3">
-                  <span className="text-6xl">{command.emoji}</span>
-                  <span className="text-sm font-semibold text-slate-700 text-center">
-                    {command.label}
-                  </span>
-                  {command.isDefault && (
-                    <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs font-semibold rounded-full">
-                      기본 명령
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => deleteCommandMutation.mutate(command.id)}
-                  className="w-full flex items-center justify-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl transition-all active:scale-95 border-2 border-red-200 hover:bg-red-100"
+          {commands.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {commands.map((command) => (
+                <div
+                  key={command.id}
+                  className="relative bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 shadow-md border-2 border-transparent transition-all"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span className="text-sm font-semibold">삭제</span>
+                  <div className="flex flex-col items-center gap-3 mb-3">
+                    <span className="text-6xl">{command.emoji}</span>
+                    <span className="text-sm font-semibold text-slate-700 text-center">
+                      {command.label}
+                    </span>
+                    {command.isDefault && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs font-semibold rounded-full">
+                        기본 명령
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteCommandMutation.mutate(command.id)}
+                    className="w-full flex items-center justify-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl transition-all active:scale-95 border-2 border-red-200 hover:bg-red-100"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="text-sm font-semibold">삭제</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
+              <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Settings className="w-8 h-8 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-700 mb-2">
+                아직 명령이 없습니다
+              </h3>
+              <p className="text-slate-500 mb-6">
+                새 명령을 추가하거나 초기화 버튼으로 기본 명령을 불러오세요
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={() => setIsAddingNew(true)}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-md active:scale-95"
+                >
+                  <Plus className="w-5 h-5" />
+                  새 명령 추가
+                </button>
+                <button
+                  onClick={handleResetToDefault}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-orange-50 text-orange-600 rounded-xl font-semibold hover:bg-orange-100 transition-colors active:scale-95"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                  기본 명령 초기화
                 </button>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* 새 명령 추가 모달 */}

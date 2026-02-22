@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, Plus, Edit, Trash2, Check, X, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Check, X, AlertCircle, Users } from 'lucide-react';
 import { useRoles, useAddRole, useUpdateRole, useDeleteRole } from '@/hooks/queries';
 import { useProfiles } from '@/hooks/queries';
 
@@ -130,6 +130,7 @@ export default function RoleManagement() {
         )}
 
         {/* 역할 목록 */}
+        {roles.length > 0 ? (
         <div className="space-y-3">
           {roles.map((role) => {
             const inUse = isRoleInUse(role.id);
@@ -215,6 +216,26 @@ export default function RoleManagement() {
             );
           })}
         </div>
+        ) : (
+          <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
+            <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-700 mb-2">
+              아직 역할이 없습니다
+            </h3>
+            <p className="text-slate-500 mb-6">
+              새 역할 추가 버튼을 눌러 역할을 만드세요
+            </p>
+            <button
+              onClick={() => setIsAdding(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-md active:scale-95"
+            >
+              <Plus className="w-5 h-5" />
+              새 역할 추가
+            </button>
+          </div>
+        )}
 
         {roles.length > 0 && (
           <div className="mt-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border-2 border-blue-200">
