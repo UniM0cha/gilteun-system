@@ -102,8 +102,9 @@
 
 /* 터치 기기에서 sonner 토스트 호버 일시정지 방지 */
 @media (hover: none) and (pointer: coarse) {
-  [data-sonner-toaster] {
-    pointer-events: none;
+  [data-sonner-toaster],
+  [data-sonner-toaster] > ol {
+    pointer-events: none !important;
   }
   [data-sonner-toast] {
     pointer-events: auto;

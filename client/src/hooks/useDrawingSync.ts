@@ -81,7 +81,6 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
       point: Point;
     }) => {
       if (data.sheetId !== currentSheetIdRef.current) return;
-      if (data.profileId === profileId) return; // 내 것은 무시
 
       setRemoteInProgress((prev) => {
         const next = new Map(prev);
@@ -130,9 +129,6 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
         next.delete(data.pathId);
         return next;
       });
-
-      // 내 것이면 이미 로컬에 있으므로 스킵
-      if (data.profileId === profileId) return;
 
       // 완료된 path 추가
       const path: DrawingPath = {

@@ -48,6 +48,7 @@ registerRoutes(app);
 const io = new SocketIOServer(httpServer, {
   cors: { origin: '*' },
 });
+app.set('io', io);
 initSocket(io);
 
 // Production: serve client build

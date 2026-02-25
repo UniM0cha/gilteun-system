@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { nanoid } from 'nanoid';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
+import type { Server } from 'socket.io';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -10,6 +11,19 @@ import { sheets, drawingPaths } from '../db/schema.js';
 import { config } from '../config.js';
 
 const router = Router();
+
+function broadcastSheetsUpdate(io: Server, worshipId: string) {
+  const allSheets = db
+    .select()
+    .from(sheets)
+    .where(eq(sheets.worshipId, worshipId))
+    .orderBy(asc(sheets.order))
+    .all();
+  io.to(`worship:${worshipId}`).emit('sheets:updated', {
+    worshipId,
+    sheets: allSheets,
+  });
+}
 
 // Multer 설정
 const storage = multer.diskStorage({
@@ -55,7 +69,7 @@ async function convertToJpegIfNeeded(filePath: string): Promise<string> {
 // POST /api/worships/:worshipId/sheets - 악보 추가
 router.post('/worships/:worshipId/sheets', upload.single('image'), async (req, res) => {
   try {
-    const { worshipId } = req.params;
+    const worshipId = req.params.worshipId as string;
     const file = req.file;
     if (!file) {
       res.status(400).json({ error: 'Image file is required' });
@@ -95,6 +109,9 @@ router.post('/worships/:worshipId/sheets', upload.single('image'), async (req, r
 
     const created = db.select().from(sheets).where(eq(sheets.id, id)).get();
     res.status(201).json(created);
+
+    const io = req.app.get('io') as Server | undefined;
+    if (io) broadcastSheetsUpdate(io, worshipId);
   } catch (error) {
     console.error('Failed to upload sheet:', error);
     res.status(500).json({ error: 'Failed to upload sheet' });
@@ -104,7 +121,7 @@ router.post('/worships/:worshipId/sheets', upload.single('image'), async (req, r
 // PUT /api/sheets/:id - 악보 제목 수정
 router.put('/sheets/:id', (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { title } = req.body;
     const existing = db.select().from(sheets).where(eq(sheets.id, id)).get();
     if (!existing) {
@@ -116,6 +133,9 @@ router.put('/sheets/:id', (req, res) => {
     }
     const updated = db.select().from(sheets).where(eq(sheets.id, id)).get();
     res.json(updated);
+
+    const io = req.app.get('io') as Server | undefined;
+    if (io) broadcastSheetsUpdate(io, existing.worshipId);
   } catch (error) {
     console.error('Failed to update sheet:', error);
     res.status(500).json({ error: 'Failed to update sheet' });
@@ -125,7 +145,7 @@ router.put('/sheets/:id', (req, res) => {
 // DELETE /api/sheets/:id - 악보 삭제
 router.delete('/sheets/:id', (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const existing = db.select().from(sheets).where(eq(sheets.id, id)).get();
     if (!existing) {
       res.status(404).json({ error: 'Sheet not found' });
@@ -140,6 +160,9 @@ router.delete('/sheets/:id', (req, res) => {
     }
     db.delete(sheets).where(eq(sheets.id, id)).run();
     res.json({ success: true });
+
+    const io = req.app.get('io') as Server | undefined;
+    if (io) broadcastSheetsUpdate(io, existing.worshipId);
   } catch (error) {
     console.error('Failed to delete sheet:', error);
     res.status(500).json({ error: 'Failed to delete sheet' });
@@ -160,7 +183,11 @@ router.put('/worships/:worshipId/sheets/order', (req, res) => {
         .where(eq(sheets.id, orderedIds[i]))
         .run();
     }
+    const worshipId = req.params.worshipId as string;
     res.json({ success: true });
+
+    const io = req.app.get('io') as Server | undefined;
+    if (io) broadcastSheetsUpdate(io, worshipId);
   } catch (error) {
     console.error('Failed to reorder sheets:', error);
     res.status(500).json({ error: 'Failed to reorder sheets' });
@@ -170,7 +197,7 @@ router.put('/worships/:worshipId/sheets/order', (req, res) => {
 // GET /api/sheets/:id/drawings - 드로잉 패스 조회
 router.get('/sheets/:id/drawings', (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const paths = db
       .select()
       .from(drawingPaths)
