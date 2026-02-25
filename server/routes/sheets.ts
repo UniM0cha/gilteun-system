@@ -6,7 +6,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
-import { db } from '../db/index.js';
+import { db } from "../db";
 import { sheets, drawingPaths } from '../db/schema.js';
 import { config } from '../config.js';
 

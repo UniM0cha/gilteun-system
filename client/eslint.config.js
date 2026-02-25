@@ -15,7 +15,7 @@ export default ts.config(
     rules: {
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'import-x/no-useless-path-segments': 'warn',
+      'import-x/no-useless-path-segments': ['warn', { noUselessIndex: true }],
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
     },

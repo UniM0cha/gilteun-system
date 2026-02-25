@@ -11,7 +11,7 @@ export default ts.config(
       'import-x': importX,
     },
     rules: {
-      'import-x/no-useless-path-segments': 'warn',
+      'import-x/no-useless-path-segments': ['warn', { noUselessIndex: true }],
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
     },

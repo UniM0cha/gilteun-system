@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid';
-import { db } from './index.js';
+import { db } from ".";
 import {
   worshipTypes,
   roles,

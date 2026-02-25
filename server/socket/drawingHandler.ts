@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db } from "../db";
 import { drawingPaths } from '../db/schema.js';
 
 export function setupDrawingHandler(io: Server, socket: Socket): void {

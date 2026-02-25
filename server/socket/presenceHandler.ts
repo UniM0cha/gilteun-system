@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db } from "../db";
 import { profiles, roles } from '../db/schema.js';
 
 interface UserInfo {

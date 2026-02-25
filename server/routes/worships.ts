@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
-import { db } from '../db/index.js';
+import { db } from "../db";
 import { worships, sheets, drawingPaths } from '../db/schema.js';
 import { config } from '../config.js';
 

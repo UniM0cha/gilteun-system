@@ -7,8 +7,8 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { setupDatabase } from './db/setup.js';
-import { registerRoutes } from './routes/index.js';
-import { initSocket } from './socket/index.js';
+import { registerRoutes } from "./routes";
+import { initSocket } from "./socket";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

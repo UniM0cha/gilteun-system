@@ -1,4 +1,4 @@
-import { sqlite } from './index.js';
+import { sqlite } from ".";
 
 export function setupDatabase(): void {
   sqlite.exec(`

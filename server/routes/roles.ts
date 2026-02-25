@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { nanoid } from 'nanoid';
 import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db } from "../db";
 import { roles, profiles } from '../db/schema.js';
 
 const router = Router();
