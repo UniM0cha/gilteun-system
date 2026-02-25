@@ -10,7 +10,12 @@
     "start": "cd server && npm start",
     "install:all": "cd server && npm install && cd ../client && npm install",
     "db:seed": "cd server && npm run db:seed",
-    "db:migrate": "cd server && npm run db:migrate"
+    "db:migrate": "cd server && npm run db:migrate",
+    "check": "concurrently \"npm run check:client\" \"npm run check:server\"",
+    "check:client": "cd client && ./node_modules/.bin/tsc --noEmit && ./node_modules/.bin/eslint src/",
+    "check:server": "cd server && npx tsc --noEmit && npx eslint .",
+    "lint": "concurrently \"cd client && npx eslint src/\" \"cd server && npx eslint .\"",
+    "lint:fix": "cd client && npx eslint src/ --fix && cd ../server && npx eslint . --fix"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

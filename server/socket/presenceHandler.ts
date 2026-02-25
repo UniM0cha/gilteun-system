@@ -80,7 +80,7 @@ export function setupPresenceHandler(io: Server, socket: Socket): void {
       });
 
       // socket 데이터에 worshipId 저장 (disconnect 시 정리용)
-      (socket as any)._worshipId = data.worshipId;
+      (socket as unknown as { _worshipId?: string })._worshipId = data.worshipId;
 
       broadcastPresence(io, data.worshipId);
     },
@@ -145,7 +145,7 @@ export function setupPresenceHandler(io: Server, socket: Socket): void {
 
   // 연결 해제 시 정리
   socket.on('disconnect', () => {
-    const worshipId = (socket as any)._worshipId;
+    const worshipId = (socket as unknown as { _worshipId?: string })._worshipId;
     if (worshipId) {
       const worship = presenceMap.get(worshipId);
       if (worship) {

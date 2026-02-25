@@ -50,6 +50,15 @@ npm run db:seed
 
 # DB 마이그레이션
 npm run db:migrate
+
+# 타입체크 + 린팅 (작업 완료 시 필수 실행)
+npm run check
+
+# 린트만
+npm run lint
+
+# 린트 자동 수정
+npm run lint:fix
 ```
 
 ## 기술 스택
@@ -79,7 +88,10 @@ npm run db:migrate
 - **컴포넌트 스타일**: `cn()` 유틸리티 + Tailwind 클래스
 - **shadcn/ui**: `@/components/ui/` 경로, `npx shadcn@latest add <component>`로 추가
 - **데이터 fetching**: TanStack Query + Axios (`@/hooks/queries.ts`에서 커스텀 훅)
-- **TypeScript 체크**: `cd client && ./node_modules/.bin/tsc --noEmit` (npx tsc는 동작하지 않음)
+- **품질 체크**: 작업 완료 후 반드시 `npm run check` 실행 (타입체크 + ESLint)
+- **린트 경고(warning)도 에러와 동일하게 취급**: warning이 남아있으면 반드시 수정 후 커밋
+- **ESLint**: `client/eslint.config.js`, `server/eslint.config.js` (Flat Config, ESLint 9)
+- **shadcn/ui 컴포넌트** (`src/components/ui/`)는 자동생성이므로 린트 제외
 
 ## API 엔드포인트
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router';
 import {
   ChevronLeft,
@@ -90,7 +90,7 @@ export default function Worship() {
   } | null>(null);
   const lastTapRef = useRef(0);
 
-  const sheets = worshipData?.sheets || [];
+  const sheets = useMemo(() => worshipData?.sheets || [], [worshipData?.sheets]);
   const currentSheet = sheets.find((s) => s.id === currentSheetId) || null;
   const currentPage = sheets.findIndex((s) => s.id === currentSheetId);
 

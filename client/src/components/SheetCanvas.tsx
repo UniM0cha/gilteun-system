@@ -5,6 +5,7 @@ import {
   forwardRef,
   useImperativeHandle,
   useCallback,
+  useMemo,
 } from 'react';
 import type { DrawingPath, Point } from '@/hooks/useDrawingSync';
 
@@ -104,7 +105,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
     const erasedPathIdsRef = useRef<Set<string>>(new Set());
 
     // 모든 paths 합치기 (remote + local)
-    const allPaths = [...remotePaths, ...localPaths];
+    const allPaths = useMemo(() => [...remotePaths, ...localPaths], [remotePaths, localPaths]);
 
     // Canvas 크기 설정
     useEffect(() => {
@@ -414,7 +415,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       setCurrentPath([]);
     };
 
-    const undo = () => {
+    const undo = useCallback(() => {
       if (historyIndex > 0) {
         const newIndex = historyIndex - 1;
         const prevPaths = history[newIndex];
@@ -446,9 +447,9 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
         setHistoryIndex(newIndex);
         setLocalPaths(prevPaths);
       }
-    };
+    }, [historyIndex, history, localPaths, onDrawDelete, onDrawEnd]);
 
-    const redo = () => {
+    const redo = useCallback(() => {
       if (historyIndex < history.length - 1) {
         const newIndex = historyIndex + 1;
         const nextPaths = history[newIndex];
@@ -477,17 +478,17 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
         setHistoryIndex(newIndex);
         setLocalPaths(nextPaths);
       }
-    };
+    }, [historyIndex, history, localPaths, onDrawDelete, onDrawEnd]);
 
-    const clear = () => {
+    const clear = useCallback(() => {
       setLocalPaths([]);
       const newHistory = [...history, []];
       setHistory(newHistory);
       setHistoryIndex(newHistory.length - 1);
       onDrawClear?.();
-    };
+    }, [history, onDrawClear]);
 
-    useImperativeHandle(ref, () => ({ undo, redo, clear }), [historyIndex, history, localPaths]);
+    useImperativeHandle(ref, () => ({ undo, redo, clear }), [undo, redo, clear]);
 
     return (
       <div ref={containerRef} className="relative w-full h-full">

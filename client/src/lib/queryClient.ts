@@ -26,7 +26,7 @@ export const asyncStoragePersister = createAsyncStoragePersister({
       try { await set(key, value); } catch { /* Safari 프라이빗 모드 등 */ }
     },
     removeItem: async (key) => {
-      try { await del(key); } catch {}
+      try { await del(key); } catch { /* IndexedDB 미지원 환경 무시 */ }
     },
   },
   key: 'gilteun-query-cache',
