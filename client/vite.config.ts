@@ -72,5 +72,6 @@ export default defineConfig({
         ws: true,
       },
     },
+    allowedHosts: ["solstice-macbookpro.taile04fbf.ts.net"]
   },
 });
