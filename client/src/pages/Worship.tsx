@@ -484,8 +484,8 @@ export default function Worship() {
                       >
                         <div className="flex items-center gap-3">
                           <FileMusic className="w-5 h-5" />
-                          <div className="flex-1">
-                            <div className="font-semibold mb-1">{sheet.title}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold mb-1 line-clamp-2">{sheet.title}</div>
                             <div className="text-sm opacity-75">페이지 {index + 1}</div>
                           </div>
                           {usersOnSheet.length > 0 && (

@@ -166,7 +166,7 @@ function SortableSheetItem({
           ) : (
             <>
               <div className="flex items-center gap-2">
-                <div className="font-semibold text-slate-800">{sheet.title}</div>
+                <div className="font-semibold text-slate-800 line-clamp-2">{sheet.title}</div>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -177,7 +177,7 @@ function SortableSheetItem({
                   <Pencil className="w-3.5 h-3.5" />
                 </Button>
               </div>
-              <div className="text-sm text-slate-500 mt-1">{sheet.fileName}</div>
+              <div className="text-sm text-slate-500 mt-1 truncate">{sheet.fileName}</div>
             </>
           )}
         </div>
@@ -366,7 +366,7 @@ export default function WorshipEdit() {
       } else {
         await addWorshipMutation.mutateAsync({ title: title.trim(), date, typeId });
       }
-      navigate('/worship-list');
+      navigate(-1);
     } finally {
       setSaving(false);
     }
