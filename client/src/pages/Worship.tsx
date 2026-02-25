@@ -716,7 +716,7 @@ export default function Worship() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="bg-slate-700 hover:bg-slate-600 text-slate-300"
+                    className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
                     onClick={() => canvasRef.current?.undo()}
                   >
                     <Undo className="w-5 h-5" />
@@ -724,7 +724,7 @@ export default function Worship() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="bg-slate-700 hover:bg-slate-600 text-slate-300"
+                    className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
                     onClick={() => canvasRef.current?.redo()}
                   >
                     <Redo className="w-5 h-5" />
