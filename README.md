@@ -14,7 +14,30 @@
 - **프로필 시스템**: 역할별 프로필 (인도자, 건반, 기타 등)
 - **오프라인 읽기**: 최근 데이터 캐싱으로 오프라인 읽기 지원
 
-## 설치 및 실행
+## 빠른 설치
+
+아래 명령어 하나로 모든 설치가 자동으로 진행됩니다.
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/UniM0cha/gilteun-system/main/setup.sh)
+```
+
+이미 레포를 클론한 경우 프로젝트 디렉토리에서 직접 실행할 수도 있습니다.
+
+```bash
+bash setup.sh
+```
+
+스크립트가 자동으로 처리하는 항목:
+
+1. Xcode CLT / Homebrew / Node.js 24 LTS 설치 (없는 경우)
+2. 레포 클론 (`$HOME/gilteun-system`)
+3. 의존성 설치 (서버 + 클라이언트)
+4. React 클라이언트 빌드
+5. 데이터베이스 초기 데이터 투입
+6. macOS 자동 시작 서비스 등록 (선택)
+
+## 설치 및 실행 (수동)
 
 ### 요구사항
 
@@ -32,11 +55,11 @@ npm run install:all
 ### 개발 모드
 
 ```bash
-# 서버(3001) + 클라이언트(5173) 동시 실행
+# 서버(3002) + 클라이언트(5174) 동시 실행
 npm run dev
 ```
 
-브라우저에서 `http://localhost:5173` 접속
+브라우저에서 `http://localhost:5174` 접속
 
 ### 프로덕션 모드
 
@@ -48,7 +71,7 @@ npm run build
 npm start
 ```
 
-브라우저에서 `http://localhost:3001` 접속
+브라우저에서 `http://localhost:3000` 접속
 
 ### 초기 데이터
 
@@ -63,7 +86,7 @@ npm run db:seed
 
 1. 프로덕션 모드로 서버 실행: `npm start`
 2. 서버 시작 시 출력되는 로컬 IP 주소 확인
-3. 다른 기기에서 `http://<서버IP>:3001` 접속
+3. 다른 기기에서 `http://<서버IP>:3000` 접속
 
 ## macOS 자동 시작 (launchd)
 
@@ -87,6 +110,26 @@ cd server && bash deploy/uninstall.sh
 tail -f /tmp/gilteun-server.log
 tail -f /tmp/gilteun-server.error.log
 ```
+
+## 제거
+
+아래 명령어로 길튼 시스템을 완전히 제거할 수 있습니다.
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/UniM0cha/gilteun-system/main/uninstall.sh)
+```
+
+또는 프로젝트 디렉토리에서 직접 실행:
+
+```bash
+bash uninstall.sh
+```
+
+처리 항목:
+
+1. launchd 서비스 중지 및 해제
+2. 로그 파일 삭제 (`/tmp/gilteun-server.log`, `/tmp/gilteun-server.error.log`)
+3. 프로젝트 디렉토리 삭제 (확인 후 선택적으로)
 
 ## 기술 스택
 
