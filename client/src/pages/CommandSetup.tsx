@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Link } from 'react-router';
-import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Settings } from 'lucide-react';
-import { useCommands, useAddCommand, useDeleteCommand, useResetCommands } from '@/hooks/queries';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState } from "react";
+import { Link } from "react-router";
+import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Settings } from "lucide-react";
+import { useCommands, useAddCommand, useDeleteCommand, useResetCommands } from "@/hooks/queries";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -13,8 +13,8 @@ import {
   DialogFooter,
   DialogTrigger,
   DialogClose,
-} from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function CommandSetup() {
   const { data: commands = [] } = useCommands();
@@ -23,21 +23,21 @@ export default function CommandSetup() {
   const resetCommandsMutation = useResetCommands();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newEmoji, setNewEmoji] = useState('🎵');
-  const [newLabel, setNewLabel] = useState('');
+  const [newEmoji, setNewEmoji] = useState("🎵");
+  const [newLabel, setNewLabel] = useState("");
 
   const handleAdd = async () => {
     if (newLabel.trim()) {
       await addCommandMutation.mutateAsync({ emoji: newEmoji, label: newLabel.trim() });
-      setNewLabel('');
-      setNewEmoji('🎵');
+      setNewLabel("");
+      setNewEmoji("🎵");
       setDialogOpen(false);
     }
   };
 
   const resetForm = () => {
-    setNewLabel('');
-    setNewEmoji('🎵');
+    setNewLabel("");
+    setNewEmoji("🎵");
   };
 
   return (
@@ -72,17 +72,17 @@ export default function CommandSetup() {
         <Card className="mb-6 rounded-3xl p-8">
           <CardContent className="p-0">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-800">
-                현재 명령 ({commands.length})
-              </h2>
-              <Dialog open={dialogOpen} onOpenChange={(open) => {
-                setDialogOpen(open);
-                if (!open) resetForm();
-              }}>
+              <h2 className="text-xl font-bold text-slate-800">현재 명령 ({commands.length})</h2>
+              <Dialog
+                open={dialogOpen}
+                onOpenChange={(open) => {
+                  setDialogOpen(open);
+                  if (!open) resetForm();
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button>
-                    <Plus className="w-5 h-5" />
-                    새 명령 추가
+                    <Plus className="w-5 h-5" />새 명령 추가
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-2xl">
@@ -91,9 +91,7 @@ export default function CommandSetup() {
                   </DialogHeader>
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">
-                        이모티콘 *
-                      </label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">이모티콘 *</label>
                       <Input
                         type="text"
                         value={newEmoji}
@@ -103,9 +101,7 @@ export default function CommandSetup() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">
-                        명령 이름 *
-                      </label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">명령 이름 *</label>
                       <Input
                         type="text"
                         value={newLabel}
@@ -115,27 +111,18 @@ export default function CommandSetup() {
                       />
                     </div>
                     <div className="p-6 bg-linear-to-br from-slate-50 to-slate-100 rounded-2xl">
-                      <div className="text-sm font-semibold text-slate-600 mb-3 text-center">
-                        미리보기
-                      </div>
+                      <div className="text-sm font-semibold text-slate-600 mb-3 text-center">미리보기</div>
                       <div className="flex flex-col items-center gap-3">
-                        <span className="text-7xl">{newEmoji || '🎵'}</span>
-                        <span className="text-lg font-semibold text-slate-700">
-                          {newLabel || '명령 이름'}
-                        </span>
+                        <span className="text-7xl">{newEmoji || "🎵"}</span>
+                        <span className="text-lg font-semibold text-slate-700">{newLabel || "명령 이름"}</span>
                       </div>
                     </div>
                   </div>
                   <DialogFooter>
                     <DialogClose asChild>
-                      <Button variant="secondary">
-                        취소
-                      </Button>
+                      <Button variant="secondary">취소</Button>
                     </DialogClose>
-                    <Button
-                      onClick={handleAdd}
-                      disabled={!newLabel.trim() || !newEmoji.trim()}
-                    >
+                    <Button onClick={handleAdd} disabled={!newLabel.trim() || !newEmoji.trim()}>
                       <Save className="w-5 h-5" />
                       추가하기
                     </Button>
@@ -154,9 +141,7 @@ export default function CommandSetup() {
                     <CardContent className="p-0">
                       <div className="flex flex-col items-center gap-3 mb-3">
                         <span className="text-6xl">{command.emoji}</span>
-                        <span className="text-sm font-semibold text-slate-700 text-center">
-                          {command.label}
-                        </span>
+                        <span className="text-sm font-semibold text-slate-700 text-center">{command.label}</span>
                         {command.isDefault && (
                           <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs font-semibold rounded-full">
                             기본 명령
@@ -185,16 +170,11 @@ export default function CommandSetup() {
                 <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <Settings className="w-8 h-8 text-slate-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">
-                  아직 명령이 없습니다
-                </h3>
-                <p className="text-slate-500 mb-6">
-                  새 명령을 추가하거나 초기화 버튼으로 기본 명령을 불러오세요
-                </p>
+                <h3 className="text-lg font-semibold text-slate-700 mb-2">아직 명령이 없습니다</h3>
+                <p className="text-slate-500 mb-6">새 명령을 추가하거나 초기화 버튼으로 기본 명령을 불러오세요</p>
                 <div className="flex items-center justify-center gap-3">
                   <Button onClick={() => setDialogOpen(true)}>
-                    <Plus className="w-5 h-5" />
-                    새 명령 추가
+                    <Plus className="w-5 h-5" />새 명령 추가
                   </Button>
                   <Button
                     variant="secondary"

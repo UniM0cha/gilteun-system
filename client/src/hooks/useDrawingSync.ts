@@ -1,5 +1,5 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { getSocket, setSheetRoom } from './useSocket';
+import { useEffect, useRef, useCallback, useState } from "react";
+import { getSocket, setSheetRoom } from "./useSocket";
 
 export interface Point {
   x: number;
@@ -33,9 +33,7 @@ interface UseDrawingSyncOptions {
 
 export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOptions) {
   const [remotePaths, setRemotePaths] = useState<DrawingPath[]>([]);
-  const [remoteInProgress, setRemoteInProgress] = useState<Map<string, RemoteInProgressPath>>(
-    new Map(),
-  );
+  const [remoteInProgress, setRemoteInProgress] = useState<Map<string, RemoteInProgressPath>>(new Map());
   const currentSheetIdRef = useRef<string | null>(null);
 
   const socket = getSocket();
@@ -45,16 +43,16 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     if (!enabled || !sheetId) return;
 
     if (currentSheetIdRef.current && currentSheetIdRef.current !== sheetId) {
-      socket.emit('leave:sheet', { sheetId: currentSheetIdRef.current });
+      socket.emit("leave:sheet", { sheetId: currentSheetIdRef.current });
     }
 
     currentSheetIdRef.current = sheetId;
-    socket.emit('join:sheet', { sheetId });
+    socket.emit("join:sheet", { sheetId });
     setSheetRoom({ sheetId });
 
     return () => {
       if (currentSheetIdRef.current) {
-        socket.emit('leave:sheet', { sheetId: currentSheetIdRef.current });
+        socket.emit("leave:sheet", { sheetId: currentSheetIdRef.current });
         currentSheetIdRef.current = null;
         setSheetRoom(null);
       }
@@ -148,44 +146,34 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
       setRemotePaths((prev) => prev.filter((p) => p.id !== data.pathId));
     };
 
-    const handleCleared = (data: {
-      sheetId: string;
-      profileId: string;
-      deletedPathIds: string[];
-    }) => {
+    const handleCleared = (data: { sheetId: string; profileId: string; deletedPathIds: string[] }) => {
       if (data.sheetId !== currentSheetIdRef.current) return;
       const deletedSet = new Set(data.deletedPathIds);
       setRemotePaths((prev) => prev.filter((p) => !deletedSet.has(p.id)));
     };
 
-    socket.on('drawing:state', handleState);
-    socket.on('drawing:started', handleStarted);
-    socket.on('drawing:moved', handleMoved);
-    socket.on('drawing:ended', handleEnded);
-    socket.on('drawing:deleted', handleDeleted);
-    socket.on('drawing:cleared', handleCleared);
+    socket.on("drawing:state", handleState);
+    socket.on("drawing:started", handleStarted);
+    socket.on("drawing:moved", handleMoved);
+    socket.on("drawing:ended", handleEnded);
+    socket.on("drawing:deleted", handleDeleted);
+    socket.on("drawing:cleared", handleCleared);
 
     return () => {
-      socket.off('drawing:state', handleState);
-      socket.off('drawing:started', handleStarted);
-      socket.off('drawing:moved', handleMoved);
-      socket.off('drawing:ended', handleEnded);
-      socket.off('drawing:deleted', handleDeleted);
-      socket.off('drawing:cleared', handleCleared);
+      socket.off("drawing:state", handleState);
+      socket.off("drawing:started", handleStarted);
+      socket.off("drawing:moved", handleMoved);
+      socket.off("drawing:ended", handleEnded);
+      socket.off("drawing:deleted", handleDeleted);
+      socket.off("drawing:cleared", handleCleared);
     };
   }, [enabled, profileId, socket]);
 
   // 드로잉 시작 전송
   const emitDrawStart = useCallback(
-    (data: {
-      pathId: string;
-      color: string;
-      width: number;
-      isEraser: boolean;
-      point: Point;
-    }) => {
+    (data: { pathId: string; color: string; width: number; isEraser: boolean; point: Point }) => {
       if (!sheetId || !profileId) return;
-      socket.emit('drawing:start', { sheetId, profileId, ...data });
+      socket.emit("drawing:start", { sheetId, profileId, ...data });
     },
     [sheetId, profileId, socket],
   );
@@ -194,22 +182,16 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
   const emitDrawMove = useCallback(
     (data: { pathId: string; point: Point }) => {
       if (!sheetId) return;
-      socket.emit('drawing:move', { sheetId, ...data });
+      socket.emit("drawing:move", { sheetId, ...data });
     },
     [sheetId, socket],
   );
 
   // 드로잉 완료 전송
   const emitDrawEnd = useCallback(
-    (data: {
-      pathId: string;
-      color: string;
-      width: number;
-      isEraser: boolean;
-      points: Point[];
-    }) => {
+    (data: { pathId: string; color: string; width: number; isEraser: boolean; points: Point[] }) => {
       if (!sheetId || !profileId) return;
-      socket.emit('drawing:end', { sheetId, profileId, ...data });
+      socket.emit("drawing:end", { sheetId, profileId, ...data });
     },
     [sheetId, profileId, socket],
   );
@@ -218,7 +200,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
   const emitDrawDelete = useCallback(
     (pathId: string) => {
       if (!sheetId) return;
-      socket.emit('drawing:delete', { sheetId, pathId });
+      socket.emit("drawing:delete", { sheetId, pathId });
     },
     [sheetId, socket],
   );
@@ -226,7 +208,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
   // 내 드로잉 전체 삭제 전송
   const emitDrawClear = useCallback(() => {
     if (!sheetId || !profileId) return;
-    socket.emit('drawing:clear', { sheetId, profileId });
+    socket.emit("drawing:clear", { sheetId, profileId });
   }, [sheetId, profileId, socket]);
 
   return {

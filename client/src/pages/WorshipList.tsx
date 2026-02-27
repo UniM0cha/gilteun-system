@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Plus, Calendar, Music, Edit, Trash2, Play, ArrowLeft, Filter, X } from 'lucide-react';
-import { useWorships, useWorshipTypes, useDeleteWorship, useProfiles, useRoles } from '@/hooks/queries';
-import { useAppStore } from '@/store/appStore';
-import { getColorOption } from '@/lib/colors';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router";
+import { Plus, Calendar, Music, Edit, Trash2, Play, ArrowLeft, Filter, X } from "lucide-react";
+import { useWorships, useWorshipTypes, useDeleteWorship, useProfiles, useRoles } from "@/hooks/queries";
+import { useAppStore } from "@/store/appStore";
+import { getColorOption } from "@/lib/colors";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function WorshipList() {
   const { data: worships = [] } = useWorships();
@@ -19,26 +19,23 @@ export default function WorshipList() {
   const currentProfileId = useAppStore((s) => s.currentProfileId);
   const navigate = useNavigate();
 
-  const [selectedTypeId, setSelectedTypeId] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedYear, setSelectedYear] = useState<string>('');
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedTypeId, setSelectedTypeId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedYear, setSelectedYear] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
 
   // 프로필 미선택 시 홈으로 리다이렉트
   useEffect(() => {
     if (!currentProfileId) {
-      navigate('/');
+      navigate("/");
     }
   }, [currentProfileId, navigate]);
 
   const currentProfile = profiles.find((p) => p.id === currentProfileId);
-  const currentRole = currentProfile
-    ? roles.find((r) => r.id === currentProfile.roleId)
-    : undefined;
+  const currentRole = currentProfile ? roles.find((r) => r.id === currentProfile.roleId) : undefined;
 
   // 데이터에서 연도 목록 추출
-  const availableYears = [...new Set(worships.map((w) => new Date(w.date).getFullYear()))]
-    .sort((a, b) => b - a);
+  const availableYears = [...new Set(worships.map((w) => new Date(w.date).getFullYear()))].sort((a, b) => b - a);
 
   const filteredWorships = worships.filter((worship) => {
     const matchesType = !selectedTypeId || worship.typeId === selectedTypeId;
@@ -55,16 +52,16 @@ export default function WorshipList() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    return date.toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
   const formatLastEdited = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR');
+    return date.toLocaleDateString("ko-KR");
   };
 
   const handleDelete = async (id: string) => {
@@ -100,8 +97,7 @@ export default function WorshipList() {
           )}
           <Button asChild>
             <Link to="/worship-edit/new">
-              <Plus className="w-5 h-5" />
-              새 예배 만들기
+              <Plus className="w-5 h-5" />새 예배 만들기
             </Link>
           </Button>
         </div>
@@ -127,7 +123,7 @@ export default function WorshipList() {
               {searchQuery && (
                 <button
                   className="absolute top-1/2 -translate-y-1/2 right-3 p-1 hover:bg-slate-200 rounded-full transition-colors"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => setSearchQuery("")}
                 >
                   <X className="w-5 h-5 text-slate-500" />
                 </button>
@@ -139,10 +135,10 @@ export default function WorshipList() {
               <label className="block text-sm font-semibold text-slate-700 mb-2">예배 유형</label>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={!selectedTypeId ? 'default' : 'secondary'}
+                  variant={!selectedTypeId ? "default" : "secondary"}
                   size="sm"
-                  onClick={() => setSelectedTypeId('')}
-                  className={!selectedTypeId ? 'bg-slate-800 hover:bg-slate-900' : ''}
+                  onClick={() => setSelectedTypeId("")}
+                  className={!selectedTypeId ? "bg-slate-800 hover:bg-slate-900" : ""}
                 >
                   전체
                 </Button>
@@ -152,13 +148,13 @@ export default function WorshipList() {
                   return (
                     <Button
                       key={type.id}
-                      variant={isSelected ? 'default' : 'secondary'}
+                      variant={isSelected ? "default" : "secondary"}
                       size="sm"
                       onClick={() => setSelectedTypeId(type.id)}
                       className={
                         isSelected
-                          ? `${colorOption?.bg || 'bg-blue-500'} text-white shadow-md hover:opacity-90`
-                          : `${colorOption?.badge || 'bg-blue-100 text-blue-700'} hover:shadow-md`
+                          ? `${colorOption?.bg || "bg-blue-500"} text-white shadow-md hover:opacity-90`
+                          : `${colorOption?.badge || "bg-blue-100 text-blue-700"} hover:shadow-md`
                       }
                     >
                       {type.name}
@@ -176,13 +172,15 @@ export default function WorshipList() {
                   value={selectedYear}
                   onChange={(e) => {
                     setSelectedYear(e.target.value);
-                    if (!e.target.value) setSelectedMonth('');
+                    if (!e.target.value) setSelectedMonth("");
                   }}
                   className="px-4 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm transition-colors"
                 >
                   <option value="">전체 연도</option>
                   {availableYears.map((year) => (
-                    <option key={year} value={year}>{year}년</option>
+                    <option key={year} value={year}>
+                      {year}년
+                    </option>
                   ))}
                 </select>
                 <select
@@ -193,12 +191,17 @@ export default function WorshipList() {
                 >
                   <option value="">전체 월</option>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                    <option key={month} value={month}>{month}월</option>
+                    <option key={month} value={month}>
+                      {month}월
+                    </option>
                   ))}
                 </select>
                 {(selectedYear || selectedMonth) && (
                   <button
-                    onClick={() => { setSelectedYear(''); setSelectedMonth(''); }}
+                    onClick={() => {
+                      setSelectedYear("");
+                      setSelectedMonth("");
+                    }}
                     className="p-2 hover:bg-slate-200 rounded-full transition-colors"
                     title="날짜 필터 초기화"
                   >
@@ -229,22 +232,18 @@ export default function WorshipList() {
                             <Calendar className="w-4 h-4" />
                             {formatDate(worship.date)}
                           </div>
-                          <div className="text-sm text-slate-500">
-                            악보 {worship.sheets?.length ?? 0}개
-                          </div>
+                          <div className="text-sm text-slate-500">악보 {worship.sheets?.length ?? 0}개</div>
                           {worshipType && (
                             <Badge
                               variant="secondary"
-                              className={`${getColorOption(worshipType.color)?.badge || 'bg-blue-100 text-blue-700'}`}
+                              className={`${getColorOption(worshipType.color)?.badge || "bg-blue-100 text-blue-700"}`}
                             >
                               {worshipType.name}
                             </Badge>
                           )}
                         </div>
                       </div>
-                      <div className="text-sm text-slate-400">
-                        마지막 수정: {formatLastEdited(worship.updatedAt)}
-                      </div>
+                      <div className="text-sm text-slate-400">마지막 수정: {formatLastEdited(worship.updatedAt)}</div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -293,18 +292,17 @@ export default function WorshipList() {
                 <Music className="w-12 h-12 text-slate-400" />
               </div>
               <h3 className="text-2xl font-bold text-slate-800 mb-2">
-                {searchQuery || selectedTypeId || selectedYear ? '검색 결과가 없습니다' : '아직 예배가 없습니다'}
+                {searchQuery || selectedTypeId || selectedYear ? "검색 결과가 없습니다" : "아직 예배가 없습니다"}
               </h3>
               <p className="text-slate-600 mb-8">
                 {searchQuery || selectedTypeId || selectedYear
-                  ? '다른 검색어나 필터를 시도해보세요'
-                  : '새 예배를 만들어 악보를 추가하세요'}
+                  ? "다른 검색어나 필터를 시도해보세요"
+                  : "새 예배를 만들어 악보를 추가하세요"}
               </p>
               {!searchQuery && !selectedTypeId && !selectedYear && (
                 <Button size="lg" asChild>
                   <Link to="/worship-edit/new">
-                    <Plus className="w-5 h-5" />
-                    새 예배 만들기
+                    <Plus className="w-5 h-5" />새 예배 만들기
                   </Link>
                 </Button>
               )}

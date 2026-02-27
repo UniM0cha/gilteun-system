@@ -1,25 +1,20 @@
-import { Router } from 'express';
-import { nanoid } from 'nanoid';
-import { eq, asc } from 'drizzle-orm';
-import type { Server } from 'socket.io';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import sharp from 'sharp';
+import { Router } from "express";
+import { nanoid } from "nanoid";
+import { eq, asc } from "drizzle-orm";
+import type { Server } from "socket.io";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import sharp from "sharp";
 import { db } from "../db";
-import { sheets, drawingPaths } from '../db/schema.js';
-import { config } from '../config.js';
+import { sheets, drawingPaths } from "../db/schema.js";
+import { config } from "../config.js";
 
 const router = Router();
 
 function broadcastSheetsUpdate(io: Server, worshipId: string) {
-  const allSheets = db
-    .select()
-    .from(sheets)
-    .where(eq(sheets.worshipId, worshipId))
-    .orderBy(asc(sheets.order))
-    .all();
-  io.to(`worship:${worshipId}`).emit('sheets:updated', {
+  const allSheets = db.select().from(sheets).where(eq(sheets.worshipId, worshipId)).orderBy(asc(sheets.order)).all();
+  io.to(`worship:${worshipId}`).emit("sheets:updated", {
     worshipId,
     sheets: allSheets,
   });
@@ -28,7 +23,7 @@ function broadcastSheetsUpdate(io: Server, worshipId: string) {
 // Multer 설정
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    const dir = path.join(config.uploadsDir, 'sheets');
+    const dir = path.join(config.uploadsDir, "sheets");
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
@@ -43,12 +38,12 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   fileFilter: (_req, file, cb) => {
-    const allowed = ['.jpg', '.jpeg', '.png', '.heic', '.heif'];
+    const allowed = [".jpg", ".jpeg", ".png", ".heic", ".heif"];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('JPG, PNG, HEIC 파일만 업로드 가능합니다'));
+      cb(new Error("JPG, PNG, HEIC 파일만 업로드 가능합니다"));
     }
   },
   limits: { fileSize: 50 * 1024 * 1024 },
@@ -57,8 +52,8 @@ const upload = multer({
 // HEIC/HEIF → JPEG 변환
 async function convertToJpegIfNeeded(filePath: string): Promise<string> {
   const ext = path.extname(filePath).toLowerCase();
-  if (ext === '.heic' || ext === '.heif') {
-    const jpegPath = filePath.replace(/\.(heic|heif)$/i, '.jpeg');
+  if (ext === ".heic" || ext === ".heif") {
+    const jpegPath = filePath.replace(/\.(heic|heif)$/i, ".jpeg");
     await sharp(filePath).jpeg({ quality: 90 }).toFile(jpegPath);
     fs.unlinkSync(filePath); // 원본 HEIC 삭제
     return jpegPath;
@@ -67,12 +62,12 @@ async function convertToJpegIfNeeded(filePath: string): Promise<string> {
 }
 
 // POST /api/worships/:worshipId/sheets - 악보 추가
-router.post('/worships/:worshipId/sheets', upload.single('image'), async (req, res) => {
+router.post("/worships/:worshipId/sheets", upload.single("image"), async (req, res) => {
   try {
     const worshipId = req.params.worshipId as string;
     const file = req.file;
     if (!file) {
-      res.status(400).json({ error: 'Image file is required' });
+      res.status(400).json({ error: "Image file is required" });
       return;
     }
 
@@ -81,14 +76,10 @@ router.post('/worships/:worshipId/sheets', upload.single('image'), async (req, r
     const convertedPath = await convertToJpegIfNeeded(originalPath);
     const finalFilename = path.basename(convertedPath);
 
-    const title = req.body.title || file.originalname.replace(/\.[^/.]+$/, '');
+    const title = req.body.title || file.originalname.replace(/\.[^/.]+$/, "");
 
     // 현재 최대 order 값
-    const existingSheets = db
-      .select()
-      .from(sheets)
-      .where(eq(sheets.worshipId, worshipId))
-      .all();
+    const existingSheets = db.select().from(sheets).where(eq(sheets.worshipId, worshipId)).all();
     const maxOrder = existingSheets.reduce((max, s) => Math.max(max, s.order), -1);
 
     const id = nanoid();
@@ -110,22 +101,22 @@ router.post('/worships/:worshipId/sheets', upload.single('image'), async (req, r
     const created = db.select().from(sheets).where(eq(sheets.id, id)).get();
     res.status(201).json(created);
 
-    const io = req.app.get('io') as Server | undefined;
+    const io = req.app.get("io") as Server | undefined;
     if (io) broadcastSheetsUpdate(io, worshipId);
   } catch (error) {
-    console.error('Failed to upload sheet:', error);
-    res.status(500).json({ error: 'Failed to upload sheet' });
+    console.error("Failed to upload sheet:", error);
+    res.status(500).json({ error: "Failed to upload sheet" });
   }
 });
 
 // PUT /api/sheets/:id - 악보 제목 수정
-router.put('/sheets/:id', (req, res) => {
+router.put("/sheets/:id", (req, res) => {
   try {
     const id = req.params.id as string;
     const { title } = req.body;
     const existing = db.select().from(sheets).where(eq(sheets.id, id)).get();
     if (!existing) {
-      res.status(404).json({ error: 'Sheet not found' });
+      res.status(404).json({ error: "Sheet not found" });
       return;
     }
     if (title) {
@@ -134,21 +125,21 @@ router.put('/sheets/:id', (req, res) => {
     const updated = db.select().from(sheets).where(eq(sheets.id, id)).get();
     res.json(updated);
 
-    const io = req.app.get('io') as Server | undefined;
+    const io = req.app.get("io") as Server | undefined;
     if (io) broadcastSheetsUpdate(io, existing.worshipId);
   } catch (error) {
-    console.error('Failed to update sheet:', error);
-    res.status(500).json({ error: 'Failed to update sheet' });
+    console.error("Failed to update sheet:", error);
+    res.status(500).json({ error: "Failed to update sheet" });
   }
 });
 
 // DELETE /api/sheets/:id - 악보 삭제
-router.delete('/sheets/:id', (req, res) => {
+router.delete("/sheets/:id", (req, res) => {
   try {
     const id = req.params.id as string;
     const existing = db.select().from(sheets).where(eq(sheets.id, id)).get();
     if (!existing) {
-      res.status(404).json({ error: 'Sheet not found' });
+      res.status(404).json({ error: "Sheet not found" });
       return;
     }
     // drawingPaths 삭제
@@ -161,48 +152,41 @@ router.delete('/sheets/:id', (req, res) => {
     db.delete(sheets).where(eq(sheets.id, id)).run();
     res.json({ success: true });
 
-    const io = req.app.get('io') as Server | undefined;
+    const io = req.app.get("io") as Server | undefined;
     if (io) broadcastSheetsUpdate(io, existing.worshipId);
   } catch (error) {
-    console.error('Failed to delete sheet:', error);
-    res.status(500).json({ error: 'Failed to delete sheet' });
+    console.error("Failed to delete sheet:", error);
+    res.status(500).json({ error: "Failed to delete sheet" });
   }
 });
 
 // PUT /api/worships/:worshipId/sheets/order - 악보 순서 변경
-router.put('/worships/:worshipId/sheets/order', (req, res) => {
+router.put("/worships/:worshipId/sheets/order", (req, res) => {
   try {
     const { orderedIds } = req.body;
     if (!Array.isArray(orderedIds)) {
-      res.status(400).json({ error: 'orderedIds array is required' });
+      res.status(400).json({ error: "orderedIds array is required" });
       return;
     }
     for (let i = 0; i < orderedIds.length; i++) {
-      db.update(sheets)
-        .set({ order: i })
-        .where(eq(sheets.id, orderedIds[i]))
-        .run();
+      db.update(sheets).set({ order: i }).where(eq(sheets.id, orderedIds[i])).run();
     }
     const worshipId = req.params.worshipId as string;
     res.json({ success: true });
 
-    const io = req.app.get('io') as Server | undefined;
+    const io = req.app.get("io") as Server | undefined;
     if (io) broadcastSheetsUpdate(io, worshipId);
   } catch (error) {
-    console.error('Failed to reorder sheets:', error);
-    res.status(500).json({ error: 'Failed to reorder sheets' });
+    console.error("Failed to reorder sheets:", error);
+    res.status(500).json({ error: "Failed to reorder sheets" });
   }
 });
 
 // GET /api/sheets/:id/drawings - 드로잉 패스 조회
-router.get('/sheets/:id/drawings', (req, res) => {
+router.get("/sheets/:id/drawings", (req, res) => {
   try {
     const id = req.params.id as string;
-    const paths = db
-      .select()
-      .from(drawingPaths)
-      .where(eq(drawingPaths.sheetId, id))
-      .all();
+    const paths = db.select().from(drawingPaths).where(eq(drawingPaths.sheetId, id)).all();
     // points를 JSON으로 파싱
     const parsed = paths.map((p) => ({
       ...p,
@@ -210,8 +194,8 @@ router.get('/sheets/:id/drawings', (req, res) => {
     }));
     res.json(parsed);
   } catch (error) {
-    console.error('Failed to fetch drawings:', error);
-    res.status(500).json({ error: 'Failed to fetch drawings' });
+    console.error("Failed to fetch drawings:", error);
+    res.status(500).json({ error: "Failed to fetch drawings" });
   }
 });
 

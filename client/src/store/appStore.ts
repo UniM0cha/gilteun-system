@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface AppState {
   currentProfileId: string | null;
@@ -15,7 +15,7 @@ export const useAppStore = create<AppState>()(
       clearCurrentProfile: () => set({ currentProfileId: null }),
     }),
     {
-      name: 'gilteun-profile',
+      name: "gilteun-profile",
       partialize: (state) => ({ currentProfileId: state.currentProfileId }),
     },
   ),

@@ -1,13 +1,10 @@
-import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { getSocket } from './useSocket';
-import { queryKeys } from '@/lib/queryKeys';
-import type { Worship, Sheet } from '@/types';
+import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { getSocket } from "./useSocket";
+import { queryKeys } from "@/lib/queryKeys";
+import type { Worship, Sheet } from "@/types";
 
-export function useWorshipSocket(
-  worshipId: string | undefined,
-  onSheetsUpdated?: (sheets: Sheet[]) => void,
-) {
+export function useWorshipSocket(worshipId: string | undefined, onSheetsUpdated?: (sheets: Sheet[]) => void) {
   const qc = useQueryClient();
   const callbackRef = useRef(onSheetsUpdated);
   callbackRef.current = onSheetsUpdated;
@@ -36,12 +33,12 @@ export function useWorshipSocket(
       qc.invalidateQueries({ queryKey: queryKeys.worships.all });
     };
 
-    socket.on('sheets:updated', handleSheetsUpdated);
-    socket.on('worship:updated', handleWorshipUpdated);
+    socket.on("sheets:updated", handleSheetsUpdated);
+    socket.on("worship:updated", handleWorshipUpdated);
 
     return () => {
-      socket.off('sheets:updated', handleSheetsUpdated);
-      socket.off('worship:updated', handleWorshipUpdated);
+      socket.off("sheets:updated", handleSheetsUpdated);
+      socket.off("worship:updated", handleWorshipUpdated);
     };
   }, [worshipId, qc]);
 }

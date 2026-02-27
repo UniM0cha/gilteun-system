@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Link, useParams, useNavigate } from 'react-router';
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Link, useParams, useNavigate } from "react-router";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,26 +19,26 @@ import {
   Upload,
   Megaphone,
   Palette,
-} from 'lucide-react';
-import { useSwipeable } from 'react-swipeable';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useWorship, useCommands } from '@/hooks/queries';
-import { useAppStore } from '@/store/appStore';
-import { useWorshipSocket } from '@/hooks/useWorshipSocket';
-import SheetCanvas, { type SheetCanvasRef, type EraserType } from '@/components/SheetCanvas';
-import { useDrawingSync } from '@/hooks/useDrawingSync';
-import { getSocket, setWorshipRoom } from '@/hooks/useSocket';
+} from "lucide-react";
+import { useSwipeable } from "react-swipeable";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useWorship, useCommands } from "@/hooks/queries";
+import { useAppStore } from "@/store/appStore";
+import { useWorshipSocket } from "@/hooks/useWorshipSocket";
+import SheetCanvas, { type SheetCanvasRef, type EraserType } from "@/components/SheetCanvas";
+import { useDrawingSync } from "@/hooks/useDrawingSync";
+import { getSocket, setWorshipRoom } from "@/hooks/useSocket";
 
 const penColors = [
-  { color: 'bg-red-500', value: '#ef4444' },
-  { color: 'bg-blue-500', value: '#3b82f6' },
-  { color: 'bg-green-500', value: '#22c55e' },
-  { color: 'bg-yellow-400', value: '#facc15' },
-  { color: 'bg-purple-500', value: '#a855f7' },
-  { color: 'bg-black', value: '#000000' },
+  { color: "bg-red-500", value: "#ef4444" },
+  { color: "bg-blue-500", value: "#3b82f6" },
+  { color: "bg-green-500", value: "#22c55e" },
+  { color: "bg-yellow-400", value: "#facc15" },
+  { color: "bg-purple-500", value: "#a855f7" },
+  { color: "bg-black", value: "#000000" },
 ];
 
 interface PresenceUser {
@@ -62,9 +62,9 @@ export default function Worship() {
   const [isDrawMode, setIsDrawMode] = useState(false);
   const isDrawModeRef = useRef(isDrawMode);
   isDrawModeRef.current = isDrawMode;
-  const [selectedColor, setSelectedColor] = useState('#000000');
+  const [selectedColor, setSelectedColor] = useState("#000000");
   const [penWidth, setPenWidth] = useState(3);
-  const [eraserType, setEraserType] = useState<EraserType>('none');
+  const [eraserType, setEraserType] = useState<EraserType>("none");
   const [eraserWidth, setEraserWidth] = useState(15);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showCommandPanel, setShowCommandPanel] = useState(false);
@@ -105,24 +105,17 @@ export default function Worship() {
   });
 
   // 드로잉 동기화 훅
-  const {
-    remotePaths,
-    remoteInProgress,
-    emitDrawStart,
-    emitDrawMove,
-    emitDrawEnd,
-    emitDrawDelete,
-    emitDrawClear,
-  } = useDrawingSync({
-    sheetId: currentSheetId,
-    profileId: currentProfileId,
-    enabled: !!id,
-  });
+  const { remotePaths, remoteInProgress, emitDrawStart, emitDrawMove, emitDrawEnd, emitDrawDelete, emitDrawClear } =
+    useDrawingSync({
+      sheetId: currentSheetId,
+      profileId: currentProfileId,
+      enabled: !!id,
+    });
 
   // 프로필 미선택 시 홈으로 리다이렉트
   useEffect(() => {
     if (!currentProfileId) {
-      navigate('/');
+      navigate("/");
     }
   }, [currentProfileId, navigate]);
 
@@ -137,11 +130,11 @@ export default function Worship() {
   useEffect(() => {
     if (!id || !currentProfileId) return;
 
-    socket.emit('join:worship', { worshipId: id, profileId: currentProfileId });
+    socket.emit("join:worship", { worshipId: id, profileId: currentProfileId });
     setWorshipRoom({ worshipId: id, profileId: currentProfileId });
 
     return () => {
-      socket.emit('leave:worship', { worshipId: id });
+      socket.emit("leave:worship", { worshipId: id });
       setWorshipRoom(null);
     };
   }, [id, currentProfileId, socket]);
@@ -151,25 +144,25 @@ export default function Worship() {
   useEffect(() => {
     const onDisconnect = () => {
       hasDisconnectedRef.current = true;
-      toast.error('서버 연결이 끊어졌습니다', { id: 'socket-status' });
+      toast.error("서버 연결이 끊어졌습니다", { id: "socket-status" });
     };
     const onConnect = () => {
       if (hasDisconnectedRef.current) {
-        toast.success('서버에 다시 연결되었습니다', { id: 'socket-status' });
+        toast.success("서버에 다시 연결되었습니다", { id: "socket-status" });
       }
     };
-    socket.on('disconnect', onDisconnect);
-    socket.on('connect', onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("connect", onConnect);
     return () => {
-      socket.off('disconnect', onDisconnect);
-      socket.off('connect', onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("connect", onConnect);
     };
   }, [socket]);
 
   // Socket: 페이지 변경 알림
   useEffect(() => {
     if (!id || !currentSheetId) return;
-    socket.emit('page:change', { worshipId: id, sheetId: currentSheetId });
+    socket.emit("page:change", { worshipId: id, sheetId: currentSheetId });
   }, [id, currentSheetId, socket]);
 
   // Socket: 접속자 현황 + 명령 + 스포트라이트
@@ -213,16 +206,11 @@ export default function Worship() {
             </div>
           </div>
         ),
-        { duration: 3000, position: 'top-center', id: toastId },
+        { duration: 3000, position: "top-center", id: toastId },
       );
     };
 
-    const handleSpotlight = (data: {
-      sheetId: string;
-      sheetTitle: string;
-      senderName: string;
-      senderRole: string;
-    }) => {
+    const handleSpotlight = (data: { sheetId: string; sheetTitle: string; senderName: string; senderRole: string }) => {
       const toastId = `spotlight-${Date.now()}`;
       toast.custom(
         () => (
@@ -235,27 +223,23 @@ export default function Worship() {
           >
             <div className="text-4xl">📢</div>
             <div className="flex-1">
-              <div className="text-lg font-bold text-slate-800">
-                {data.senderName}님이 호출합니다
-              </div>
-              <div className="text-sm text-slate-500 mt-1">
-                &quot;{data.sheetTitle}&quot;로 이동하려면 클릭하세요
-              </div>
+              <div className="text-lg font-bold text-slate-800">{data.senderName}님이 호출합니다</div>
+              <div className="text-sm text-slate-500 mt-1">&quot;{data.sheetTitle}&quot;로 이동하려면 클릭하세요</div>
             </div>
           </div>
         ),
-        { duration: 10000, position: 'top-center', id: toastId },
+        { duration: 10000, position: "top-center", id: toastId },
       );
     };
 
-    socket.on('presence:update', handlePresence);
-    socket.on('command:received', handleCommand);
-    socket.on('page:spotlight', handleSpotlight);
+    socket.on("presence:update", handlePresence);
+    socket.on("command:received", handleCommand);
+    socket.on("page:spotlight", handleSpotlight);
 
     return () => {
-      socket.off('presence:update', handlePresence);
-      socket.off('command:received', handleCommand);
-      socket.off('page:spotlight', handleSpotlight);
+      socket.off("presence:update", handlePresence);
+      socket.off("command:received", handleCommand);
+      socket.off("page:spotlight", handleSpotlight);
     };
   }, [id, socket]);
 
@@ -305,41 +289,44 @@ export default function Worship() {
   });
 
   // 핀치줌 핸들러 (악보 영역)
-  const handleSheetTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      // 핀치 시작
-      const dist = getTouchDistance(e.touches);
-      const center = getTouchCenter(e.touches);
-      pinchRef.current = {
-        startDist: dist,
-        startScale: scaleRef.current,
-        startCenter: center,
-        startTranslate: { ...translate },
-      };
-      panRef.current = null;
-      e.preventDefault();
-    } else if (e.touches.length === 1) {
-      // 더블탭 감지
-      const now = Date.now();
-      if (now - lastTapRef.current < 300) {
-        setScale(1);
-        setTranslate({ x: 0, y: 0 });
-        e.preventDefault();
-        lastTapRef.current = 0;
-        return;
-      }
-      lastTapRef.current = now;
-
-      // zoom > 1 + 보기모드 → 패닝 시작
-      if (scaleRef.current > 1 && !isDrawModeRef.current) {
-        panRef.current = {
-          startX: e.touches[0].clientX,
-          startY: e.touches[0].clientY,
+  const handleSheetTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (e.touches.length === 2) {
+        // 핀치 시작
+        const dist = getTouchDistance(e.touches);
+        const center = getTouchCenter(e.touches);
+        pinchRef.current = {
+          startDist: dist,
+          startScale: scaleRef.current,
+          startCenter: center,
           startTranslate: { ...translate },
         };
+        panRef.current = null;
+        e.preventDefault();
+      } else if (e.touches.length === 1) {
+        // 더블탭 감지
+        const now = Date.now();
+        if (now - lastTapRef.current < 300) {
+          setScale(1);
+          setTranslate({ x: 0, y: 0 });
+          e.preventDefault();
+          lastTapRef.current = 0;
+          return;
+        }
+        lastTapRef.current = now;
+
+        // zoom > 1 + 보기모드 → 패닝 시작
+        if (scaleRef.current > 1 && !isDrawModeRef.current) {
+          panRef.current = {
+            startX: e.touches[0].clientX,
+            startY: e.touches[0].clientY,
+            startTranslate: { ...translate },
+          };
+        }
       }
-    }
-  }, [translate]);
+    },
+    [translate],
+  );
 
   const handleSheetTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2 && pinchRef.current) {
@@ -378,8 +365,12 @@ export default function Worship() {
   }, []);
 
   const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => { if (!isDrawModeRef.current && scaleRef.current <= 1) goToPage(currentPage + 1); },
-    onSwipedRight: () => { if (!isDrawModeRef.current && scaleRef.current <= 1) goToPage(currentPage - 1); },
+    onSwipedLeft: () => {
+      if (!isDrawModeRef.current && scaleRef.current <= 1) goToPage(currentPage + 1);
+    },
+    onSwipedRight: () => {
+      if (!isDrawModeRef.current && scaleRef.current <= 1) goToPage(currentPage - 1);
+    },
     trackMouse: true,
     delta: 50,
     preventScrollOnSwipe: true,
@@ -387,7 +378,7 @@ export default function Worship() {
 
   const handleSendCommand = (command: { id: string; emoji: string; label: string }) => {
     if (!id || !currentProfileId) return;
-    socket.emit('command:send', {
+    socket.emit("command:send", {
       worshipId: id,
       commandId: command.id,
       profileId: currentProfileId,
@@ -396,13 +387,13 @@ export default function Worship() {
 
   const handleSpotlightCall = () => {
     if (!id || !currentProfileId || !currentSheet) return;
-    socket.emit('page:spotlight', {
+    socket.emit("page:spotlight", {
       worshipId: id,
       sheetId: currentSheet.id,
       sheetTitle: currentSheet.title,
       profileId: currentProfileId,
     });
-    toast.success('현재 페이지를 호출했습니다');
+    toast.success("현재 페이지를 호출했습니다");
   };
 
   return (
@@ -424,7 +415,7 @@ export default function Worship() {
             <Menu className="w-6 h-6" />
           </Button>
           <div className="h-8 w-px bg-slate-600" />
-          <h1 className="text-xl font-bold text-white">{worshipData?.title || '예배'}</h1>
+          <h1 className="text-xl font-bold text-white">{worshipData?.title || "예배"}</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -436,7 +427,11 @@ export default function Worship() {
           </Button>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="bg-slate-700 text-slate-300 hover:bg-slate-600 cursor-pointer">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="bg-slate-700 text-slate-300 hover:bg-slate-600 cursor-pointer"
+              >
                 <Users className="w-5 h-5" />
                 <span>{presenceUsers.length}명 접속</span>
               </Button>
@@ -478,8 +473,8 @@ export default function Worship() {
                         onClick={() => setCurrentSheetId(sheet.id)}
                         className={`w-full text-left p-4 rounded-xl cursor-pointer transition-colors ${
                           currentSheetId === sheet.id
-                            ? 'bg-blue-600 text-white shadow-lg'
-                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                            ? "bg-blue-600 text-white shadow-lg"
+                            : "bg-slate-700 text-slate-300 hover:bg-slate-600"
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -491,18 +486,12 @@ export default function Worship() {
                           {usersOnSheet.length > 0 && (
                             <div className="flex -space-x-1">
                               {usersOnSheet.slice(0, 3).map((u) => (
-                                <span
-                                  key={u.profileId}
-                                  className="text-sm"
-                                  title={`${u.name} (${u.role})`}
-                                >
+                                <span key={u.profileId} className="text-sm" title={`${u.name} (${u.role})`}>
                                   {u.roleIcon}
                                 </span>
                               ))}
                               {usersOnSheet.length > 3 && (
-                                <span className="text-xs text-slate-400 ml-1">
-                                  +{usersOnSheet.length - 3}
-                                </span>
+                                <span className="text-xs text-slate-400 ml-1">+{usersOnSheet.length - 3}</span>
                               )}
                             </div>
                           )}
@@ -530,7 +519,7 @@ export default function Worship() {
         {/* 중앙 악보 뷰어 */}
         <main
           className="flex-1 flex flex-col bg-slate-900"
-          style={isDrawMode ? { touchAction: 'none', overscrollBehaviorX: 'none' } : undefined}
+          style={isDrawMode ? { touchAction: "none", overscrollBehaviorX: "none" } : undefined}
           {...swipeHandlers}
         >
           {/* 도구 바 */}
@@ -541,10 +530,10 @@ export default function Worship() {
                 size="sm"
                 onClick={() => setIsDrawMode(!isDrawMode)}
                 className={cn(
-                  'px-5 py-2.5 rounded-xl',
+                  "px-5 py-2.5 rounded-xl",
                   isDrawMode
-                    ? 'bg-green-600 text-white shadow-lg hover:bg-green-700'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    ? "bg-green-600 text-white shadow-lg hover:bg-green-700"
+                    : "bg-slate-700 text-slate-300 hover:bg-slate-600",
                 )}
               >
                 {isDrawMode ? (
@@ -584,12 +573,12 @@ export default function Worship() {
                                 key={pen.value}
                                 onClick={() => {
                                   setSelectedColor(pen.value);
-                                  setEraserType('none');
+                                  setEraserType("none");
                                 }}
                                 className={`w-10 h-10 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
-                                  selectedColor === pen.value && eraserType === 'none'
-                                    ? 'ring-4 ring-white scale-110'
-                                    : ''
+                                  selectedColor === pen.value && eraserType === "none"
+                                    ? "ring-4 ring-white scale-110"
+                                    : ""
                                 }`}
                               />
                             ))}
@@ -608,9 +597,7 @@ export default function Worship() {
                             >
                               <Minus className="w-4 h-4" />
                             </Button>
-                            <div className="text-slate-300 font-semibold min-w-7.5 text-center">
-                              {penWidth}
-                            </div>
+                            <div className="text-slate-300 font-semibold min-w-7.5 text-center">{penWidth}</div>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -629,12 +616,12 @@ export default function Worship() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setEraserType((p) => (p === 'area' ? 'none' : 'area'))}
+                              onClick={() => setEraserType((p) => (p === "area" ? "none" : "area"))}
                               className={cn(
-                                'px-3 py-2.5 flex-1',
-                                eraserType === 'area'
-                                  ? 'bg-orange-600 text-white hover:bg-orange-700'
-                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                "px-3 py-2.5 flex-1",
+                                eraserType === "area"
+                                  ? "bg-orange-600 text-white hover:bg-orange-700"
+                                  : "bg-slate-700 text-slate-300 hover:bg-slate-600",
                               )}
                             >
                               <Eraser className="w-5 h-5" />
@@ -643,12 +630,12 @@ export default function Worship() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setEraserType((p) => (p === 'stroke' ? 'none' : 'stroke'))}
+                              onClick={() => setEraserType((p) => (p === "stroke" ? "none" : "stroke"))}
                               className={cn(
-                                'px-3 py-2.5 flex-1',
-                                eraserType === 'stroke'
-                                  ? 'bg-red-600 text-white hover:bg-red-700'
-                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                "px-3 py-2.5 flex-1",
+                                eraserType === "stroke"
+                                  ? "bg-red-600 text-white hover:bg-red-700"
+                                  : "bg-slate-700 text-slate-300 hover:bg-slate-600",
                               )}
                             >
                               <Trash className="w-5 h-5" />
@@ -658,7 +645,7 @@ export default function Worship() {
                         </div>
 
                         {/* 지우개 크기 (영역 선택 시) */}
-                        {eraserType === 'area' && (
+                        {eraserType === "area" && (
                           <div>
                             <div className="text-xs font-semibold text-slate-400 mb-2">지우개 크기</div>
                             <div className="flex items-center gap-2 bg-orange-700 rounded-lg px-3 py-2 w-fit">
@@ -670,9 +657,7 @@ export default function Worship() {
                               >
                                 <Minus className="w-4 h-4" />
                               </Button>
-                              <div className="text-white font-semibold min-w-7.5 text-center">
-                                {eraserWidth}
-                              </div>
+                              <div className="text-white font-semibold min-w-7.5 text-center">{eraserWidth}</div>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -750,10 +735,10 @@ export default function Worship() {
                 size="sm"
                 onClick={() => setShowCommandPanel(!showCommandPanel)}
                 className={cn(
-                  'px-5 py-2.5 rounded-xl',
+                  "px-5 py-2.5 rounded-xl",
                   showCommandPanel
-                    ? 'bg-purple-600 text-white shadow-lg hover:bg-purple-700'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    ? "bg-purple-600 text-white shadow-lg hover:bg-purple-700"
+                    : "bg-slate-700 text-slate-300 hover:bg-slate-600",
                 )}
               >
                 명령 패널
@@ -764,7 +749,7 @@ export default function Worship() {
           {/* 악보 영역 */}
           <div
             className="flex-1 relative overflow-hidden"
-            style={{ touchAction: 'none' }}
+            style={{ touchAction: "none" }}
             onClick={() => !isDrawMode && flashNavBar()}
             onTouchStart={handleSheetTouchStart}
             onTouchMove={handleSheetTouchMove}
@@ -773,10 +758,14 @@ export default function Worship() {
             <div className="absolute inset-0 flex items-center justify-center p-4">
               <div
                 className="relative bg-white rounded-2xl shadow-2xl aspect-3/4 h-full overflow-hidden"
-                style={scale !== 1 ? {
-                  transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
-                  transformOrigin: 'center center',
-                } : undefined}
+                style={
+                  scale !== 1
+                    ? {
+                        transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
+                        transformOrigin: "center center",
+                      }
+                    : undefined
+                }
               >
                 {currentSheet ? (
                   <SheetCanvas
@@ -795,7 +784,7 @@ export default function Worship() {
                     onDrawEnd={emitDrawEnd}
                     onDrawDelete={emitDrawDelete}
                     onDrawClear={emitDrawClear}
-                    profileId={currentProfileId || ''}
+                    profileId={currentProfileId || ""}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-slate-100">
@@ -810,10 +799,12 @@ export default function Worship() {
 
             {/* 페이지 네비게이션 */}
             {sheets.length > 0 && (
-              <div className={cn(
-                "absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-800/70 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-2xl transition-opacity duration-300",
-                showNavBar ? "opacity-100" : "opacity-0 pointer-events-none"
-              )}>
+              <div
+                className={cn(
+                  "absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-800/70 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-2xl transition-opacity duration-300",
+                  showNavBar ? "opacity-100" : "opacity-0 pointer-events-none",
+                )}
+              >
                 <Button
                   variant="ghost"
                   size="icon"
@@ -852,12 +843,8 @@ export default function Worship() {
                     onClick={() => handleSendCommand(command)}
                     className="flex flex-col items-center gap-2 p-6 bg-slate-700 hover:bg-slate-600 rounded-2xl transition-all active:scale-95 group"
                   >
-                    <span className="text-5xl group-hover:scale-110 transition-transform">
-                      {command.emoji}
-                    </span>
-                    <span className="text-sm font-semibold text-slate-300 text-center">
-                      {command.label}
-                    </span>
+                    <span className="text-5xl group-hover:scale-110 transition-transform">{command.emoji}</span>
+                    <span className="text-sm font-semibold text-slate-300 text-center">{command.label}</span>
                   </button>
                 ))}
               </div>

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, ChangeEvent } from 'react';
-import { Link, useParams, useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { Link, useParams, useNavigate } from "react-router";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Save,
@@ -16,9 +16,9 @@ import {
   Pencil,
   Check,
   Eye,
-} from 'lucide-react';
-import { DragDropProvider } from '@dnd-kit/react';
-import { useSortable } from '@dnd-kit/react/sortable';
+} from "lucide-react";
+import { DragDropProvider } from "@dnd-kit/react";
+import { useSortable } from "@dnd-kit/react/sortable";
 import {
   useWorship,
   useWorshipTypes,
@@ -28,18 +28,13 @@ import {
   useUpdateSheet,
   useDeleteSheet,
   useReorderSheets,
-} from '@/hooks/queries';
-import type { Sheet } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+} from "@/hooks/queries";
+import type { Sheet } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 function SortableSheetItem({
   sheet,
@@ -70,9 +65,7 @@ function SortableSheetItem({
     <div
       ref={ref}
       className={`bg-white rounded-xl p-4 border-2 transition-all ${
-        isDragSource
-          ? 'opacity-50 border-blue-400 shadow-lg'
-          : 'border-slate-200 hover:border-blue-300 hover:shadow-md'
+        isDragSource ? "opacity-50 border-blue-400 shadow-lg" : "border-slate-200 hover:border-blue-300 hover:shadow-md"
       }`}
     >
       <div className="flex items-center gap-4">
@@ -89,20 +82,13 @@ function SortableSheetItem({
             <Dialog>
               <DialogTrigger asChild>
                 <div className="relative w-20 h-24 rounded-lg overflow-hidden border-2 border-blue-300 cursor-pointer shadow-md">
-                  <img
-                    src={`/uploads/${sheet.imagePath}`}
-                    alt={sheet.title}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={`/uploads/${sheet.imagePath}`} alt={sheet.title} className="w-full h-full object-cover" />
                   <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-2 flex items-center justify-center">
                     <Eye className="w-4 h-4 text-white" />
                   </div>
                 </div>
               </DialogTrigger>
-              <DialogContent
-                className="max-w-5xl bg-transparent border-none shadow-none p-0"
-                showCloseButton={false}
-              >
+              <DialogContent className="max-w-5xl bg-transparent border-none shadow-none p-0" showCloseButton={false}>
                 <DialogTitle className="sr-only">{sheet.title} 미리보기</DialogTitle>
                 <div className="relative flex flex-col items-center">
                   <img
@@ -110,9 +96,7 @@ function SortableSheetItem({
                     alt={sheet.title}
                     className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
                   />
-                  <div className="mt-4 bg-black/70 text-white px-6 py-3 rounded-full font-semibold">
-                    {sheet.title}
-                  </div>
+                  <div className="mt-4 bg-black/70 text-white px-6 py-3 rounded-full font-semibold">{sheet.title}</div>
                 </div>
               </DialogContent>
             </Dialog>
@@ -132,10 +116,10 @@ function SortableSheetItem({
                 value={editingTitle}
                 onChange={(e) => onTitleChange(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     e.preventDefault();
                     onSaveTitle();
-                  } else if (e.key === 'Escape') {
+                  } else if (e.key === "Escape") {
                     e.preventDefault();
                     onCancelEdit();
                   }
@@ -145,19 +129,11 @@ function SortableSheetItem({
                 placeholder="악보 제목"
               />
               <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={onSaveTitle}
-                  className="bg-green-600 hover:bg-green-700"
-                >
+                <Button size="sm" onClick={onSaveTitle} className="bg-green-600 hover:bg-green-700">
                   <Check className="w-3.5 h-3.5" />
                   저장
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={onCancelEdit}
-                >
+                <Button variant="secondary" size="sm" onClick={onCancelEdit}>
                   <X className="w-3.5 h-3.5" />
                   취소
                 </Button>
@@ -182,18 +158,12 @@ function SortableSheetItem({
           )}
         </div>
 
-        <div className="text-2xl font-bold text-slate-300 min-w-10 text-center">
-          {index + 1}
-        </div>
+        <div className="text-2xl font-bold text-slate-300 min-w-10 text-center">{index + 1}</div>
 
         {!isEditing && (
           <ConfirmDialog
             trigger={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-red-500 hover:bg-red-50"
-              >
+              <Button variant="ghost" size="icon" className="text-red-500 hover:bg-red-50">
                 <Trash2 className="w-5 h-5" />
               </Button>
             }
@@ -212,7 +182,7 @@ function SortableSheetItem({
 export default function WorshipEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isNew = id === 'new';
+  const isNew = id === "new";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: worshipData } = useWorship(isNew ? undefined : id);
@@ -224,12 +194,12 @@ export default function WorshipEdit() {
   const deleteSheetMutation = useDeleteSheet();
   const reorderSheetsMutation = useReorderSheets();
 
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState('');
-  const [typeId, setTypeId] = useState('');
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [typeId, setTypeId] = useState("");
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState('');
+  const [editingTitle, setEditingTitle] = useState("");
   const [worshipId, setWorshipId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -253,11 +223,11 @@ export default function WorshipEdit() {
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/heic', 'image/heif'];
+    const allowedTypes = ["image/jpeg", "image/png", "image/heic", "image/heif"];
     const imageFiles = files.filter((file) => allowedTypes.includes(file.type));
 
     if (imageFiles.length !== files.length) {
-      toast.error('JPG, PNG, HEIC 이미지 파일만 업로드 가능합니다.');
+      toast.error("JPG, PNG, HEIC 이미지 파일만 업로드 가능합니다.");
     }
 
     if (imageFiles.length === 0) return;
@@ -266,11 +236,11 @@ export default function WorshipEdit() {
     let currentWorshipId = worshipId;
     if (!currentWorshipId) {
       if (!title.trim()) {
-        toast.error('악보를 추가하려면 먼저 예배 제목을 입력해주세요.');
+        toast.error("악보를 추가하려면 먼저 예배 제목을 입력해주세요.");
         return;
       }
       if (!date) {
-        toast.error('악보를 추가하려면 먼저 예배 날짜를 선택해주세요.');
+        toast.error("악보를 추가하려면 먼저 예배 날짜를 선택해주세요.");
         return;
       }
       const worship = await addWorshipMutation.mutateAsync({ title: title.trim(), date, typeId });
@@ -279,7 +249,7 @@ export default function WorshipEdit() {
     }
 
     for (const file of imageFiles) {
-      const sheetTitle = file.name.replace(/\.[^/.]+$/, '');
+      const sheetTitle = file.name.replace(/\.[^/.]+$/, "");
       const sheet = await addSheetMutation.mutateAsync({
         worshipId: currentWorshipId,
         file,
@@ -289,7 +259,7 @@ export default function WorshipEdit() {
     }
 
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -307,20 +277,18 @@ export default function WorshipEdit() {
     if (!editingSheetId) return;
     const trimmedTitle = editingTitle.trim();
     if (!trimmedTitle) {
-      toast.error('제목을 입력해주세요.');
+      toast.error("제목을 입력해주세요.");
       return;
     }
     await updateSheetMutation.mutateAsync({ id: editingSheetId, title: trimmedTitle });
-    setSheets((prev) =>
-      prev.map((s) => (s.id === editingSheetId ? { ...s, title: trimmedTitle } : s)),
-    );
+    setSheets((prev) => prev.map((s) => (s.id === editingSheetId ? { ...s, title: trimmedTitle } : s)));
     setEditingSheetId(null);
-    setEditingTitle('');
+    setEditingTitle("");
   };
 
   const handleCancelEdit = () => {
     setEditingSheetId(null);
-    setEditingTitle('');
+    setEditingTitle("");
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -347,15 +315,15 @@ export default function WorshipEdit() {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      toast.error('예배 제목을 입력해주세요.');
+      toast.error("예배 제목을 입력해주세요.");
       return;
     }
     if (!date) {
-      toast.error('예배 날짜를 선택해주세요.');
+      toast.error("예배 날짜를 선택해주세요.");
       return;
     }
     if (!typeId) {
-      toast.error('예배 유형을 선택해주세요.');
+      toast.error("예배 유형을 선택해주세요.");
       return;
     }
 
@@ -377,22 +345,16 @@ export default function WorshipEdit() {
       <div className="max-w-5xl mx-auto">
         {/* 헤더 */}
         <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate(-1)}
-          >
+          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-6 h-6" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-slate-800">
-              {isNew ? '새 예배 만들기' : '예배 편집'}
-            </h1>
+            <h1 className="text-3xl font-bold text-slate-800">{isNew ? "새 예배 만들기" : "예배 편집"}</h1>
             <p className="text-slate-600">예배 정보와 악보를 관리하세요</p>
           </div>
           <Button onClick={handleSave} disabled={saving}>
             <Save className="w-5 h-5" />
-            {saving ? '저장 중...' : '저장하기'}
+            {saving ? "저장 중..." : "저장하기"}
           </Button>
         </div>
 
@@ -459,10 +421,7 @@ export default function WorshipEdit() {
                       <span className="font-semibold">예배 유형이 없습니다</span>
                     </div>
                     <p className="text-sm mb-3">먼저 예배 유형을 생성해주세요.</p>
-                    <Button
-                      asChild
-                      className="bg-yellow-600 hover:bg-yellow-700"
-                    >
+                    <Button asChild className="bg-yellow-600 hover:bg-yellow-700">
                       <Link to="/worship-type-settings">
                         <Plus className="w-4 h-4" />
                         예배 유형 관리
@@ -481,14 +440,9 @@ export default function WorshipEdit() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-xl font-bold text-slate-800">악보 관리</h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  드래그하여 순서를 변경하거나 제목을 수정할 수 있습니다
-                </p>
+                <p className="text-sm text-slate-500 mt-1">드래그하여 순서를 변경하거나 제목을 수정할 수 있습니다</p>
               </div>
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-green-600 hover:bg-green-700"
-              >
+              <Button onClick={() => fileInputRef.current?.click()} className="bg-green-600 hover:bg-green-700">
                 <Upload className="w-5 h-5" />
                 악보 추가
               </Button>
@@ -565,14 +519,14 @@ export default function WorshipEdit() {
           <Card className="bg-linear-to-br from-green-50 to-green-100 border-2 border-green-200 shadow-none">
             <CardContent>
               <div className="text-sm font-semibold text-green-700 mb-1">예배 날짜</div>
-              <div className="text-xl font-bold text-green-900">{date || '미정'}</div>
+              <div className="text-xl font-bold text-green-900">{date || "미정"}</div>
             </CardContent>
           </Card>
           <Card className="bg-linear-to-br from-purple-50 to-purple-100 border-2 border-purple-200 shadow-none">
             <CardContent>
               <div className="text-sm font-semibold text-purple-700 mb-1">상태</div>
               <div className="text-xl font-bold text-purple-900">
-                {title && date && sheets.length > 0 ? '준비완료' : '작성중'}
+                {title && date && sheets.length > 0 ? "준비완료" : "작성중"}
               </div>
             </CardContent>
           </Card>

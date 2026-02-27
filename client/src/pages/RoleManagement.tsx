@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Link } from 'react-router';
-import { toast } from 'sonner';
-import { ArrowLeft, Plus, Edit, Trash2, Check, X, AlertCircle, Users } from 'lucide-react';
-import { useRoles, useAddRole, useUpdateRole, useDeleteRole } from '@/hooks/queries';
-import { useProfiles } from '@/hooks/queries';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useState } from "react";
+import { Link } from "react-router";
+import { toast } from "sonner";
+import { ArrowLeft, Plus, Edit, Trash2, Check, X, AlertCircle, Users } from "lucide-react";
+import { useRoles, useAddRole, useUpdateRole, useDeleteRole } from "@/hooks/queries";
+import { useProfiles } from "@/hooks/queries";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function RoleManagement() {
   const { data: roles = [] } = useRoles();
@@ -18,15 +18,14 @@ export default function RoleManagement() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', icon: '' });
+  const [formData, setFormData] = useState({ name: "", icon: "" });
 
-  const isRoleInUse = (roleId: string) =>
-    profiles.some((p) => p.roleId === roleId);
+  const isRoleInUse = (roleId: string) => profiles.some((p) => p.roleId === roleId);
 
   const handleAdd = async () => {
     if (!formData.name.trim() || !formData.icon.trim()) return;
     await addRoleMutation.mutateAsync({ name: formData.name, icon: formData.icon });
-    setFormData({ name: '', icon: '' });
+    setFormData({ name: "", icon: "" });
     setIsAdding(false);
   };
 
@@ -42,12 +41,12 @@ export default function RoleManagement() {
     if (!editingId || !formData.name.trim() || !formData.icon.trim()) return;
     await updateRoleMutation.mutateAsync({ id: editingId, name: formData.name, icon: formData.icon });
     setEditingId(null);
-    setFormData({ name: '', icon: '' });
+    setFormData({ name: "", icon: "" });
   };
 
   const handleDelete = async (id: string) => {
     if (isRoleInUse(id)) {
-      toast.error('이 역할을 사용하는 프로필이 있습니다. 먼저 프로필의 역할을 변경해주세요.');
+      toast.error("이 역할을 사용하는 프로필이 있습니다. 먼저 프로필의 역할을 변경해주세요.");
       return;
     }
     await deleteRoleMutation.mutateAsync(id);
@@ -56,7 +55,7 @@ export default function RoleManagement() {
   const handleCancel = () => {
     setIsAdding(false);
     setEditingId(null);
-    setFormData({ name: '', icon: '' });
+    setFormData({ name: "", icon: "" });
   };
 
   return (
@@ -74,8 +73,7 @@ export default function RoleManagement() {
           </div>
           {!isAdding && !editingId && (
             <Button onClick={() => setIsAdding(true)}>
-              <Plus className="w-5 h-5" />
-              새 역할 추가
+              <Plus className="w-5 h-5" />새 역할 추가
             </Button>
           )}
         </div>
@@ -87,9 +85,7 @@ export default function RoleManagement() {
               <h3 className="text-lg font-bold text-slate-800 mb-4">새 역할 추가</h3>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    역할 이름
-                  </label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">역할 이름</label>
                   <Input
                     type="text"
                     value={formData.name}
@@ -98,9 +94,7 @@ export default function RoleManagement() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    이모지 아이콘
-                  </label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">이모지 아이콘</label>
                   <Input
                     type="text"
                     value={formData.icon}
@@ -125,119 +119,104 @@ export default function RoleManagement() {
 
         {/* 역할 목록 */}
         {roles.length > 0 ? (
-        <div className="space-y-3">
-          {roles.map((role) => {
-            const inUse = isRoleInUse(role.id);
-            const isEditing = editingId === role.id;
-            return (
-              <Card
-                key={role.id}
-                className={isEditing
-                  ? 'border-2 border-blue-200'
-                  : 'border-2 border-transparent hover:border-blue-100'
-                }
-              >
-                <CardContent>
-                  {isEditing ? (
-                    <div>
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            역할 이름
-                          </label>
-                          <Input
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          />
+          <div className="space-y-3">
+            {roles.map((role) => {
+              const inUse = isRoleInUse(role.id);
+              const isEditing = editingId === role.id;
+              return (
+                <Card
+                  key={role.id}
+                  className={
+                    isEditing ? "border-2 border-blue-200" : "border-2 border-transparent hover:border-blue-100"
+                  }
+                >
+                  <CardContent>
+                    {isEditing ? (
+                      <div>
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">역할 이름</label>
+                            <Input
+                              type="text"
+                              value={formData.name}
+                              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">이모지 아이콘</label>
+                            <Input
+                              type="text"
+                              value={formData.icon}
+                              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                              className="text-2xl text-center"
+                              maxLength={2}
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            이모지 아이콘
-                          </label>
-                          <Input
-                            type="text"
-                            value={formData.icon}
-                            onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                            className="text-2xl text-center"
-                            maxLength={2}
-                          />
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="secondary" size="icon" onClick={handleCancel}>
+                            <X className="w-5 h-5" />
+                          </Button>
+                          <Button size="icon" onClick={handleUpdate}>
+                            <Check className="w-5 h-5" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex gap-2 justify-end">
-                        <Button variant="secondary" size="icon" onClick={handleCancel}>
-                          <X className="w-5 h-5" />
-                        </Button>
-                        <Button size="icon" onClick={handleUpdate}>
-                          <Check className="w-5 h-5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-3xl shadow-md">
-                          {role.icon}
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-3xl shadow-md">
+                            {role.icon}
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-slate-800">{role.name}</h3>
+                            {inUse && (
+                              <div className="flex items-center gap-1 text-sm text-blue-600 mt-1">
+                                <AlertCircle className="w-4 h-4" />
+                                사용 중
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-slate-800">{role.name}</h3>
-                          {inUse && (
-                            <div className="flex items-center gap-1 text-sm text-blue-600 mt-1">
-                              <AlertCircle className="w-4 h-4" />
-                              사용 중
-                            </div>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(role.id)}>
+                            <Edit className="w-5 h-5" />
+                          </Button>
+                          {inUse ? (
+                            <Button variant="ghost" size="icon" disabled className="text-slate-400 cursor-not-allowed">
+                              <Trash2 className="w-5 h-5" />
+                            </Button>
+                          ) : (
+                            <ConfirmDialog
+                              trigger={
+                                <Button variant="destructive" size="icon">
+                                  <Trash2 className="w-5 h-5" />
+                                </Button>
+                              }
+                              title="역할 삭제"
+                              description="이 역할을 삭제하시겠습니까?"
+                              confirmLabel="삭제"
+                              onConfirm={() => handleDelete(role.id)}
+                              destructive
+                            />
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(role.id)}>
-                          <Edit className="w-5 h-5" />
-                        </Button>
-                        {inUse ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled
-                            className="text-slate-400 cursor-not-allowed"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </Button>
-                        ) : (
-                          <ConfirmDialog
-                            trigger={
-                              <Button variant="destructive" size="icon">
-                                <Trash2 className="w-5 h-5" />
-                              </Button>
-                            }
-                            title="역할 삭제"
-                            description="이 역할을 삭제하시겠습니까?"
-                            confirmLabel="삭제"
-                            onConfirm={() => handleDelete(role.id)}
-                            destructive
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         ) : (
           <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
             <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-slate-400" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-700 mb-2">
-              아직 역할이 없습니다
-            </h3>
-            <p className="text-slate-500 mb-6">
-              새 역할 추가 버튼을 눌러 역할을 만드세요
-            </p>
+            <h3 className="text-lg font-semibold text-slate-700 mb-2">아직 역할이 없습니다</h3>
+            <p className="text-slate-500 mb-6">새 역할 추가 버튼을 눌러 역할을 만드세요</p>
             <Button onClick={() => setIsAdding(true)}>
-              <Plus className="w-5 h-5" />
-              새 역할 추가
+              <Plus className="w-5 h-5" />새 역할 추가
             </Button>
           </div>
         )}

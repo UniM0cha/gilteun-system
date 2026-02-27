@@ -1,37 +1,33 @@
-import { Server, Socket } from 'socket.io';
-import { nanoid } from 'nanoid';
-import { eq } from 'drizzle-orm';
+import { Server, Socket } from "socket.io";
+import { nanoid } from "nanoid";
+import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { drawingPaths } from '../db/schema.js';
+import { drawingPaths } from "../db/schema.js";
 
 export function setupDrawingHandler(io: Server, socket: Socket): void {
   // Sheet Room 입장 → 기존 드로잉 전송
-  socket.on('join:sheet', ({ sheetId }: { sheetId: string }) => {
+  socket.on("join:sheet", ({ sheetId }: { sheetId: string }) => {
     socket.join(`sheet:${sheetId}`);
 
     try {
-      const paths = db
-        .select()
-        .from(drawingPaths)
-        .where(eq(drawingPaths.sheetId, sheetId))
-        .all();
+      const paths = db.select().from(drawingPaths).where(eq(drawingPaths.sheetId, sheetId)).all();
       const parsed = paths.map((p) => ({
         ...p,
         points: JSON.parse(p.points),
       }));
-      socket.emit('drawing:state', { sheetId, paths: parsed });
+      socket.emit("drawing:state", { sheetId, paths: parsed });
     } catch (error) {
-      console.error('[Drawing] Failed to load paths:', error);
+      console.error("[Drawing] Failed to load paths:", error);
     }
   });
 
-  socket.on('leave:sheet', ({ sheetId }: { sheetId: string }) => {
+  socket.on("leave:sheet", ({ sheetId }: { sheetId: string }) => {
     socket.leave(`sheet:${sheetId}`);
   });
 
   // 드로잉 시작 → 다른 사용자에게 브로드캐스트
   socket.on(
-    'drawing:start',
+    "drawing:start",
     (data: {
       sheetId: string;
       pathId: string;
@@ -41,21 +37,18 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
       isEraser: boolean;
       point: { x: number; y: number };
     }) => {
-      socket.to(`sheet:${data.sheetId}`).emit('drawing:started', data);
+      socket.to(`sheet:${data.sheetId}`).emit("drawing:started", data);
     },
   );
 
   // 드로잉 이동 → 브로드캐스트 (DB 저장 없음)
-  socket.on(
-    'drawing:move',
-    (data: { sheetId: string; pathId: string; point: { x: number; y: number } }) => {
-      socket.to(`sheet:${data.sheetId}`).emit('drawing:moved', data);
-    },
-  );
+  socket.on("drawing:move", (data: { sheetId: string; pathId: string; point: { x: number; y: number } }) => {
+    socket.to(`sheet:${data.sheetId}`).emit("drawing:moved", data);
+  });
 
   // 드로잉 완료 → DB 저장 + 브로드캐스트
   socket.on(
-    'drawing:end',
+    "drawing:end",
     (data: {
       sheetId: string;
       pathId: string;
@@ -81,28 +74,28 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
           })
           .run();
 
-        socket.to(`sheet:${data.sheetId}`).emit('drawing:ended', {
+        socket.to(`sheet:${data.sheetId}`).emit("drawing:ended", {
           ...data,
           id,
         });
       } catch (error) {
-        console.error('[Drawing] Failed to save path:', error);
+        console.error("[Drawing] Failed to save path:", error);
       }
     },
   );
 
   // 드로잉 삭제 → DB 삭제 + 브로드캐스트 (멱등성)
-  socket.on('drawing:delete', (data: { sheetId: string; pathId: string }) => {
+  socket.on("drawing:delete", (data: { sheetId: string; pathId: string }) => {
     try {
       db.delete(drawingPaths).where(eq(drawingPaths.id, data.pathId)).run();
-      socket.to(`sheet:${data.sheetId}`).emit('drawing:deleted', data);
+      socket.to(`sheet:${data.sheetId}`).emit("drawing:deleted", data);
     } catch (error) {
-      console.error('[Drawing] Failed to delete path:', error);
+      console.error("[Drawing] Failed to delete path:", error);
     }
   });
 
   // 내 드로잉 전체 삭제 → DB 삭제 + 브로드캐스트
-  socket.on('drawing:clear', (data: { sheetId: string; profileId: string }) => {
+  socket.on("drawing:clear", (data: { sheetId: string; profileId: string }) => {
     try {
       const myPaths = db
         .select({ id: drawingPaths.id })
@@ -110,11 +103,7 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
         .where(eq(drawingPaths.sheetId, data.sheetId))
         .all()
         .filter((p) => {
-          const full = db
-            .select()
-            .from(drawingPaths)
-            .where(eq(drawingPaths.id, p.id))
-            .get();
+          const full = db.select().from(drawingPaths).where(eq(drawingPaths.id, p.id)).get();
           return full?.profileId === data.profileId;
         });
 
@@ -124,13 +113,13 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
         db.delete(drawingPaths).where(eq(drawingPaths.id, pathId)).run();
       }
 
-      io.to(`sheet:${data.sheetId}`).emit('drawing:cleared', {
+      io.to(`sheet:${data.sheetId}`).emit("drawing:cleared", {
         sheetId: data.sheetId,
         profileId: data.profileId,
         deletedPathIds,
       });
     } catch (error) {
-      console.error('[Drawing] Failed to clear paths:', error);
+      console.error("[Drawing] Failed to clear paths:", error);
     }
   });
 }

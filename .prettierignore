@@ -1,0 +1,12 @@
+dist/
+node_modules/
+길튼 시스템/
+server/data/
+server/drizzle/
+server/uploads/
+server/deploy/
+client/src/components/ui/
+package-lock.json
+client/package-lock.json
+server/package-lock.json
+*.tsbuildinfo

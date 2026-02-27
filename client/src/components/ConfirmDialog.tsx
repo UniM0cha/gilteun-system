@@ -8,8 +8,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { ReactNode } from 'react';
+} from "@/components/ui/alert-dialog";
+import { ReactNode } from "react";
 
 interface ConfirmDialogProps {
   trigger: ReactNode;
@@ -25,8 +25,8 @@ export function ConfirmDialog({
   trigger,
   title,
   description,
-  confirmLabel = '확인',
-  cancelLabel = '취소',
+  confirmLabel = "확인",
+  cancelLabel = "취소",
   onConfirm,
   destructive = false,
 }: ConfirmDialogProps) {
@@ -40,10 +40,7 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
-          <AlertDialogAction
-            variant={destructive ? 'destructive' : 'default'}
-            onClick={onConfirm}
-          >
+          <AlertDialogAction variant={destructive ? "destructive" : "default"} onClick={onConfirm}>
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

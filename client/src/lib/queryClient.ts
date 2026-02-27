@@ -1,6 +1,6 @@
-import { QueryClient } from '@tanstack/react-query';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { get, set, del } from 'idb-keyval';
+import { QueryClient } from "@tanstack/react-query";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { get, set, del } from "idb-keyval";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,14 +20,26 @@ export const queryClient = new QueryClient({
 export const asyncStoragePersister = createAsyncStoragePersister({
   storage: {
     getItem: async (key) => {
-      try { return await get(key) ?? null; } catch { return null; }
+      try {
+        return (await get(key)) ?? null;
+      } catch {
+        return null;
+      }
     },
     setItem: async (key, value) => {
-      try { await set(key, value); } catch { /* Safari 프라이빗 모드 등 */ }
+      try {
+        await set(key, value);
+      } catch {
+        /* Safari 프라이빗 모드 등 */
+      }
     },
     removeItem: async (key) => {
-      try { await del(key); } catch { /* IndexedDB 미지원 환경 무시 */ }
+      try {
+        await del(key);
+      } catch {
+        /* IndexedDB 미지원 환경 무시 */
+      }
     },
   },
-  key: 'gilteun-query-cache',
+  key: "gilteun-query-cache",
 });

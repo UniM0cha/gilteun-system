@@ -1,16 +1,16 @@
-import { Link, useNavigate } from 'react-router';
-import { Plus, UserCircle, Music, Settings, Tag, Users } from 'lucide-react';
-import { useProfiles, useRoles } from '@/hooks/queries';
-import { useAppStore } from '@/store/appStore';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Link, useNavigate } from "react-router";
+import { Plus, UserCircle, Music, Settings, Tag, Users } from "lucide-react";
+import { useProfiles, useRoles } from "@/hooks/queries";
+import { useAppStore } from "@/store/appStore";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const quickLinks = [
-  { to: '/profile-setup', icon: UserCircle, label: '프로필 관리' },
-  { to: '/role-management', icon: Users, label: '역할 관리' },
-  { to: '/command-setup', icon: Settings, label: '명령 설정' },
-  { to: '/worship-type-settings', icon: Tag, label: '예배 유형 관리' },
+  { to: "/profile-setup", icon: UserCircle, label: "프로필 관리" },
+  { to: "/role-management", icon: Users, label: "역할 관리" },
+  { to: "/command-setup", icon: Settings, label: "명령 설정" },
+  { to: "/worship-type-settings", icon: Tag, label: "예배 유형 관리" },
 ];
 
 export default function Home() {
@@ -23,7 +23,7 @@ export default function Home() {
 
   const handleProfileSelect = (profileId: string) => {
     setCurrentProfile(profileId);
-    navigate('/worship-list');
+    navigate("/worship-list");
   };
 
   return (
@@ -68,9 +68,7 @@ export default function Home() {
                           {role?.icon}
                         </div>
                         <div className="flex-1">
-                          <h3 className="text-xl font-bold text-slate-800 mb-1">
-                            {profile.name}
-                          </h3>
+                          <h3 className="text-xl font-bold text-slate-800 mb-1">{profile.name}</h3>
                           <Badge
                             variant="secondary"
                             className="px-3 py-1 text-sm font-semibold bg-slate-200 text-slate-700"
@@ -88,9 +86,7 @@ export default function Home() {
                 <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <UserCircle className="w-8 h-8 text-slate-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">
-                  프로필이 없습니다
-                </h3>
+                <h3 className="text-lg font-semibold text-slate-700 mb-2">프로필이 없습니다</h3>
                 <p className="text-slate-500 mb-6">먼저 프로필을 생성해주세요</p>
                 <Button asChild>
                   <Link to="/profile-setup/new">

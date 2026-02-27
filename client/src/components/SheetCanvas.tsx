@@ -1,15 +1,7 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  forwardRef,
-  useImperativeHandle,
-  useCallback,
-  useMemo,
-} from 'react';
-import type { DrawingPath, Point } from '@/hooks/useDrawingSync';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback, useMemo } from "react";
+import type { DrawingPath, Point } from "@/hooks/useDrawingSync";
 
-export type EraserType = 'none' | 'area' | 'stroke';
+export type EraserType = "none" | "area" | "stroke";
 
 interface RemoteInProgressPath {
   pathId: string;
@@ -29,21 +21,9 @@ interface SheetCanvasProps {
   eraserWidth: number;
   remotePaths: DrawingPath[];
   remoteInProgress: RemoteInProgressPath[];
-  onDrawStart?: (data: {
-    pathId: string;
-    color: string;
-    width: number;
-    isEraser: boolean;
-    point: Point;
-  }) => void;
+  onDrawStart?: (data: { pathId: string; color: string; width: number; isEraser: boolean; point: Point }) => void;
   onDrawMove?: (data: { pathId: string; point: Point }) => void;
-  onDrawEnd?: (data: {
-    pathId: string;
-    color: string;
-    width: number;
-    isEraser: boolean;
-    points: Point[];
-  }) => void;
+  onDrawEnd?: (data: { pathId: string; color: string; width: number; isEraser: boolean; points: Point[] }) => void;
   onDrawDelete?: (pathId: string) => void;
   onDrawClear?: () => void;
   profileId: string;
@@ -93,7 +73,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
     const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [currentPath, setCurrentPath] = useState<Point[]>([]);
-    const currentPathIdRef = useRef<string>('');
+    const currentPathIdRef = useRef<string>("");
 
     // 로컬 paths (내가 그린 것) - 정규화 좌표
     const [localPaths, setLocalPaths] = useState<DrawingPath[]>([]);
@@ -132,7 +112,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       const canvas = drawingCanvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (!ctx) return;
       const w = canvas.width;
       const h = canvas.height;
@@ -145,9 +125,9 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
         ctx.beginPath();
         ctx.strokeStyle = path.color;
         ctx.lineWidth = path.width * w; // 정규화된 굵기 복원
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.globalCompositeOperation = path.isEraser ? 'destination-out' : 'source-over';
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalCompositeOperation = path.isEraser ? "destination-out" : "source-over";
 
         const p0 = denormalizePoint(path.points[0], w, h);
         ctx.moveTo(p0.x, p0.y);
@@ -162,11 +142,11 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       for (const rip of remoteInProgress) {
         if (rip.points.length < 2) continue;
         ctx.beginPath();
-        ctx.strokeStyle = rip.isEraser ? '#FFFFFF' : rip.color;
+        ctx.strokeStyle = rip.isEraser ? "#FFFFFF" : rip.color;
         ctx.lineWidth = rip.width * w;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.globalCompositeOperation = rip.isEraser ? 'destination-out' : 'source-over';
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalCompositeOperation = rip.isEraser ? "destination-out" : "source-over";
 
         const p0 = denormalizePoint(rip.points[0], w, h);
         ctx.moveTo(p0.x, p0.y);
@@ -180,11 +160,11 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       // 현재 그리고 있는 path
       if (currentPath.length >= 2) {
         ctx.beginPath();
-        ctx.strokeStyle = eraserType === 'area' ? '#FFFFFF' : penColor;
-        ctx.lineWidth = (eraserType === 'area' ? eraserWidth : penWidth) / w * w; // 화면 기준
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.globalCompositeOperation = eraserType === 'area' ? 'destination-out' : 'source-over';
+        ctx.strokeStyle = eraserType === "area" ? "#FFFFFF" : penColor;
+        ctx.lineWidth = ((eraserType === "area" ? eraserWidth : penWidth) / w) * w; // 화면 기준
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalCompositeOperation = eraserType === "area" ? "destination-out" : "source-over";
 
         // currentPath는 이미 정규화된 좌표
         const p0 = denormalizePoint(currentPath[0], w, h);
@@ -196,7 +176,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
         ctx.stroke();
       }
 
-      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalCompositeOperation = "source-over";
     }, [allPaths, remoteInProgress, currentPath, penColor, penWidth, eraserType, eraserWidth]);
 
     // redraw ref 갱신 (ResizeObserver에서 사용)
@@ -214,7 +194,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       const rect = canvas.getBoundingClientRect();
       let clientX: number, clientY: number;
 
-      if ('touches' in e) {
+      if ("touches" in e) {
         if (e.touches.length === 0) return null;
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
@@ -269,13 +249,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
         const pdy = point.y - p1.y;
         return Math.sqrt(pdx * pdx + pdy * pdy);
       }
-      const t = Math.max(
-        0,
-        Math.min(
-          1,
-          ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / (dx * dx + dy * dy),
-        ),
-      );
+      const t = Math.max(0, Math.min(1, ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / (dx * dx + dy * dy)));
       const projX = p1.x + t * dx;
       const projY = p1.y + t * dy;
       const pdx = point.x - projX;
@@ -286,14 +260,14 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
     const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
       if (!isDrawMode) return;
       // 2-finger 이상 → 부모의 핀치 핸들러로 위임
-      if ('touches' in e && e.touches.length >= 2) return;
+      if ("touches" in e && e.touches.length >= 2) return;
       e.preventDefault();
       const point = getCoordinates(e);
       if (!point) return;
 
       e.stopPropagation();
 
-      if (eraserType === 'stroke') {
+      if (eraserType === "stroke") {
         setIsDrawing(true);
         erasedPathIdsRef.current = new Set();
         const pathId = findPathAtPoint(point);
@@ -312,14 +286,13 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
 
       const canvas = drawingCanvasRef.current;
       if (!canvas) return;
-      const normalizedWidth =
-        eraserType === 'area' ? eraserWidth / canvas.width : penWidth / canvas.width;
+      const normalizedWidth = eraserType === "area" ? eraserWidth / canvas.width : penWidth / canvas.width;
 
       onDrawStart?.({
         pathId,
-        color: eraserType === 'area' ? '#FFFFFF' : penColor,
+        color: eraserType === "area" ? "#FFFFFF" : penColor,
         width: normalizedWidth,
-        isEraser: eraserType === 'area',
+        isEraser: eraserType === "area",
         point,
       });
     };
@@ -327,7 +300,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
     const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
       if (!isDrawing || !isDrawMode) return;
       // 2-finger 시작 시 진행 중인 그리기 취소
-      if ('touches' in e && e.touches.length >= 2) {
+      if ("touches" in e && e.touches.length >= 2) {
         handleEnd();
         return;
       }
@@ -337,7 +310,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       if (!point) return;
 
       // 드래그 획 지우개: 연속으로 path 삭제
-      if (eraserType === 'stroke') {
+      if (eraserType === "stroke") {
         const pathId = findPathAtPoint(point);
         if (pathId && !erasedPathIdsRef.current.has(pathId)) {
           erasedPathIdsRef.current.add(pathId);
@@ -361,7 +334,7 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       if (!isDrawing) return;
 
       // 드래그 획 지우개: 삭제 결과를 히스토리에 한 번으로 기록
-      if (eraserType === 'stroke') {
+      if (eraserType === "stroke") {
         if (erasedPathIdsRef.current.size > 0) {
           setLocalPaths((prev) => {
             const newHistory = history.slice(0, historyIndex + 1);
@@ -381,17 +354,16 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
       if (currentPath.length > 1) {
         const canvas = drawingCanvasRef.current;
         if (!canvas) return;
-        const normalizedWidth =
-          eraserType === 'area' ? eraserWidth / canvas.width : penWidth / canvas.width;
+        const normalizedWidth = eraserType === "area" ? eraserWidth / canvas.width : penWidth / canvas.width;
 
         const newPath: DrawingPath = {
           id: currentPathIdRef.current,
-          sheetId: '',
+          sheetId: "",
           profileId,
-          color: eraserType === 'area' ? '#FFFFFF' : penColor,
+          color: eraserType === "area" ? "#FFFFFF" : penColor,
           width: normalizedWidth,
           points: currentPath,
-          isEraser: eraserType === 'area',
+          isEraser: eraserType === "area",
         };
 
         setLocalPaths((prev) => {
@@ -503,13 +475,9 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
         <canvas
           ref={drawingCanvasRef}
           className={`absolute inset-0 w-full h-full ${
-            isDrawMode
-              ? eraserType === 'stroke'
-                ? 'cursor-pointer'
-                : 'cursor-crosshair'
-              : 'cursor-default'
+            isDrawMode ? (eraserType === "stroke" ? "cursor-pointer" : "cursor-crosshair") : "cursor-default"
           }`}
-          style={{ touchAction: 'none' }}
+          style={{ touchAction: "none" }}
           onMouseDown={handleStart}
           onMouseMove={handleMove}
           onMouseUp={handleEnd}
@@ -532,6 +500,6 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
   },
 );
 
-SheetCanvas.displayName = 'SheetCanvas';
+SheetCanvas.displayName = "SheetCanvas";
 
 export default SheetCanvas;

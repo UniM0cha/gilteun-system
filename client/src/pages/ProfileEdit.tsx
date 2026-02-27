@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router';
-import { toast } from 'sonner';
-import { ArrowLeft, Save, Trash2, User, Users } from 'lucide-react';
-import { useProfiles, useAddProfile, useUpdateProfile, useDeleteProfile, useRoles } from '@/hooks/queries';
-import { PROFILE_COLORS } from '@/lib/colors';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useState, useEffect } from "react";
+import { Link, useParams, useNavigate } from "react-router";
+import { toast } from "sonner";
+import { ArrowLeft, Save, Trash2, User, Users } from "lucide-react";
+import { useProfiles, useAddProfile, useUpdateProfile, useDeleteProfile, useRoles } from "@/hooks/queries";
+import { PROFILE_COLORS } from "@/lib/colors";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function ProfileEdit() {
   const { id } = useParams<{ id: string }>();
@@ -18,14 +18,12 @@ export default function ProfileEdit() {
   const updateProfileMutation = useUpdateProfile();
   const deleteProfileMutation = useDeleteProfile();
 
-  const isNewProfile = id === 'new';
-  const existingProfile = isNewProfile
-    ? null
-    : profiles.find((p) => p.id === id);
+  const isNewProfile = id === "new";
+  const existingProfile = isNewProfile ? null : profiles.find((p) => p.id === id);
 
-  const [name, setName] = useState('');
-  const [roleId, setRoleId] = useState('');
-  const [color, setColor] = useState('bg-blue-500');
+  const [name, setName] = useState("");
+  const [roleId, setRoleId] = useState("");
+  const [color, setColor] = useState("bg-blue-500");
 
   useEffect(() => {
     if (existingProfile) {
@@ -41,7 +39,7 @@ export default function ProfileEdit() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast.error('이름을 입력해주세요.');
+      toast.error("이름을 입력해주세요.");
       return;
     }
     if (isNewProfile) {
@@ -49,13 +47,13 @@ export default function ProfileEdit() {
     } else if (id) {
       await updateProfileMutation.mutateAsync({ id, name: name.trim(), roleId, color });
     }
-    navigate('/profile-setup');
+    navigate("/profile-setup");
   };
 
   const handleDelete = async () => {
     if (id && !isNewProfile) {
       await deleteProfileMutation.mutateAsync(id);
-      navigate('/profile-setup');
+      navigate("/profile-setup");
     }
   };
 
@@ -69,9 +67,7 @@ export default function ProfileEdit() {
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-slate-800">
-              {isNewProfile ? '새 프로필 추가' : '프로필 수정'}
-            </h1>
+            <h1 className="text-3xl font-bold text-slate-800">{isNewProfile ? "새 프로필 추가" : "프로필 수정"}</h1>
             <p className="text-slate-600">프로필 정보를 입력하세요</p>
           </div>
         </div>
@@ -81,9 +77,7 @@ export default function ProfileEdit() {
             {/* 프로필 미리보기 */}
             <div className="flex items-center justify-center mb-8">
               <div className="relative">
-                <div
-                  className={`w-32 h-32 ${color} rounded-3xl flex items-center justify-center text-7xl shadow-xl`}
-                >
+                <div className={`w-32 h-32 ${color} rounded-3xl flex items-center justify-center text-7xl shadow-xl`}>
                   {getRoleById(roleId)?.icon}
                 </div>
                 <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-lg">
@@ -94,9 +88,7 @@ export default function ProfileEdit() {
 
             {/* 이름 */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                이름 *
-              </label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">이름 *</label>
               <Input
                 type="text"
                 value={name}
@@ -108,9 +100,7 @@ export default function ProfileEdit() {
 
             {/* 역할 선택 */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
-                역할 *
-              </label>
+              <label className="block text-sm font-semibold text-slate-700 mb-3">역할 *</label>
               {roles.length > 0 ? (
                 <div className="grid grid-cols-3 gap-3">
                   {roles.map((role) => (
@@ -119,8 +109,8 @@ export default function ProfileEdit() {
                       onClick={() => setRoleId(role.id)}
                       className={`flex items-center justify-center gap-2 py-4 rounded-xl font-semibold transition-all ${
                         roleId === role.id
-                          ? 'bg-blue-600 text-white shadow-lg scale-105'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          ? "bg-blue-600 text-white shadow-lg scale-105"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                       }`}
                     >
                       <span className="text-2xl">{role.icon}</span>
@@ -147,18 +137,14 @@ export default function ProfileEdit() {
 
             {/* 색상 선택 */}
             <div className="mb-8">
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
-                배경 색상
-              </label>
+              <label className="block text-sm font-semibold text-slate-700 mb-3">배경 색상</label>
               <div className="grid grid-cols-6 gap-3">
                 {PROFILE_COLORS.map((c) => (
                   <button
                     key={c}
                     onClick={() => setColor(c)}
                     className={`aspect-square ${c} rounded-xl transition-all hover:scale-110 ${
-                      color === c
-                        ? 'ring-4 ring-offset-4 ring-slate-400 scale-110'
-                        : ''
+                      color === c ? "ring-4 ring-offset-4 ring-slate-400 scale-110" : ""
                     }`}
                   />
                 ))}
@@ -167,12 +153,7 @@ export default function ProfileEdit() {
 
             {/* 액션 */}
             <div className="flex gap-4">
-              <Button
-                size="lg"
-                className="flex-1"
-                onClick={handleSave}
-                disabled={roles.length === 0}
-              >
+              <Button size="lg" className="flex-1" onClick={handleSave} disabled={roles.length === 0}>
                 <Save className="w-5 h-5" />
                 저장하기
               </Button>

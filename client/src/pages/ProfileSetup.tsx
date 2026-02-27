@@ -1,9 +1,9 @@
-import { Link } from 'react-router';
-import { ArrowLeft, Edit, Plus, Trash2, User } from 'lucide-react';
-import { useProfiles, useDeleteProfile, useRoles } from '@/hooks/queries';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Link } from "react-router";
+import { ArrowLeft, Edit, Plus, Trash2, User } from "lucide-react";
+import { useProfiles, useDeleteProfile, useRoles } from "@/hooks/queries";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function ProfileSetup() {
   const { data: profiles = [] } = useProfiles();
@@ -27,16 +27,13 @@ export default function ProfileSetup() {
           </div>
           <Button asChild>
             <Link to="/profile-setup/new">
-              <Plus className="w-5 h-5" />
-              새 프로필
+              <Plus className="w-5 h-5" />새 프로필
             </Link>
           </Button>
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl p-8">
-          <h2 className="text-xl font-bold text-slate-800 mb-6">
-            프로필 목록 ({profiles.length}개)
-          </h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-6">프로필 목록 ({profiles.length}개)</h2>
 
           {profiles.length > 0 ? (
             <div className="space-y-3">
@@ -52,9 +49,7 @@ export default function ProfileSetup() {
                       {getRoleById(profile.roleId)?.icon}
                     </div>
                     <div>
-                      <div className="font-bold text-lg text-slate-800">
-                        {profile.name}
-                      </div>
+                      <div className="font-bold text-lg text-slate-800">{profile.name}</div>
                       <Badge variant="secondary" className="mt-1">
                         {getRoleById(profile.roleId)?.name}
                       </Badge>
@@ -86,16 +81,11 @@ export default function ProfileSetup() {
               <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <User className="w-8 h-8 text-slate-400" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-700 mb-2">
-                아직 프로필이 없습니다
-              </h3>
-              <p className="text-slate-500 mb-6">
-                새 프로필 버튼을 눌러 프로필을 만드세요
-              </p>
+              <h3 className="text-lg font-semibold text-slate-700 mb-2">아직 프로필이 없습니다</h3>
+              <p className="text-slate-500 mb-6">새 프로필 버튼을 눌러 프로필을 만드세요</p>
               <Button asChild>
                 <Link to="/profile-setup/new">
-                  <Plus className="w-5 h-5" />
-                  새 프로필 추가
+                  <Plus className="w-5 h-5" />새 프로필 추가
                 </Link>
               </Button>
             </div>
