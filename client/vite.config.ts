@@ -50,7 +50,20 @@ export default defineConfig({
         theme_color: "#1e293b",
         background_color: "#f8fafc",
         display: "standalone",
-        icons: [],
+        icons: [
+          {
+            src: "/pwa-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any",
+          },
+        ],
       },
       devOptions: {
         enabled: false, // 개발 시 SW 비활성
