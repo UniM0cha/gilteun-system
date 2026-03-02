@@ -19,12 +19,14 @@ import {
 } from "lucide-react";
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
@@ -74,9 +76,11 @@ function SortableSheetItem({
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`bg-white rounded-xl p-4 border-2 transition-all ${
-        isDragging ? "opacity-50 border-blue-400 shadow-lg" : "border-slate-200 hover:border-blue-300 hover:shadow-md"
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`bg-white rounded-xl p-4 border-2 transition-colors ${
+        isDragging
+          ? "opacity-30 border-dashed border-blue-300"
+          : "border-slate-200 hover:border-blue-300 hover:shadow-md"
       }`}
     >
       <div className="flex items-center gap-4">
@@ -191,6 +195,31 @@ function SortableSheetItem({
   );
 }
 
+function SheetDragPreview({ sheet }: { sheet: Sheet }) {
+  return (
+    <div className="bg-white rounded-xl p-4 border-2 border-blue-400 shadow-lg">
+      <div className="flex items-center gap-4">
+        <div className="p-2">
+          <GripVertical className="w-5 h-5 text-slate-400" />
+        </div>
+        {sheet.imagePath ? (
+          <div className="w-20 h-24 rounded-lg overflow-hidden border-2 border-blue-300 shadow-md">
+            <img src={`/uploads/${sheet.imagePath}`} alt={sheet.title} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="w-20 h-24 bg-linear-to-br from-amber-50 to-orange-100 rounded-lg flex items-center justify-center text-3xl border-2 border-slate-200">
+            📄
+          </div>
+        )}
+        <div className="flex-1">
+          <div className="font-semibold text-slate-800 line-clamp-2">{sheet.title}</div>
+          <div className="text-sm text-slate-500 mt-1 truncate">{sheet.fileName}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function WorshipEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -214,6 +243,7 @@ export default function WorshipEdit() {
   const [editingTitle, setEditingTitle] = useState("");
   const [worshipId, setWorshipId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // 기존 예배 데이터 로드
   useEffect(() => {
@@ -308,7 +338,12 @@ export default function WorshipEdit() {
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
   );
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -492,6 +527,7 @@ export default function WorshipEdit() {
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext items={sheets.map((s) => s.id)} strategy={verticalListSortingStrategy}>
@@ -512,6 +548,9 @@ export default function WorshipEdit() {
                     ))}
                   </div>
                 </SortableContext>
+                <DragOverlay>
+                  {activeId ? <SheetDragPreview sheet={sheets.find((s) => s.id === activeId)!} /> : null}
+                </DragOverlay>
               </DndContext>
             ) : (
               <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
