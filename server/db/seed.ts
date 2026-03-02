@@ -1,9 +1,13 @@
 import { nanoid } from "nanoid";
 import { db } from ".";
 import { worshipTypes, roles, profiles, commands, worships, sheets, drawingPaths } from "./schema.js";
+import { setupDatabase } from "./setup.js";
 
 async function seed() {
   console.log("Seeding database...\n");
+
+  // 테이블이 없으면 생성 (서버 시작 전 단독 실행 대응)
+  setupDatabase();
 
   // Clear all tables in reverse FK order
   db.delete(drawingPaths).run();
