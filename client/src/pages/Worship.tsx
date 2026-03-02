@@ -28,7 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useWorship, useCommands } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { useWorshipSocket } from "@/hooks/useWorshipSocket";
-import SheetCanvas, { type SheetCanvasRef, type EraserType } from "@/components/SheetCanvas";
+import SheetCanvas, { type EraserType } from "@/components/SheetCanvas";
 import { useDrawingSync } from "@/hooks/useDrawingSync";
 import { getSocket, setWorshipRoom } from "@/hooks/useSocket";
 
@@ -52,8 +52,6 @@ interface PresenceUser {
 export default function Worship() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const canvasRef = useRef<SheetCanvasRef>(null);
-
   const { data: worshipData } = useWorship(id);
   const { data: commands = [] } = useCommands();
   const currentProfileId = useAppStore((s) => s.currentProfileId);
@@ -108,12 +106,22 @@ export default function Worship() {
   });
 
   // 드로잉 동기화 훅
-  const { remotePaths, remoteInProgress, emitDrawStart, emitDrawMove, emitDrawEnd, emitDrawDelete, emitDrawClear } =
-    useDrawingSync({
-      sheetId: currentSheetId,
-      profileId: currentProfileId,
-      enabled: !!id,
-    });
+  const {
+    paths: drawingPaths,
+    remoteInProgress,
+    emitDrawStart,
+    emitDrawMove,
+    addPath,
+    deletePath,
+    startBatch,
+    endBatch,
+    undo: drawingUndo,
+    redo: drawingRedo,
+  } = useDrawingSync({
+    sheetId: currentSheetId,
+    profileId: currentProfileId,
+    enabled: !!id,
+  });
 
   // 프로필 미선택 시 홈으로 리다이렉트
   useEffect(() => {
@@ -708,7 +716,7 @@ export default function Worship() {
                                 variant="ghost"
                                 size="sm"
                                 className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
-                                onClick={() => canvasRef.current?.undo()}
+                                onClick={() => drawingUndo()}
                               >
                                 <Undo className="w-5 h-5" />
                                 <span className="text-sm">되돌리기</span>
@@ -717,7 +725,7 @@ export default function Worship() {
                                 variant="ghost"
                                 size="sm"
                                 className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
-                                onClick={() => canvasRef.current?.redo()}
+                                onClick={() => drawingRedo()}
                               >
                                 <Redo className="w-5 h-5" />
                                 <span className="text-sm">다시실행</span>
@@ -732,7 +740,7 @@ export default function Worship() {
                       variant="ghost"
                       size="icon"
                       className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
-                      onClick={() => canvasRef.current?.undo()}
+                      onClick={() => drawingUndo()}
                     >
                       <Undo className="w-5 h-5" />
                     </Button>
@@ -740,7 +748,7 @@ export default function Worship() {
                       variant="ghost"
                       size="icon"
                       className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
-                      onClick={() => canvasRef.current?.redo()}
+                      onClick={() => drawingRedo()}
                     >
                       <Redo className="w-5 h-5" />
                     </Button>
@@ -807,20 +815,20 @@ export default function Worship() {
                 {currentSheet ? (
                   <SheetCanvas
                     key={currentSheet.id}
-                    ref={canvasRef}
                     imageUrl={currentSheet.imagePath ? `/uploads/${currentSheet.imagePath}` : null}
                     isDrawMode={isDrawMode}
                     penColor={selectedColor}
                     penWidth={penWidth}
                     eraserType={eraserType}
                     eraserWidth={eraserWidth}
-                    remotePaths={remotePaths}
+                    paths={drawingPaths}
                     remoteInProgress={remoteInProgress}
                     onDrawStart={emitDrawStart}
                     onDrawMove={emitDrawMove}
-                    onDrawEnd={emitDrawEnd}
-                    onDrawDelete={emitDrawDelete}
-                    onDrawClear={emitDrawClear}
+                    onPathAdd={addPath}
+                    onPathDelete={deletePath}
+                    onBatchStart={startBatch}
+                    onBatchEnd={endBatch}
                     profileId={currentProfileId || ""}
                   />
                 ) : (

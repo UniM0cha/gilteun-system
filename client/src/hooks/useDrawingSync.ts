@@ -25,6 +25,11 @@ interface RemoteInProgressPath {
   points: Point[];
 }
 
+interface UndoAction {
+  added: DrawingPath[];
+  deleted: DrawingPath[];
+}
+
 interface UseDrawingSyncOptions {
   sheetId: string | null;
   profileId: string | null;
@@ -32,9 +37,12 @@ interface UseDrawingSyncOptions {
 }
 
 export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOptions) {
-  const [remotePaths, setRemotePaths] = useState<DrawingPath[]>([]);
+  const [paths, setPaths] = useState<DrawingPath[]>([]);
   const [remoteInProgress, setRemoteInProgress] = useState<Map<string, RemoteInProgressPath>>(new Map());
+  const [, setUndoStack] = useState<UndoAction[]>([]);
+  const [, setRedoStack] = useState<UndoAction[]>([]);
   const currentSheetIdRef = useRef<string | null>(null);
+  const batchRef = useRef<DrawingPath[] | null>(null);
 
   const socket = getSocket();
 
@@ -49,6 +57,10 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     currentSheetIdRef.current = sheetId;
     socket.emit("join:sheet", { sheetId });
     setSheetRoom({ sheetId });
+
+    // 시트 전환 시 undo/redo 초기화
+    setUndoStack([]);
+    setRedoStack([]);
 
     return () => {
       if (currentSheetIdRef.current) {
@@ -65,7 +77,9 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
 
     const handleState = (data: { sheetId: string; paths: DrawingPath[] }) => {
       if (data.sheetId === currentSheetIdRef.current) {
-        setRemotePaths(data.paths);
+        setPaths(data.paths);
+        setUndoStack([]);
+        setRedoStack([]);
       }
     };
 
@@ -128,7 +142,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
         return next;
       });
 
-      // 완료된 path 추가
+      // 완료된 path 추가 (socket.to → 발신자 제외, 타인 획만 수신)
       const path: DrawingPath = {
         id: data.id || data.pathId,
         sheetId: data.sheetId,
@@ -138,18 +152,18 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
         points: data.points,
         isEraser: data.isEraser,
       };
-      setRemotePaths((prev) => [...prev, path]);
+      setPaths((prev) => [...prev, path]);
     };
 
     const handleDeleted = (data: { sheetId: string; pathId: string }) => {
       if (data.sheetId !== currentSheetIdRef.current) return;
-      setRemotePaths((prev) => prev.filter((p) => p.id !== data.pathId));
+      setPaths((prev) => prev.filter((p) => p.id !== data.pathId));
     };
 
     const handleCleared = (data: { sheetId: string; profileId: string; deletedPathIds: string[] }) => {
       if (data.sheetId !== currentSheetIdRef.current) return;
       const deletedSet = new Set(data.deletedPathIds);
-      setRemotePaths((prev) => prev.filter((p) => !deletedSet.has(p.id)));
+      setPaths((prev) => prev.filter((p) => !deletedSet.has(p.id)));
     };
 
     socket.on("drawing:state", handleState);
@@ -187,38 +201,167 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     [sheetId, socket],
   );
 
-  // 드로잉 완료 전송
-  const emitDrawEnd = useCallback(
-    (data: { pathId: string; color: string; width: number; isEraser: boolean; points: Point[] }) => {
+  // 획 추가 (옵티미스틱 + 서버 동기화)
+  const addPath = useCallback(
+    (path: DrawingPath) => {
       if (!sheetId || !profileId) return;
-      socket.emit("drawing:end", { sheetId, profileId, ...data });
+      setPaths((prev) => [...prev, path]);
+      socket.emit("drawing:end", {
+        sheetId,
+        profileId,
+        pathId: path.id,
+        color: path.color,
+        width: path.width,
+        isEraser: path.isEraser,
+        points: path.points,
+      });
+      setUndoStack((prev) => [...prev, { added: [path], deleted: [] }]);
+      setRedoStack([]);
     },
     [sheetId, profileId, socket],
   );
 
-  // 드로잉 삭제 전송
-  const emitDrawDelete = useCallback(
+  // 획 삭제 (옵티미스틱 + 서버 동기화)
+  const deletePath = useCallback(
     (pathId: string) => {
       if (!sheetId) return;
-      setRemotePaths((prev) => prev.filter((p) => p.id !== pathId));
+      setPaths((prev) => {
+        const deleted = prev.find((p) => p.id === pathId);
+        if (deleted) {
+          if (batchRef.current) {
+            batchRef.current.push(deleted);
+          } else {
+            setUndoStack((stack) => [...stack, { added: [], deleted: [deleted] }]);
+            setRedoStack([]);
+          }
+        }
+        return prev.filter((p) => p.id !== pathId);
+      });
       socket.emit("drawing:delete", { sheetId, pathId });
     },
     [sheetId, socket],
   );
 
-  // 내 드로잉 전체 삭제 전송
-  const emitDrawClear = useCallback(() => {
+  // 배치 시작 (드래그 획 지우개용)
+  const startBatch = useCallback(() => {
+    batchRef.current = [];
+  }, []);
+
+  // 배치 종료
+  const endBatch = useCallback(() => {
+    if (batchRef.current && batchRef.current.length > 0) {
+      const deleted = batchRef.current;
+      setUndoStack((prev) => [...prev, { added: [], deleted }]);
+      setRedoStack([]);
+    }
+    batchRef.current = null;
+  }, []);
+
+  // 내 드로잉 전체 삭제
+  const clearMyPaths = useCallback(() => {
     if (!sheetId || !profileId) return;
+    setPaths((prev) => {
+      const myPaths = prev.filter((p) => p.profileId === profileId);
+      if (myPaths.length > 0) {
+        setUndoStack((stack) => [...stack, { added: [], deleted: myPaths }]);
+        setRedoStack([]);
+      }
+      return prev.filter((p) => p.profileId !== profileId);
+    });
     socket.emit("drawing:clear", { sheetId, profileId });
   }, [sheetId, profileId, socket]);
 
+  // Undo
+  const undo = useCallback(() => {
+    setUndoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const action = prev[prev.length - 1];
+      const rest = prev.slice(0, -1);
+
+      setPaths((currentPaths) => {
+        let next = currentPaths;
+        // added를 삭제
+        if (action.added.length > 0) {
+          const addedIds = new Set(action.added.map((p) => p.id));
+          next = next.filter((p) => !addedIds.has(p.id));
+          for (const path of action.added) {
+            socket.emit("drawing:delete", { sheetId, pathId: path.id });
+          }
+        }
+        // deleted를 복원
+        if (action.deleted.length > 0) {
+          next = [...next, ...action.deleted];
+          for (const path of action.deleted) {
+            socket.emit("drawing:end", {
+              sheetId,
+              profileId,
+              pathId: path.id,
+              color: path.color,
+              width: path.width,
+              isEraser: path.isEraser,
+              points: path.points,
+            });
+          }
+        }
+        return next;
+      });
+
+      setRedoStack((redoPrev) => [...redoPrev, action]);
+      return rest;
+    });
+  }, [sheetId, profileId, socket]);
+
+  // Redo
+  const redo = useCallback(() => {
+    setRedoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const action = prev[prev.length - 1];
+      const rest = prev.slice(0, -1);
+
+      setPaths((currentPaths) => {
+        let next = currentPaths;
+        // added를 다시 추가
+        if (action.added.length > 0) {
+          next = [...next, ...action.added];
+          for (const path of action.added) {
+            socket.emit("drawing:end", {
+              sheetId,
+              profileId,
+              pathId: path.id,
+              color: path.color,
+              width: path.width,
+              isEraser: path.isEraser,
+              points: path.points,
+            });
+          }
+        }
+        // deleted를 다시 삭제
+        if (action.deleted.length > 0) {
+          const deletedIds = new Set(action.deleted.map((p) => p.id));
+          next = next.filter((p) => !deletedIds.has(p.id));
+          for (const path of action.deleted) {
+            socket.emit("drawing:delete", { sheetId, pathId: path.id });
+          }
+        }
+        return next;
+      });
+
+      setUndoStack((undoPrev) => [...undoPrev, action]);
+      return rest;
+    });
+  }, [sheetId, profileId, socket]);
+
   return {
-    remotePaths,
+    paths,
     remoteInProgress: Array.from(remoteInProgress.values()),
     emitDrawStart,
     emitDrawMove,
-    emitDrawEnd,
-    emitDrawDelete,
-    emitDrawClear,
+    addPath,
+    deletePath,
+    clearMyPaths,
+    startBatch,
+    endBatch,
+    undo,
+    redo,
   };
 }
