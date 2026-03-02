@@ -283,6 +283,12 @@ export default function Worship() {
   );
 
   // 핀치줌 유틸
+  const parseOriginPercent = (origin: string): [number, number] => {
+    if (origin === "center center") return [50, 50];
+    const parts = origin.split(/\s+/);
+    return [parseFloat(parts[0]), parseFloat(parts[1])];
+  };
+
   const getTouchDistance = (touches: React.TouchList) => {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
@@ -301,22 +307,39 @@ export default function Worship() {
         // 핀치 시작
         const dist = getTouchDistance(e.touches);
         const center = getTouchCenter(e.touches);
+        panRef.current = null;
+
+        // 핀치 중심점을 transformOrigin으로 설정
+        // scale > 1이면 origin 변경에 따른 translate 보정으로 위치 점프 방지
+        let currentTranslate = { ...translate };
+        const container = sheetContainerRef.current;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const newRelX = ((center.x - rect.left) / rect.width) * 100;
+          const newRelY = ((center.y - rect.top) / rect.height) * 100;
+
+          if (scaleRef.current > 1) {
+            const [oldRelX, oldRelY] = parseOriginPercent(transformOrigin);
+            const s = scaleRef.current;
+            // rect는 렌더링 크기(CSS너비×scale)이므로 /s로 CSS 원본 너비 복원
+            const cssWidth = rect.width / s;
+            const cssHeight = rect.height / s;
+            currentTranslate = {
+              x: translate.x + ((oldRelX - newRelX) / 100) * cssWidth * (1 - s),
+              y: translate.y + ((oldRelY - newRelY) / 100) * cssHeight * (1 - s),
+            };
+            setTranslate(currentTranslate);
+          }
+
+          setTransformOrigin(`${newRelX}% ${newRelY}%`);
+        }
+
         pinchRef.current = {
           startDist: dist,
           startScale: scaleRef.current,
           startCenter: center,
-          startTranslate: { ...translate },
+          startTranslate: currentTranslate,
         };
-        panRef.current = null;
-
-        // 핀치 중심점을 transformOrigin으로 설정
-        const container = sheetContainerRef.current;
-        if (container) {
-          const rect = container.getBoundingClientRect();
-          const relX = ((center.x - rect.left) / rect.width) * 100;
-          const relY = ((center.y - rect.top) / rect.height) * 100;
-          setTransformOrigin(`${relX}% ${relY}%`);
-        }
 
         e.preventDefault();
       } else if (e.touches.length === 1) {
@@ -342,7 +365,7 @@ export default function Worship() {
         }
       }
     },
-    [translate],
+    [translate, transformOrigin],
   );
 
   const handleSheetTouchMove = useCallback((e: React.TouchEvent) => {
