@@ -22,7 +22,6 @@ export default defineConfig({
             options: {
               cacheName: "sheet-images",
               expiration: {
-                maxEntries: 100, // iPad Safari ~50MB 제한 고려
                 maxAgeSeconds: 60 * 60 * 24 * 30, // 30일
               },
               cacheableResponse: { statuses: [0, 200] },

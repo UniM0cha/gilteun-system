@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback, useMemo } from "react";
 import type { DrawingPath, Point } from "@/hooks/useDrawingSync";
+import { getSocket } from "@/hooks/useSocket";
 
 export type EraserType = "none" | "area" | "stroke";
 
@@ -83,6 +84,28 @@ const SheetCanvas = forwardRef<SheetCanvasRef, SheetCanvasProps>(
     const lastMoveTimeRef = useRef(0);
     const redrawCanvasRef = useRef<() => void>(() => {});
     const erasedPathIdsRef = useRef<Set<string>>(new Set());
+
+    // 원격 삭제 시 localPaths에서도 제거 (남이 내 획을 지웠을 때)
+    useEffect(() => {
+      const socket = getSocket();
+
+      const handleRemoteDeleted = (data: { sheetId: string; pathId: string }) => {
+        setLocalPaths((prev) => prev.filter((p) => p.id !== data.pathId));
+      };
+
+      const handleRemoteCleared = (data: { sheetId: string; profileId: string; deletedPathIds: string[] }) => {
+        const deletedSet = new Set(data.deletedPathIds);
+        setLocalPaths((prev) => prev.filter((p) => !deletedSet.has(p.id)));
+      };
+
+      socket.on("drawing:deleted", handleRemoteDeleted);
+      socket.on("drawing:cleared", handleRemoteCleared);
+
+      return () => {
+        socket.off("drawing:deleted", handleRemoteDeleted);
+        socket.off("drawing:cleared", handleRemoteCleared);
+      };
+    }, []);
 
     // 모든 paths 합치기 (remote + local)
     const allPaths = useMemo(() => [...remotePaths, ...localPaths], [remotePaths, localPaths]);

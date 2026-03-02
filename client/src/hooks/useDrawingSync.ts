@@ -200,6 +200,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
   const emitDrawDelete = useCallback(
     (pathId: string) => {
       if (!sheetId) return;
+      setRemotePaths((prev) => prev.filter((p) => p.id !== pathId));
       socket.emit("drawing:delete", { sheetId, pathId });
     },
     [sheetId, socket],

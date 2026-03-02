@@ -17,8 +17,18 @@ import {
   Check,
   Eye,
 } from "lucide-react";
-import { DragDropProvider } from "@dnd-kit/react";
-import { useSortable } from "@dnd-kit/react/sortable";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
+import { CSS } from "@dnd-kit/utilities";
 import {
   useWorship,
   useWorshipTypes,
@@ -57,20 +67,22 @@ function SortableSheetItem({
   onSaveTitle: () => void;
   onCancelEdit: () => void;
 }) {
-  const { ref, handleRef, isDragSource } = useSortable({ id: sheet.id, index });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sheet.id });
 
   const isEditing = editingId === sheet.id;
 
   return (
     <div
-      ref={ref}
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`bg-white rounded-xl p-4 border-2 transition-all ${
-        isDragSource ? "opacity-50 border-blue-400 shadow-lg" : "border-slate-200 hover:border-blue-300 hover:shadow-md"
+        isDragging ? "opacity-50 border-blue-400 shadow-lg" : "border-slate-200 hover:border-blue-300 hover:shadow-md"
       }`}
     >
       <div className="flex items-center gap-4">
         <div
-          ref={handleRef}
+          {...attributes}
+          {...listeners}
           className="cursor-grab active:cursor-grabbing p-2 hover:bg-slate-100 rounded-lg transition-colors touch-none"
         >
           <GripVertical className="w-5 h-5 text-slate-400" />
@@ -291,18 +303,20 @@ export default function WorshipEdit() {
     setEditingTitle("");
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleDragEnd = async (event: any) => {
-    const { source, target } = event.operation;
-    if (!source || !target || source.id === target.id) return;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  );
 
-    const oldIndex = sheets.findIndex((s) => s.id === source.id);
-    const newIndex = sheets.findIndex((s) => s.id === target.id);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sheets.findIndex((s) => s.id === active.id);
+    const newIndex = sheets.findIndex((s) => s.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const newSheets = [...sheets];
-    const [removed] = newSheets.splice(oldIndex, 1);
-    newSheets.splice(newIndex, 0, removed);
+    const newSheets = arrayMove(sheets, oldIndex, newIndex);
     setSheets(newSheets);
 
     if (worshipId) {
@@ -474,24 +488,31 @@ export default function WorshipEdit() {
 
             {/* 악보 목록 */}
             {sheets.length > 0 ? (
-              <DragDropProvider onDragEnd={handleDragEnd}>
-                <div className="space-y-3">
-                  {sheets.map((sheet, index) => (
-                    <SortableSheetItem
-                      key={sheet.id}
-                      sheet={sheet}
-                      index={index}
-                      onDelete={handleDeleteSheet}
-                      onEdit={handleEditSheetTitle}
-                      editingId={editingSheetId}
-                      editingTitle={editingTitle}
-                      onTitleChange={setEditingTitle}
-                      onSaveTitle={handleSaveSheetTitle}
-                      onCancelEdit={handleCancelEdit}
-                    />
-                  ))}
-                </div>
-              </DragDropProvider>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={sheets.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-3">
+                    {sheets.map((sheet, index) => (
+                      <SortableSheetItem
+                        key={sheet.id}
+                        sheet={sheet}
+                        index={index}
+                        onDelete={handleDeleteSheet}
+                        onEdit={handleEditSheetTitle}
+                        editingId={editingSheetId}
+                        editingTitle={editingTitle}
+                        onTitleChange={setEditingTitle}
+                        onSaveTitle={handleSaveSheetTitle}
+                        onCancelEdit={handleCancelEdit}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             ) : (
               <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
                 <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">

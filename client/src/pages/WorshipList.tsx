@@ -31,6 +31,25 @@ export default function WorshipList() {
     }
   }, [currentProfileId, navigate]);
 
+  // Persistent Storage 요청 (캐시 자동 삭제 방지)
+  useEffect(() => {
+    navigator.storage?.persist?.();
+  }, []);
+
+  // 악보 이미지 백그라운드 프리로드 (최신 예배 우선)
+  useEffect(() => {
+    if (!worships.length) return;
+    const sorted = [...worships].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    for (const worship of sorted) {
+      for (const sheet of worship.sheets || []) {
+        if (sheet.imagePath) {
+          const img = new Image();
+          img.src = `/uploads/${sheet.imagePath}`;
+        }
+      }
+    }
+  }, [worships]);
+
   const currentProfile = profiles.find((p) => p.id === currentProfileId);
   const currentRole = currentProfile ? roles.find((r) => r.id === currentProfile.roleId) : undefined;
 

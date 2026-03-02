@@ -68,6 +68,7 @@ export default function Worship() {
   const [eraserWidth, setEraserWidth] = useState(15);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showCommandPanel, setShowCommandPanel] = useState(false);
+  const [isCompact, setIsCompact] = useState(false);
   const [presenceUsers, setPresenceUsers] = useState<PresenceUser[]>([]);
   const [showNavBar, setShowNavBar] = useState(true);
   const navBarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,6 +76,8 @@ export default function Worship() {
   // 핀치줌 상태
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const [transformOrigin, setTransformOrigin] = useState("center center");
+  const sheetContainerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(1);
   scaleRef.current = scale;
   const pinchRef = useRef<{
@@ -139,18 +142,11 @@ export default function Worship() {
     };
   }, [id, currentProfileId, socket]);
 
-  // Socket: 연결 상태 토스트
-  const hasDisconnectedRef = useRef(false);
+  // Socket: 연결 상태 추적
+  const [isConnected, setIsConnected] = useState(socket.connected);
   useEffect(() => {
-    const onDisconnect = () => {
-      hasDisconnectedRef.current = true;
-      toast.error("서버 연결이 끊어졌습니다", { id: "socket-status" });
-    };
-    const onConnect = () => {
-      if (hasDisconnectedRef.current) {
-        toast.success("서버에 다시 연결되었습니다", { id: "socket-status" });
-      }
-    };
+    const onDisconnect = () => setIsConnected(false);
+    const onConnect = () => setIsConnected(true);
     socket.on("disconnect", onDisconnect);
     socket.on("connect", onConnect);
     return () => {
@@ -270,6 +266,7 @@ export default function Worship() {
         setCurrentSheetId(sheets[index].id);
         setScale(1);
         setTranslate({ x: 0, y: 0 });
+        setTransformOrigin("center center");
         flashNavBar();
       }
     },
@@ -302,6 +299,16 @@ export default function Worship() {
           startTranslate: { ...translate },
         };
         panRef.current = null;
+
+        // 핀치 중심점을 transformOrigin으로 설정
+        const container = sheetContainerRef.current;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const relX = ((center.x - rect.left) / rect.width) * 100;
+          const relY = ((center.y - rect.top) / rect.height) * 100;
+          setTransformOrigin(`${relX}% ${relY}%`);
+        }
+
         e.preventDefault();
       } else if (e.touches.length === 1) {
         // 더블탭 감지
@@ -309,6 +316,7 @@ export default function Worship() {
         if (now - lastTapRef.current < 300) {
           setScale(1);
           setTranslate({ x: 0, y: 0 });
+          setTransformOrigin("center center");
           e.preventDefault();
           lastTapRef.current = 0;
           return;
@@ -399,62 +407,79 @@ export default function Worship() {
   return (
     <div className="h-screen flex flex-col bg-slate-900">
       {/* 상단 헤더 */}
-      <header className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="hover:bg-slate-700 text-slate-300" asChild>
-            <Link to="/worship-list">
-              <ArrowLeft className="w-6 h-6" />
-            </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hover:bg-slate-700 text-slate-300"
-            onClick={() => setShowSidebar(!showSidebar)}
-          >
-            <Menu className="w-6 h-6" />
-          </Button>
-          <div className="h-8 w-px bg-slate-600" />
-          <h1 className="text-xl font-bold text-white">{worshipData?.title || "예배"}</h1>
-        </div>
+      {!isCompact && (
+        <header className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" className="hover:bg-slate-700 text-slate-300" asChild>
+              <Link to="/worship-list">
+                <ArrowLeft className="w-6 h-6" />
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hover:bg-slate-700 text-slate-300"
+              onClick={() => setShowSidebar(!showSidebar)}
+            >
+              <Menu className="w-6 h-6" />
+            </Button>
+            <div className="h-8 w-px bg-slate-600" />
+            <h1 className="text-xl font-bold text-white">{worshipData?.title || "예배"}</h1>
+          </div>
 
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="bg-slate-700 text-slate-300 hover:bg-slate-600" asChild>
-            <Link to={`/worship-edit/${id}`}>
-              <Edit className="w-5 h-5" />
-              <span>편집</span>
-            </Link>
-          </Button>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="bg-slate-700 text-slate-300 hover:bg-slate-600 cursor-pointer"
-              >
-                <Users className="w-5 h-5" />
-                <span>{presenceUsers.length}명 접속</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 bg-slate-800 border-slate-700 p-0" align="end">
-              <div className="p-3 border-b border-slate-700">
-                <h3 className="text-sm font-semibold text-white">접속 중인 사용자</h3>
+          <div className="flex items-center gap-3">
+            {/* 서버 연결 상태 인디케이터 */}
+            {!isConnected && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-600/20 border border-red-500/30 rounded-lg">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-xs font-medium text-red-400">연결 끊김</span>
               </div>
-              <div className="p-2 max-h-60 overflow-y-auto">
-                {presenceUsers.map((user) => (
-                  <div key={user.profileId} className="flex items-center gap-3 px-2 py-2 rounded-lg">
-                    <span className="text-lg">{user.roleIcon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate">{user.name}</div>
-                      <div className="text-xs text-slate-400">{user.role}</div>
+            )}
+            <Button variant="ghost" size="sm" className="bg-slate-700 text-slate-300 hover:bg-slate-600" asChild>
+              <Link to={`/worship-edit/${id}`}>
+                <Edit className="w-5 h-5" />
+                <span>편집</span>
+              </Link>
+            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="bg-slate-700 text-slate-300 hover:bg-slate-600 cursor-pointer"
+                >
+                  <Users className="w-5 h-5" />
+                  <span>{presenceUsers.length}명 접속</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 bg-slate-800 border-slate-700 p-0" align="end">
+                <div className="p-3 border-b border-slate-700">
+                  <h3 className="text-sm font-semibold text-white">접속 중인 사용자</h3>
+                </div>
+                <div className="p-2 max-h-60 overflow-y-auto">
+                  {presenceUsers.map((user) => (
+                    <div key={user.profileId} className="flex items-center gap-3 px-2 py-2 rounded-lg">
+                      <span className="text-lg">{user.roleIcon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate">{user.name}</div>
+                        <div className="text-xs text-slate-400">{user.role}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </header>
+      )}
+
+      {/* 컴팩트 모드: 연결 끊김 시 플로팅 인디케이터 */}
+      {isCompact && !isConnected && (
+        <div className="absolute top-3 right-3 z-50 flex items-center gap-2 px-3 py-1.5 bg-red-600/20 border border-red-500/30 rounded-lg backdrop-blur-sm">
+          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-xs font-medium text-red-400">연결 끊김</span>
         </div>
-      </header>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측 악보 리스트 */}
@@ -523,234 +548,245 @@ export default function Worship() {
           {...swipeHandlers}
         >
           {/* 도구 바 */}
-          <div className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsDrawMode(!isDrawMode)}
-                className={cn(
-                  "px-5 py-2.5 rounded-xl",
-                  isDrawMode
-                    ? "bg-green-600 text-white shadow-lg hover:bg-green-700"
-                    : "bg-slate-700 text-slate-300 hover:bg-slate-600",
-                )}
-              >
-                {isDrawMode ? (
+          {!isCompact && (
+            <div className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const next = !isDrawMode;
+                    setIsDrawMode(next);
+                    if (next) setIsCompact(false);
+                  }}
+                  className={cn(
+                    "px-5 py-2.5 rounded-xl",
+                    isDrawMode
+                      ? "bg-green-600 text-white shadow-lg hover:bg-green-700"
+                      : "bg-slate-700 text-slate-300 hover:bg-slate-600",
+                  )}
+                >
+                  {isDrawMode ? (
+                    <>
+                      <Pencil className="w-5 h-5" />
+                      그리기 모드
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-5 h-5" />
+                      보기 모드
+                    </>
+                  )}
+                </Button>
+
+                {isDrawMode && (
                   <>
-                    <Pencil className="w-5 h-5" />
-                    그리기 모드
-                  </>
-                ) : (
-                  <>
-                    <Eye className="w-5 h-5" />
-                    보기 모드
-                  </>
-                )}
-              </Button>
-
-              {isDrawMode && (
-                <>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="bg-slate-700 text-slate-300 hover:bg-slate-600 px-4 py-2.5 rounded-xl"
-                      >
-                        <Palette className="w-5 h-5" />
-                        <span className="text-sm">도구</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80 bg-slate-800 border-slate-700 p-4" align="start">
-                      <div className="space-y-4">
-                        {/* 색상 팔레트 */}
-                        <div>
-                          <div className="text-xs font-semibold text-slate-400 mb-2">색상</div>
-                          <div className="flex items-center gap-2">
-                            {penColors.map((pen) => (
-                              <button
-                                key={pen.value}
-                                onClick={() => {
-                                  setSelectedColor(pen.value);
-                                  setEraserType("none");
-                                }}
-                                className={`w-10 h-10 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
-                                  selectedColor === pen.value && eraserType === "none"
-                                    ? "ring-4 ring-white scale-110"
-                                    : ""
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 펜 굵기 */}
-                        <div>
-                          <div className="text-xs font-semibold text-slate-400 mb-2">펜 굵기</div>
-                          <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2 w-fit">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
-                              onClick={() => setPenWidth((p) => Math.max(p - 1, 1))}
-                            >
-                              <Minus className="w-4 h-4" />
-                            </Button>
-                            <div className="text-slate-300 font-semibold min-w-7.5 text-center">{penWidth}</div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
-                              onClick={() => setPenWidth((p) => Math.min(p + 1, 20))}
-                            >
-                              <PlusIcon className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* 지우개 */}
-                        <div>
-                          <div className="text-xs font-semibold text-slate-400 mb-2">지우개</div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setEraserType((p) => (p === "area" ? "none" : "area"))}
-                              className={cn(
-                                "px-3 py-2.5 flex-1",
-                                eraserType === "area"
-                                  ? "bg-orange-600 text-white hover:bg-orange-700"
-                                  : "bg-slate-700 text-slate-300 hover:bg-slate-600",
-                              )}
-                            >
-                              <Eraser className="w-5 h-5" />
-                              <span className="text-sm">영역</span>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setEraserType((p) => (p === "stroke" ? "none" : "stroke"))}
-                              className={cn(
-                                "px-3 py-2.5 flex-1",
-                                eraserType === "stroke"
-                                  ? "bg-red-600 text-white hover:bg-red-700"
-                                  : "bg-slate-700 text-slate-300 hover:bg-slate-600",
-                              )}
-                            >
-                              <Trash className="w-5 h-5" />
-                              <span className="text-sm">획</span>
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* 지우개 크기 (영역 선택 시) */}
-                        {eraserType === "area" && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="bg-slate-700 text-slate-300 hover:bg-slate-600 px-4 py-2.5 rounded-xl"
+                        >
+                          <Palette className="w-5 h-5" />
+                          <span className="text-sm">도구</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 bg-slate-800 border-slate-700 p-4" align="start">
+                        <div className="space-y-4">
+                          {/* 색상 팔레트 */}
                           <div>
-                            <div className="text-xs font-semibold text-slate-400 mb-2">지우개 크기</div>
-                            <div className="flex items-center gap-2 bg-orange-700 rounded-lg px-3 py-2 w-fit">
+                            <div className="text-xs font-semibold text-slate-400 mb-2">색상</div>
+                            <div className="flex items-center gap-2">
+                              {penColors.map((pen) => (
+                                <button
+                                  key={pen.value}
+                                  onClick={() => {
+                                    setSelectedColor(pen.value);
+                                    setEraserType("none");
+                                  }}
+                                  className={`w-10 h-10 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
+                                    selectedColor === pen.value && eraserType === "none"
+                                      ? "ring-4 ring-white scale-110"
+                                      : ""
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* 펜 굵기 */}
+                          <div>
+                            <div className="text-xs font-semibold text-slate-400 mb-2">펜 굵기</div>
+                            <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2 w-fit">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
-                                onClick={() => setEraserWidth((p) => Math.max(p - 2, 5))}
+                                className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
+                                onClick={() => setPenWidth((p) => Math.max(p - 1, 1))}
                               >
                                 <Minus className="w-4 h-4" />
                               </Button>
-                              <div className="text-white font-semibold min-w-7.5 text-center">{eraserWidth}</div>
+                              <div className="text-slate-300 font-semibold min-w-7.5 text-center">{penWidth}</div>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
-                                onClick={() => setEraserWidth((p) => Math.min(p + 2, 50))}
+                                className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
+                                onClick={() => setPenWidth((p) => Math.min(p + 1, 20))}
                               >
                                 <PlusIcon className="w-4 h-4" />
                               </Button>
                             </div>
                           </div>
-                        )}
 
-                        {/* 실행취소/다시실행 */}
-                        <div>
-                          <div className="text-xs font-semibold text-slate-400 mb-2">실행취소</div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
-                              onClick={() => canvasRef.current?.undo()}
-                            >
-                              <Undo className="w-5 h-5" />
-                              <span className="text-sm">되돌리기</span>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
-                              onClick={() => canvasRef.current?.redo()}
-                            >
-                              <Redo className="w-5 h-5" />
-                              <span className="text-sm">다시실행</span>
-                            </Button>
+                          {/* 지우개 */}
+                          <div>
+                            <div className="text-xs font-semibold text-slate-400 mb-2">지우개</div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEraserType((p) => (p === "area" ? "none" : "area"))}
+                                className={cn(
+                                  "px-3 py-2.5 flex-1",
+                                  eraserType === "area"
+                                    ? "bg-orange-600 text-white hover:bg-orange-700"
+                                    : "bg-slate-700 text-slate-300 hover:bg-slate-600",
+                                )}
+                              >
+                                <Eraser className="w-5 h-5" />
+                                <span className="text-sm">영역</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEraserType((p) => (p === "stroke" ? "none" : "stroke"))}
+                                className={cn(
+                                  "px-3 py-2.5 flex-1",
+                                  eraserType === "stroke"
+                                    ? "bg-red-600 text-white hover:bg-red-700"
+                                    : "bg-slate-700 text-slate-300 hover:bg-slate-600",
+                                )}
+                              >
+                                <Trash className="w-5 h-5" />
+                                <span className="text-sm">획</span>
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* 지우개 크기 (영역 선택 시) */}
+                          {eraserType === "area" && (
+                            <div>
+                              <div className="text-xs font-semibold text-slate-400 mb-2">지우개 크기</div>
+                              <div className="flex items-center gap-2 bg-orange-700 rounded-lg px-3 py-2 w-fit">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
+                                  onClick={() => setEraserWidth((p) => Math.max(p - 2, 5))}
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </Button>
+                                <div className="text-white font-semibold min-w-7.5 text-center">{eraserWidth}</div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
+                                  onClick={() => setEraserWidth((p) => Math.min(p + 2, 50))}
+                                >
+                                  <PlusIcon className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 실행취소/다시실행 */}
+                          <div>
+                            <div className="text-xs font-semibold text-slate-400 mb-2">실행취소</div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
+                                onClick={() => canvasRef.current?.undo()}
+                              >
+                                <Undo className="w-5 h-5" />
+                                <span className="text-sm">되돌리기</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
+                                onClick={() => canvasRef.current?.redo()}
+                              >
+                                <Redo className="w-5 h-5" />
+                                <span className="text-sm">다시실행</span>
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                      </PopoverContent>
+                    </Popover>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
-                    onClick={() => canvasRef.current?.undo()}
-                  >
-                    <Undo className="w-5 h-5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
-                    onClick={() => canvasRef.current?.redo()}
-                  >
-                    <Redo className="w-5 h-5" />
-                  </Button>
-                </>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              {currentSheet && (
-                <Button
-                  size="sm"
-                  className="bg-amber-600 text-white hover:bg-amber-700 px-4 py-2.5 rounded-xl"
-                  onClick={handleSpotlightCall}
-                  title="현재 페이지를 다른 사용자에게 호출"
-                >
-                  <Megaphone className="w-5 h-5" />
-                  <span className="text-sm">호출</span>
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCommandPanel(!showCommandPanel)}
-                className={cn(
-                  "px-5 py-2.5 rounded-xl",
-                  showCommandPanel
-                    ? "bg-purple-600 text-white shadow-lg hover:bg-purple-700"
-                    : "bg-slate-700 text-slate-300 hover:bg-slate-600",
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
+                      onClick={() => canvasRef.current?.undo()}
+                    >
+                      <Undo className="w-5 h-5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
+                      onClick={() => canvasRef.current?.redo()}
+                    >
+                      <Redo className="w-5 h-5" />
+                    </Button>
+                  </>
                 )}
-              >
-                명령 패널
-              </Button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {currentSheet && (
+                  <Button
+                    size="sm"
+                    className="bg-amber-600 text-white hover:bg-amber-700 px-4 py-2.5 rounded-xl"
+                    onClick={handleSpotlightCall}
+                    title="현재 페이지를 다른 사용자에게 호출"
+                  >
+                    <Megaphone className="w-5 h-5" />
+                    <span className="text-sm">호출</span>
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCommandPanel(!showCommandPanel)}
+                  className={cn(
+                    "px-5 py-2.5 rounded-xl",
+                    showCommandPanel
+                      ? "bg-purple-600 text-white shadow-lg hover:bg-purple-700"
+                      : "bg-slate-700 text-slate-300 hover:bg-slate-600",
+                  )}
+                >
+                  명령 패널
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 악보 영역 */}
           <div
             className="flex-1 relative overflow-hidden"
             style={{ touchAction: "none" }}
-            onClick={() => !isDrawMode && flashNavBar()}
+            onClick={() => {
+              if (!isDrawMode) {
+                setIsCompact((prev) => !prev);
+                flashNavBar();
+              }
+            }}
             onTouchStart={handleSheetTouchStart}
             onTouchMove={handleSheetTouchMove}
             onTouchEnd={handleSheetTouchEnd}
@@ -758,11 +794,12 @@ export default function Worship() {
             <div className="absolute inset-0 flex items-center justify-center p-4">
               <div
                 className="relative bg-white rounded-2xl shadow-2xl aspect-3/4 h-full overflow-hidden"
+                ref={sheetContainerRef}
                 style={
                   scale !== 1
                     ? {
                         transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
-                        transformOrigin: "center center",
+                        transformOrigin,
                       }
                     : undefined
                 }
