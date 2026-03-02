@@ -36,8 +36,8 @@ const penColors = [
   { color: "bg-red-500", value: "#ef4444" },
   { color: "bg-blue-500", value: "#3b82f6" },
   { color: "bg-green-500", value: "#22c55e" },
-  { color: "bg-yellow-400", value: "#facc15" },
   { color: "bg-purple-500", value: "#a855f7" },
+  { color: "bg-white border border-slate-500", value: "#ffffff" },
   { color: "bg-black", value: "#000000" },
 ];
 
@@ -58,6 +58,7 @@ export default function Worship() {
 
   const [currentSheetId, setCurrentSheetId] = useState<string | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(false);
+  const [toolPopoverOpen, setToolPopoverOpen] = useState(false);
   const isDrawModeRef = useRef(isDrawMode);
   isDrawModeRef.current = isDrawMode;
   const [selectedColor, setSelectedColor] = useState("#000000");
@@ -413,7 +414,7 @@ export default function Worship() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-slate-900">
+    <div className="h-dvh flex flex-col bg-slate-900">
       {/* 상단 헤더 */}
       {!isCompact && (
         <header className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between">
@@ -589,7 +590,7 @@ export default function Worship() {
 
                 {isDrawMode && (
                   <>
-                    <Popover>
+                    <Popover open={toolPopoverOpen} onOpenChange={setToolPopoverOpen}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="ghost"
@@ -615,7 +616,7 @@ export default function Worship() {
                                   }}
                                   className={`w-10 h-10 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
                                     selectedColor === pen.value && eraserType === "none"
-                                      ? "ring-4 ring-white scale-110"
+                                      ? `ring-4 scale-110 ${pen.value === "#ffffff" ? "ring-blue-400" : "ring-white"}`
                                       : ""
                                   }`}
                                 />
@@ -816,7 +817,7 @@ export default function Worship() {
                   <SheetCanvas
                     key={currentSheet.id}
                     imageUrl={currentSheet.imagePath ? `/uploads/${currentSheet.imagePath}` : null}
-                    isDrawMode={isDrawMode}
+                    isDrawMode={isDrawMode && !toolPopoverOpen}
                     penColor={selectedColor}
                     penWidth={penWidth}
                     eraserType={eraserType}

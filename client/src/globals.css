@@ -101,6 +101,10 @@
     overscroll-behavior: none;
     -webkit-touch-callout: none;
   }
+  canvas {
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+  }
   input,
   textarea,
   [contenteditable="true"] {
