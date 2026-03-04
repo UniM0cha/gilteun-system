@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router";
-import { Plus, UserCircle, Music, Settings, Tag, Users } from "lucide-react";
+import { Plus, UserCircle, Settings, Tag, Users } from "lucide-react";
 import { useProfiles, useRoles } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { Button } from "@/components/ui/button";
@@ -31,9 +31,7 @@ export default function Home() {
       <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-linear-to-br from-blue-500 to-purple-600 rounded-3xl mb-6 shadow-lg">
-            <Music className="w-12 h-12 text-white" />
-          </div>
+          <img src="/pwa-192x192.png" alt="길튼 시스템" className="mx-auto w-24 h-24 rounded-3xl mb-6 shadow-lg" />
           <h1 className="text-5xl font-bold text-slate-800 mb-3">길튼 시스템</h1>
           <p className="text-xl text-slate-600">예배 찬양 지원 시스템</p>
         </div>
