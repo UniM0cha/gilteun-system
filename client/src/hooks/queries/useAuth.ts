@@ -33,3 +33,18 @@ export function useVerifyPin() {
     },
   });
 }
+
+export function useLogout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await api.post("/api/auth/logout");
+    },
+    onSuccess: () => {
+      qc.setQueryData(queryKeys.auth.status, {
+        required: true,
+        authenticated: false,
+      });
+    },
+  });
+}

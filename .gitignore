@@ -26,6 +26,9 @@ out
 *.sln
 *.sw?
 
+# Environment variables
+.env
+
 # Local Serena workspace
 .serena/
 

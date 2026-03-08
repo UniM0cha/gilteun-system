@@ -41,4 +41,9 @@ router.post("/verify", (req, res) => {
   res.json({ success: true });
 });
 
+router.post("/logout", (_req, res) => {
+  res.clearCookie("gilteun_auth", { path: "/" });
+  res.json({ success: true });
+});
+
 export default router;

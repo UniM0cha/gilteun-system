@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router";
-import { Plus, UserCircle, Settings, Tag, Users } from "lucide-react";
+import { Plus, UserCircle, Settings, Tag, Users, LogOut } from "lucide-react";
 import { useProfiles, useRoles } from "@/hooks/queries";
+import { useAuthStatus, useLogout } from "@/hooks/queries/useAuth";
 import { useAppStore } from "@/store/appStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +17,8 @@ const quickLinks = [
 export default function Home() {
   const { data: profiles = [] } = useProfiles();
   const { data: roles = [] } = useRoles();
+  const { data: authStatus } = useAuthStatus();
+  const logout = useLogout();
   const setCurrentProfile = useAppStore((s) => s.setCurrentProfile);
   const navigate = useNavigate();
 
@@ -30,7 +33,18 @@ export default function Home() {
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
-        <div className="text-center mb-12">
+        <div className="relative text-center mb-12">
+          {authStatus?.required && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-0 right-0 text-slate-400 hover:text-slate-600"
+              onClick={() => logout.mutate()}
+              disabled={logout.isPending}
+            >
+              <LogOut className="w-5 h-5" />
+            </Button>
+          )}
           <img src="/pwa-192x192.png" alt="길튼 시스템" className="mx-auto w-24 h-24 rounded-3xl mb-6 shadow-lg" />
           <h1 className="text-5xl font-bold text-slate-800 mb-3">길튼 시스템</h1>
           <p className="text-xl text-slate-600">예배 찬양 지원 시스템</p>
