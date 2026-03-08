@@ -185,6 +185,18 @@ ensure_repo() {
     INSTALL_MODE="update"
     success "최신 버전으로 업데이트됨"
   else
+    # 디렉토리가 존재하지만 git 레포가 아닌 경우 (이전 실패한 설치 등)
+    if [ -d "$target" ]; then
+      warn "디렉토리가 이미 존재하지만 git 레포가 아닙니다: $target"
+      local answer
+      answer=$(ask "기존 디렉토리를 삭제하고 새로 클론할까요? [y/N]" "N")
+      if [[ "$answer" =~ ^[Yy]$ ]]; then
+        rm -rf "$target"
+      else
+        error "설치를 중단합니다. 디렉토리를 수동으로 정리한 후 다시 실행해주세요."
+      fi
+    fi
+
     info "레포를 클론합니다: $target"
     git clone "$REPO_URL" "$target"
     PROJECT_DIR="$target"
