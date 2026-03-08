@@ -869,6 +869,7 @@ export default function Worship() {
             {/* 페이지 네비게이션 */}
             {sheets.length > 0 && (
               <div
+                onClick={(e) => e.stopPropagation()}
                 className={cn(
                   "absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-800/70 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-2xl transition-opacity duration-300",
                   showNavBar ? "opacity-100" : "opacity-0 pointer-events-none",

@@ -266,7 +266,9 @@ export default function WorshipEdit() {
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const allowedTypes = ["image/jpeg", "image/png", "image/heic", "image/heif"];
-    const imageFiles = files.filter((file) => allowedTypes.includes(file.type));
+    const imageFiles = files
+      .filter((file) => allowedTypes.includes(file.type))
+      .sort((a, b) => a.lastModified - b.lastModified);
 
     if (imageFiles.length !== files.length) {
       toast.error("JPG, PNG, HEIC 이미지 파일만 업로드 가능합니다.");
