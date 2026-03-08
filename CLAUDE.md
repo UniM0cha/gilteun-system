@@ -3,6 +3,8 @@
 ## Git
 
 - 커밋 메시지에 `Co-Authored-By` 태그 절대 붙이지 않기
+- `develop` 브랜치에서 개발 → `main`에 머지/push 시 Railway 자동 배포
+- 평소 작업은 `develop`에서 진행할 것
 
 ## 품질 체크
 
