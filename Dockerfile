@@ -26,4 +26,5 @@ ENV NODE_ENV=production
 ENV PORT=3002
 EXPOSE 3002
 
-CMD ["dumb-init", "node", "--import", "tsx", "server/index.ts"]
+WORKDIR /app/server
+CMD ["dumb-init", "node", "--import", "tsx", "index.ts"]
