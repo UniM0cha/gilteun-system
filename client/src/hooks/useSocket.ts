@@ -22,6 +22,7 @@ export function getSocket(): Socket {
     socket = io("/", {
       transports: ["websocket", "polling"],
       autoConnect: true,
+      withCredentials: true,
     });
 
     // 재연결 시 이전 방 자동 재입장

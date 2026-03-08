@@ -9,30 +9,37 @@
     "db:migrate": "tsx db/migrate.ts",
     "db:seed": "tsx db/seed.ts",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.1",
     "express": "^5.2.1",
     "multer": "^2.1.0",
     "nanoid": "^5.1.6",
     "sharp": "^0.34.5",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.3",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/cookie": "^0.6.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.0.0",
+    "@types/supertest": "^7.2.0",
     "drizzle-kit": "^0.31.9",
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import-x": "^4.16.1",
-    "tsx": "^4.21.0",
+    "supertest": "^7.2.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.1"
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^4.0.18"
   }
 }
