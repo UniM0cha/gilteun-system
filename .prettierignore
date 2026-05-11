@@ -1,6 +1,6 @@
 dist/
 node_modules/
-길튼 시스템/
+**/길튼 시스템/**
 server/data/
 server/drizzle/
 server/uploads/
