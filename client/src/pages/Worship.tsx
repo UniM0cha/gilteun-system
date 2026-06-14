@@ -20,7 +20,7 @@ import {
   Megaphone,
   Palette,
 } from "lucide-react";
-import { useSwipeable } from "react-swipeable";
+import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,8 +29,16 @@ import { useWorship, useCommands } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { useWorshipSocket } from "@/hooks/useWorshipSocket";
 import SheetCanvas, { type EraserType } from "@/components/SheetCanvas";
+import SheetPagePreview from "@/components/SheetPagePreview";
 import { useDrawingSync } from "@/hooks/useDrawingSync";
 import { getSocket, setWorshipRoom } from "@/hooks/useSocket";
+import { useAdjacentSheetPreload } from "@/hooks/useAdjacentSheetPreload";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useSheetPageMotion } from "@/hooks/useSheetPageMotion";
+
+const PANEL_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const panelTransition = { duration: 0.22, ease: PANEL_EASE };
+const panelContentTransition = { duration: 0.16, ease: PANEL_EASE };
 
 const penColors = [
   { color: "bg-red-500", value: "#ef4444" },
@@ -96,13 +104,24 @@ export default function Worship() {
   const currentSheet = sheets.find((s) => s.id === currentSheetId) || null;
   const currentPage = sheets.findIndex((s) => s.id === currentSheetId);
 
+  // 페이지 뷰포트 ref (motion + gesture 컨테이너)
+  const sheetViewportRef = useRef<HTMLDivElement>(null);
+
+  // spotlight toast가 stale callback을 잡지 않도록 ref로 우회
+  const commitSheetIdRef = useRef<(sheetId: string) => void>(() => {});
+  const cancelPageMotionRef = useRef<() => void>(() => {});
+
   const socket = getSocket();
 
   // Socket.IO + TanStack Query 브릿지 (sheets:updated, worship:updated)
   useWorshipSocket(id, (updatedSheets) => {
     // 현재 보는 악보가 삭제되면 첫 번째로 이동
     if (currentSheetId && !updatedSheets.find((s) => s.id === currentSheetId)) {
+      cancelPageMotionRef.current();
       setCurrentSheetId(updatedSheets[0]?.id || null);
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+      setTransformOrigin("center center");
     }
   });
 
@@ -222,7 +241,7 @@ export default function Worship() {
           <div
             className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-87.5 border-4 border-amber-500 cursor-pointer active:bg-amber-50 transition-colors"
             onClick={() => {
-              setCurrentSheetId(data.sheetId);
+              commitSheetIdRef.current(data.sheetId);
               toast.dismiss(toastId);
             }}
           >
@@ -269,9 +288,10 @@ export default function Worship() {
     };
   }, []);
 
-  const goToPage = useCallback(
+  const commitPage = useCallback(
     (index: number) => {
       if (index >= 0 && index < sheets.length) {
+        cancelPageMotionRef.current();
         setCurrentSheetId(sheets[index].id);
         setScale(1);
         setTranslate({ x: 0, y: 0 });
@@ -281,6 +301,43 @@ export default function Worship() {
     },
     [sheets, flashNavBar],
   );
+
+  const commitSheetId = useCallback(
+    (sheetId: string) => {
+      const index = sheets.findIndex((sheet) => sheet.id === sheetId);
+      if (index >= 0) commitPage(index);
+    },
+    [sheets, commitPage],
+  );
+
+  commitSheetIdRef.current = commitSheetId;
+
+  useAdjacentSheetPreload(sheets, currentPage);
+
+  const shouldReduceMotion = useReducedMotion();
+  const isLargeScreen = useMediaQuery("(min-width: 64rem)");
+  const commandPanelWidth = isLargeScreen ? "20rem" : "11rem";
+
+  const {
+    x: pageX,
+    previewX,
+    activeTargetPage,
+    suppressNextClickRef,
+    bindPageDrag,
+    goToPageWithMotion,
+    cancelPageMotion,
+  } = useSheetPageMotion({
+    currentPage,
+    pageCount: sheets.length,
+    containerRef: sheetViewportRef,
+    enabled: !!currentSheet && !toolPopoverOpen,
+    isBlocked: () => isDrawModeRef.current || scaleRef.current > 1 || !!pinchRef.current || !!panRef.current,
+    onCommitPage: commitPage,
+    onDragStart: flashNavBar,
+    reducedMotion: !!shouldReduceMotion,
+  });
+
+  cancelPageMotionRef.current = cancelPageMotion;
 
   // 핀치줌 유틸
   const parseOriginPercent = (origin: string): [number, number] => {
@@ -304,6 +361,8 @@ export default function Worship() {
   const handleSheetTouchStart = useCallback(
     (e: React.TouchEvent) => {
       if (e.touches.length === 2) {
+        // 진행 중인 page drag/animation 즉시 취소 (pinch 우선)
+        cancelPageMotion();
         // 핀치 시작
         const dist = getTouchDistance(e.touches);
         const center = getTouchCenter(e.touches);
@@ -365,7 +424,7 @@ export default function Worship() {
         }
       }
     },
-    [translate, transformOrigin],
+    [translate, transformOrigin, cancelPageMotion],
   );
 
   const handleSheetTouchMove = useCallback((e: React.TouchEvent) => {
@@ -403,18 +462,6 @@ export default function Worship() {
     pinchRef.current = null;
     panRef.current = null;
   }, []);
-
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => {
-      if (!isDrawModeRef.current && scaleRef.current <= 1) goToPage(currentPage + 1);
-    },
-    onSwipedRight: () => {
-      if (!isDrawModeRef.current && scaleRef.current <= 1) goToPage(currentPage - 1);
-    },
-    trackMouse: true,
-    delta: 50,
-    preventScrollOnSwipe: true,
-  });
 
   const handleSendCommand = (command: { id: string; emoji: string; label: string }) => {
     if (!id || !currentProfileId) return;
@@ -515,69 +562,78 @@ export default function Worship() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* 좌측 악보 리스트 */}
-        {showSidebar && (
-          <aside className="w-64 bg-slate-800 border-r border-slate-700 overflow-y-auto">
-            <div className="p-4">
-              <h2 className="text-lg font-bold text-white mb-4">악보 목록</h2>
+        <motion.aside
+          aria-hidden={!showSidebar}
+          inert={!showSidebar}
+          initial={false}
+          animate={showSidebar ? { width: "16rem", opacity: 1, x: 0 } : { width: "0rem", opacity: 0, x: -12 }}
+          transition={shouldReduceMotion ? { duration: 0 } : panelTransition}
+          className={cn("shrink-0 bg-slate-800 overflow-hidden", showSidebar && "border-r border-slate-700")}
+          style={{ pointerEvents: showSidebar ? "auto" : "none" }}
+        >
+          <motion.div
+            animate={showSidebar ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
+            transition={shouldReduceMotion ? { duration: 0 } : panelContentTransition}
+            className="w-64 h-full overflow-y-auto p-4 box-border"
+          >
+            <h2 className="text-lg font-bold text-white mb-4">악보 목록</h2>
 
-              {sheets.length > 0 ? (
-                <div className="space-y-2">
-                  {sheets.map((sheet, index) => {
-                    const usersOnSheet = presenceUsers.filter((u) => u.sheetId === sheet.id);
-                    return (
-                      <button
-                        key={sheet.id}
-                        onClick={() => setCurrentSheetId(sheet.id)}
-                        className={`w-full text-left p-4 rounded-xl cursor-pointer transition-colors ${
-                          currentSheetId === sheet.id
-                            ? "bg-blue-600 text-white shadow-lg"
-                            : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <FileMusic className="w-5 h-5" />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold mb-1 line-clamp-2">{sheet.title}</div>
-                            <div className="text-sm opacity-75">페이지 {index + 1}</div>
-                          </div>
-                          {usersOnSheet.length > 0 && (
-                            <div className="flex -space-x-1">
-                              {usersOnSheet.slice(0, 3).map((u) => (
-                                <span key={u.profileId} className="text-sm" title={`${u.name} (${u.role})`}>
-                                  {u.roleIcon}
-                                </span>
-                              ))}
-                              {usersOnSheet.length > 3 && (
-                                <span className="text-xs text-slate-400 ml-1">+{usersOnSheet.length - 3}</span>
-                              )}
-                            </div>
-                          )}
+            {sheets.length > 0 ? (
+              <div className="space-y-2">
+                {sheets.map((sheet, index) => {
+                  const usersOnSheet = presenceUsers.filter((u) => u.sheetId === sheet.id);
+                  return (
+                    <button
+                      key={sheet.id}
+                      onClick={() => commitPage(index)}
+                      className={`w-full text-left p-4 rounded-xl cursor-pointer transition-colors ${
+                        currentSheetId === sheet.id
+                          ? "bg-blue-600 text-white shadow-lg"
+                          : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileMusic className="w-5 h-5" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold mb-1 line-clamp-2">{sheet.title}</div>
+                          <div className="text-sm opacity-75">페이지 {index + 1}</div>
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-slate-700 rounded-xl">
-                  <FileMusic className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-                  <p className="text-slate-400 text-sm mb-4">악보가 없습니다</p>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700" asChild>
-                    <Link to={`/worship-edit/${id}`}>
-                      <Edit className="w-4 h-4" />
-                      편집 페이지에서 추가
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          </aside>
-        )}
+                        {usersOnSheet.length > 0 && (
+                          <div className="flex -space-x-1">
+                            {usersOnSheet.slice(0, 3).map((u) => (
+                              <span key={u.profileId} className="text-sm" title={`${u.name} (${u.role})`}>
+                                {u.roleIcon}
+                              </span>
+                            ))}
+                            {usersOnSheet.length > 3 && (
+                              <span className="text-xs text-slate-400 ml-1">+{usersOnSheet.length - 3}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-slate-700 rounded-xl">
+                <FileMusic className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+                <p className="text-slate-400 text-sm mb-4">악보가 없습니다</p>
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700" asChild>
+                  <Link to={`/worship-edit/${id}`}>
+                    <Edit className="w-4 h-4" />
+                    편집 페이지에서 추가
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </motion.div>
+        </motion.aside>
 
         {/* 중앙 악보 뷰어 */}
         <main
           className="flex-1 flex flex-col bg-slate-900"
           style={isDrawMode ? { touchAction: "none", overscrollBehaviorX: "none" } : undefined}
-          {...swipeHandlers}
         >
           {/* 도구 바 */}
           {!isCompact && (
@@ -811,9 +867,14 @@ export default function Worship() {
 
           {/* 악보 영역 */}
           <div
+            ref={sheetViewportRef}
             className="flex-1 relative overflow-hidden"
             style={{ touchAction: "none" }}
             onClick={() => {
+              if (suppressNextClickRef.current) {
+                suppressNextClickRef.current = false;
+                return;
+              }
               if (!isDrawMode) {
                 setIsCompact((prev) => !prev);
                 flashNavBar();
@@ -822,8 +883,9 @@ export default function Worship() {
             onTouchStart={handleSheetTouchStart}
             onTouchMove={handleSheetTouchMove}
             onTouchEnd={handleSheetTouchEnd}
+            {...bindPageDrag()}
           >
-            <div className="absolute inset-0 flex items-center justify-center p-4">
+            <motion.div className="absolute inset-0 flex items-center justify-center p-4" style={{ x: pageX }}>
               <div
                 className="relative bg-white rounded-2xl shadow-2xl aspect-3/4 h-full overflow-hidden"
                 ref={sheetContainerRef}
@@ -864,7 +926,19 @@ export default function Worship() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
+
+            {activeTargetPage !== null && sheets[activeTargetPage] && (
+              <motion.div
+                className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none"
+                style={{ x: previewX }}
+                aria-hidden="true"
+              >
+                <div className="relative bg-white rounded-2xl shadow-2xl aspect-3/4 h-full overflow-hidden">
+                  <SheetPagePreview sheet={sheets[activeTargetPage]} />
+                </div>
+              </motion.div>
+            )}
 
             {/* 페이지 네비게이션 */}
             {sheets.length > 0 && (
@@ -879,7 +953,7 @@ export default function Worship() {
                   variant="ghost"
                   size="icon"
                   className="bg-slate-700 hover:bg-slate-600 text-white"
-                  onClick={() => goToPage(currentPage - 1)}
+                  onClick={() => goToPageWithMotion(currentPage - 1)}
                   disabled={currentPage <= 0}
                 >
                   <ChevronLeft className="w-6 h-6" />
@@ -891,7 +965,7 @@ export default function Worship() {
                   variant="ghost"
                   size="icon"
                   className="bg-slate-700 hover:bg-slate-600 text-white"
-                  onClick={() => goToPage(currentPage + 1)}
+                  onClick={() => goToPageWithMotion(currentPage + 1)}
                   disabled={currentPage >= sheets.length - 1}
                 >
                   <ChevronRight className="w-6 h-6" />
@@ -902,25 +976,38 @@ export default function Worship() {
         </main>
 
         {/* 우측 명령 패널 */}
-        {showCommandPanel && (
-          <aside className="w-44 lg:w-80 bg-slate-800 border-l border-slate-700 overflow-y-auto">
-            <div className="p-4">
-              <h2 className="text-lg font-bold text-white mb-4">명령 전송</h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                {commands.map((command) => (
-                  <button
-                    key={command.id}
-                    onClick={() => handleSendCommand(command)}
-                    className="flex flex-col items-center gap-2 p-6 bg-slate-700 hover:bg-slate-600 rounded-2xl transition-all active:scale-95 group"
-                  >
-                    <span className="text-5xl group-hover:scale-110 transition-transform">{command.emoji}</span>
-                    <span className="text-sm font-semibold text-slate-300 text-center">{command.label}</span>
-                  </button>
-                ))}
-              </div>
+        <motion.aside
+          aria-hidden={!showCommandPanel}
+          inert={!showCommandPanel}
+          initial={false}
+          animate={
+            showCommandPanel ? { width: commandPanelWidth, opacity: 1, x: 0 } : { width: "0rem", opacity: 0, x: 12 }
+          }
+          transition={shouldReduceMotion ? { duration: 0 } : panelTransition}
+          className={cn("shrink-0 bg-slate-800 overflow-hidden", showCommandPanel && "border-l border-slate-700")}
+          style={{ pointerEvents: showCommandPanel ? "auto" : "none" }}
+        >
+          <motion.div
+            animate={showCommandPanel ? { opacity: 1, x: 0 } : { opacity: 0, x: 8 }}
+            transition={shouldReduceMotion ? { duration: 0 } : panelContentTransition}
+            className="h-full overflow-y-auto p-4 box-border"
+            style={{ width: commandPanelWidth }}
+          >
+            <h2 className="text-lg font-bold text-white mb-4">명령 전송</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {commands.map((command) => (
+                <button
+                  key={command.id}
+                  onClick={() => handleSendCommand(command)}
+                  className="flex flex-col items-center gap-2 p-6 bg-slate-700 hover:bg-slate-600 rounded-2xl transition-all active:scale-95 group"
+                >
+                  <span className="text-5xl group-hover:scale-110 transition-transform">{command.emoji}</span>
+                  <span className="text-sm font-semibold text-slate-300 text-center">{command.label}</span>
+                </button>
+              ))}
             </div>
-          </aside>
-        )}
+          </motion.div>
+        </motion.aside>
       </div>
     </div>
   );
