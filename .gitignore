@@ -31,6 +31,8 @@ out
 
 # Local Serena workspace
 .serena/
+.hermes/
+.understand-anything/
 
 # Server database files
 server/data/*.db
