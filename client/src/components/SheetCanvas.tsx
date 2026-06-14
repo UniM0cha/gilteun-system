@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import type { DrawingPath, Point } from "@/hooks/useDrawingSync";
 
 export type EraserType = "none" | "area" | "stroke";
@@ -30,14 +30,41 @@ interface SheetCanvasProps {
   profileId: string;
 }
 
+interface ContentRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const FALLBACK_SHEET_ASPECT = 3 / 4;
+const EMPTY_RECT: ContentRect = { x: 0, y: 0, width: 0, height: 0 };
+
 // 정규화 좌표 → 화면 좌표
-function denormalizePoint(p: Point, w: number, h: number): { x: number; y: number } {
-  return { x: p.x * w, y: p.y * h };
+function denormalizePoint(p: Point, rect: ContentRect): { x: number; y: number } {
+  return { x: rect.x + p.x * rect.width, y: rect.y + p.y * rect.height };
 }
 
 // 화면 좌표 → 정규화 좌표
-function normalizePoint(x: number, y: number, w: number, h: number): Point {
-  return { x: x / w, y: y / h };
+function normalizePoint(x: number, y: number, rect: ContentRect): Point {
+  return { x: (x - rect.x) / rect.width, y: (y - rect.y) / rect.height };
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function getContainedRect(containerWidth: number, containerHeight: number, aspect: number): ContentRect {
+  if (containerWidth <= 0 || containerHeight <= 0 || aspect <= 0) return EMPTY_RECT;
+
+  const containerAspect = containerWidth / containerHeight;
+  if (containerAspect > aspect) {
+    const width = containerHeight * aspect;
+    return { x: (containerWidth - width) / 2, y: 0, width, height: containerHeight };
+  }
+
+  const height = containerWidth / aspect;
+  return { x: 0, y: (containerHeight - height) / 2, width: containerWidth, height };
 }
 
 function generateId(): string {
@@ -63,6 +90,7 @@ export default function SheetCanvas({
 }: SheetCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [imageAspect, setImageAspect] = useState<number | null>(null);
   const isDrawingRef = useRef(false);
   const currentPathRef = useRef<Point[]>([]);
   const currentPathIdRef = useRef<string>("");
@@ -81,6 +109,10 @@ export default function SheetCanvas({
   // 현재 paths를 ref로 유지 (findPathAtPoint에서 최신 값 참조용)
   const pathsRef = useRef(paths);
   pathsRef.current = paths;
+
+  useEffect(() => {
+    setImageAspect(null);
+  }, [imageUrl]);
 
   // Canvas 크기 설정
   useEffect(() => {
@@ -132,23 +164,25 @@ export default function SheetCanvas({
     if (!ctx) return;
     const w = canvas.width;
     const h = canvas.height;
+    const drawRect = getContainedRect(w, h, imageAspect ?? FALLBACK_SHEET_ASPECT);
 
     ctx.clearRect(0, 0, w, h);
+    if (drawRect.width <= 0 || drawRect.height <= 0) return;
 
     // 저장된 paths 렌더링
     for (const path of paths) {
       if (path.points.length < 2) continue;
       ctx.beginPath();
       ctx.strokeStyle = path.color;
-      ctx.lineWidth = path.width * w; // 정규화된 굵기 복원
+      ctx.lineWidth = path.width * drawRect.width; // 정규화된 굵기 복원
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.globalCompositeOperation = path.isEraser ? "destination-out" : "source-over";
 
-      const p0 = denormalizePoint(path.points[0], w, h);
+      const p0 = denormalizePoint(path.points[0], drawRect);
       ctx.moveTo(p0.x, p0.y);
       for (let i = 1; i < path.points.length; i++) {
-        const p = denormalizePoint(path.points[i], w, h);
+        const p = denormalizePoint(path.points[i], drawRect);
         ctx.lineTo(p.x, p.y);
       }
       ctx.stroke();
@@ -159,15 +193,15 @@ export default function SheetCanvas({
       if (rip.points.length < 2) continue;
       ctx.beginPath();
       ctx.strokeStyle = rip.isEraser ? "#FFFFFF" : rip.color;
-      ctx.lineWidth = rip.width * w;
+      ctx.lineWidth = rip.width * drawRect.width;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.globalCompositeOperation = rip.isEraser ? "destination-out" : "source-over";
 
-      const p0 = denormalizePoint(rip.points[0], w, h);
+      const p0 = denormalizePoint(rip.points[0], drawRect);
       ctx.moveTo(p0.x, p0.y);
       for (let i = 1; i < rip.points.length; i++) {
-        const p = denormalizePoint(rip.points[i], w, h);
+        const p = denormalizePoint(rip.points[i], drawRect);
         ctx.lineTo(p.x, p.y);
       }
       ctx.stroke();
@@ -178,22 +212,22 @@ export default function SheetCanvas({
     if (curPath.length >= 2) {
       ctx.beginPath();
       ctx.strokeStyle = eraserType === "area" ? "#FFFFFF" : penColor;
-      ctx.lineWidth = ((eraserType === "area" ? eraserWidth : penWidth) / w) * w; // 화면 기준
+      ctx.lineWidth = eraserType === "area" ? eraserWidth : penWidth; // 화면 기준
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.globalCompositeOperation = eraserType === "area" ? "destination-out" : "source-over";
 
-      const p0 = denormalizePoint(curPath[0], w, h);
+      const p0 = denormalizePoint(curPath[0], drawRect);
       ctx.moveTo(p0.x, p0.y);
       for (let i = 1; i < curPath.length; i++) {
-        const p = denormalizePoint(curPath[i], w, h);
+        const p = denormalizePoint(curPath[i], drawRect);
         ctx.lineTo(p.x, p.y);
       }
       ctx.stroke();
     }
 
     ctx.globalCompositeOperation = "source-over";
-  }, [paths, remoteInProgress, penColor, penWidth, eraserType, eraserWidth]);
+  }, [paths, remoteInProgress, penColor, penWidth, eraserType, eraserWidth, imageAspect]);
 
   // redraw ref 갱신 (ResizeObserver + rAF에서 사용)
   redrawCanvasRef.current = redrawCanvas;
@@ -210,16 +244,21 @@ export default function SheetCanvas({
   }, [redrawCanvas, requestRedraw]);
 
   // 포인터 좌표 → 정규화 좌표
-  const getPointerCoords = (e: PointerEvent | React.PointerEvent): Point | null => {
+  const getPointerCoords = (e: PointerEvent | React.PointerEvent, options: { clamp?: boolean } = {}): Point | null => {
     const canvas = drawingCanvasRef.current;
     if (!canvas) return null;
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    const drawRect = getContainedRect(rect.width, rect.height, imageAspect ?? FALLBACK_SHEET_ASPECT);
+    if (drawRect.width <= 0 || drawRect.height <= 0) return null;
+
+    const point = normalizePoint(x, y, drawRect);
+    if (!options.clamp && (point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1)) return null;
 
     // rect.width/height를 사용하여 CSS transform(줌) 자동 보정
-    return normalizePoint(x, y, rect.width, rect.height);
+    return { x: clamp01(point.x), y: clamp01(point.y) };
   };
 
   // 획 지우개: 클릭 지점 근처의 path 찾기
@@ -229,8 +268,10 @@ export default function SheetCanvas({
       if (!canvas) return null;
       const w = canvas.width;
       const h = canvas.height;
+      const drawRect = getContainedRect(w, h, imageAspect ?? FALLBACK_SHEET_ASPECT);
+      if (drawRect.width <= 0 || drawRect.height <= 0) return null;
 
-      const screenPoint = denormalizePoint(point, w, h);
+      const screenPoint = denormalizePoint(point, drawRect);
       const threshold = 20;
 
       const currentPaths = pathsRef.current;
@@ -239,17 +280,17 @@ export default function SheetCanvas({
         if (path.isEraser) continue;
 
         for (let j = 0; j < path.points.length - 1; j++) {
-          const p1 = denormalizePoint(path.points[j], w, h);
-          const p2 = denormalizePoint(path.points[j + 1], w, h);
+          const p1 = denormalizePoint(path.points[j], drawRect);
+          const p2 = denormalizePoint(path.points[j + 1], drawRect);
           const dist = distanceToSegment(screenPoint, p1, p2);
-          if (dist <= threshold + (path.width * w) / 2) {
+          if (dist <= threshold + (path.width * drawRect.width) / 2) {
             return path.id;
           }
         }
       }
       return null;
     },
-    [], // pathsRef로 참조하므로 의존성 불필요
+    [imageAspect], // pathsRef로 참조하므로 paths 의존성 불필요
   );
 
   const distanceToSegment = (
@@ -326,7 +367,9 @@ export default function SheetCanvas({
 
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
-    const normalizedWidth = eraserType === "area" ? eraserWidth / canvas.width : penWidth / canvas.width;
+    const drawRect = getContainedRect(canvas.width, canvas.height, imageAspect ?? FALLBACK_SHEET_ASPECT);
+    if (drawRect.width <= 0) return;
+    const normalizedWidth = eraserType === "area" ? eraserWidth / drawRect.width : penWidth / drawRect.width;
 
     onDrawStart?.({
       pathId,
@@ -343,7 +386,7 @@ export default function SheetCanvas({
     if (e.pointerId !== drawingPointerIdRef.current) return;
 
     e.stopPropagation();
-    const point = getPointerCoords(e);
+    const point = getPointerCoords(e, { clamp: true });
     if (!point) return;
 
     // 드래그 획 지우개: 연속으로 path 삭제
@@ -362,8 +405,12 @@ export default function SheetCanvas({
       const canvas = drawingCanvasRef.current;
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
+        const drawRect = getContainedRect(rect.width, rect.height, imageAspect ?? FALLBACK_SHEET_ASPECT);
+        if (drawRect.width <= 0 || drawRect.height <= 0) return;
         for (const ce of coalesced) {
-          const cp = normalizePoint(ce.clientX - rect.left, ce.clientY - rect.top, rect.width, rect.height);
+          const cp = normalizePoint(ce.clientX - rect.left, ce.clientY - rect.top, drawRect);
+          cp.x = clamp01(cp.x);
+          cp.y = clamp01(cp.y);
           currentPathRef.current.push(cp);
         }
       }
@@ -402,7 +449,9 @@ export default function SheetCanvas({
     if (currentPathRef.current.length > 1) {
       const canvas = drawingCanvasRef.current;
       if (!canvas) return;
-      const normalizedWidth = eraserType === "area" ? eraserWidth / canvas.width : penWidth / canvas.width;
+      const drawRect = getContainedRect(canvas.width, canvas.height, imageAspect ?? FALLBACK_SHEET_ASPECT);
+      if (drawRect.width <= 0) return;
+      const normalizedWidth = eraserType === "area" ? eraserWidth / drawRect.width : penWidth / drawRect.width;
 
       const newPath: DrawingPath = {
         id: currentPathIdRef.current,
@@ -424,7 +473,17 @@ export default function SheetCanvas({
   return (
     <div ref={containerRef} className="relative w-full h-full">
       {imageUrl && (
-        <img src={imageUrl} alt="악보" className="absolute inset-0 w-full h-full pointer-events-none object-contain" />
+        <img
+          src={imageUrl}
+          alt="악보"
+          className="absolute inset-0 w-full h-full pointer-events-none object-contain"
+          onLoad={(event) => {
+            const image = event.currentTarget;
+            if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+              setImageAspect(image.naturalWidth / image.naturalHeight);
+            }
+          }}
+        />
       )}
 
       <canvas
