@@ -1,6 +1,6 @@
 dist/
 node_modules/
-**/길튼 시스템/**
+길튼 시스템/
 server/data/
 server/drizzle/
 server/uploads/
@@ -10,3 +10,6 @@ package-lock.json
 client/package-lock.json
 server/package-lock.json
 *.tsbuildinfo
+# macOS APFS는 한글 경로를 NFD로 노출 — 위 NFC 라인에 더해 NFD 형태도 무시(--check . 매칭용)
+길튼 시스템/
+.remember/
