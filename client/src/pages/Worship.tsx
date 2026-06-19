@@ -497,7 +497,11 @@ export default function Worship() {
         <div className="overflow-hidden">
           <header
             className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between"
-            style={{ opacity: isCompact ? 0 : 1, transition: "opacity var(--dur-panel) var(--ease-out)" }}
+            style={{
+              opacity: isCompact ? 0 : 1,
+              transform: isCompact ? "translateY(-100%)" : "translateY(0)",
+              transition: "opacity var(--dur-panel) var(--ease-out), transform var(--dur-panel) var(--ease-out)",
+            }}
             inert={isCompact}
           >
             <div className="flex items-center gap-4">
@@ -585,8 +589,12 @@ export default function Worship() {
           className={cn("shrink-0 bg-slate-800 overflow-hidden", showSidebar && "border-r border-slate-700")}
           style={{ pointerEvents: showSidebar ? "auto" : "none" }}
         >
+          {/* 좌측은 첫 flex 항목이라 콘텐츠가 화면 끝에 고정됨 → 내부 독립 translate를
+              쓰면 프레임과 분리된 parallax로 보인다. opacity만 페이드하고 슬라이드는
+              aside의 x(-12→0)에 맡겨 패널 전체가 한 덩어리로 움직이게 한다.
+              (우측 패널은 콘텐츠가 움직이는 divider를 따라가 통합 슬라이드로 읽히므로 내부 x 유지) */}
           <motion.div
-            animate={showSidebar ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
+            animate={showSidebar ? { opacity: 1 } : { opacity: 0 }}
             transition={shouldReduceMotion ? { duration: 0 } : panelContentTransition}
             className="w-64 h-full overflow-y-auto p-4 box-border"
           >
@@ -660,7 +668,11 @@ export default function Worship() {
             <div className="overflow-hidden">
               <div
                 className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between"
-                style={{ opacity: isCompact ? 0 : 1, transition: "opacity var(--dur-panel) var(--ease-out)" }}
+                style={{
+                  opacity: isCompact ? 0 : 1,
+                  transform: isCompact ? "translateY(-100%)" : "translateY(0)",
+                  transition: "opacity var(--dur-panel) var(--ease-out), transform var(--dur-panel) var(--ease-out)",
+                }}
                 inert={isCompact}
               >
                 <div className="flex items-center gap-3">
