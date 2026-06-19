@@ -18,4 +18,7 @@ export const queryKeys = {
   commands: {
     all: ["commands"] as const,
   },
+  drawings: {
+    bySheet: (sheetId: string) => ["drawings", sheetId] as const,
+  },
 } as const;

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { getSocket, setSheetRoom } from "./useSocket";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface Point {
   x: number;
@@ -45,6 +47,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
   const batchRef = useRef<DrawingPath[] | null>(null);
 
   const socket = getSocket();
+  const queryClient = useQueryClient();
 
   // Sheet room 입장/퇴장
   useEffect(() => {
@@ -55,9 +58,11 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     }
 
     currentSheetIdRef.current = sheetId;
-    // 새 시트 입장 시 이전 시트 stroke를 즉시 비움 — 전환 직후 잔상 방지.
-    // 곧 도착하는 서버 drawing:state가 실제 데이터로 채운다.
-    setPaths([]);
+    // 새 시트 입장 시 이전 시트 stroke를 즉시 치움 — 전환 직후 잔상 방지.
+    // 프리페치된 캐시가 있으면 그것으로 즉시 seed해 pop-in 제거(새 시트 id로 키잉된 데이터라 잔상 위험 없음).
+    // 곧 도착하는 서버 drawing:state가 권위 데이터로 reconcile한다.
+    const seeded = queryClient.getQueryData<DrawingPath[]>(queryKeys.drawings.bySheet(sheetId));
+    setPaths(seeded ?? []);
     setRemoteInProgress(new Map());
     // 진행 중이던 획 지우개 배치를 닫음 — 닫지 않으면 새 시트의 첫 deletePath가 흡수됨
     batchRef.current = null;
@@ -71,11 +76,15 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     return () => {
       if (currentSheetIdRef.current) {
         socket.emit("leave:sheet", { sheetId: currentSheetIdRef.current });
+        // 떠난 시트의 drawing 캐시를 제거 — invalidate는 데이터를 남겨 getQueryData가 stale 값을
+        // 그대로 반환하므로, 아예 제거해 재방문 시 prefetch가 DB에서 최신(내 편집 포함)을 다시 받게 함.
+        // 이전/다음은 인접이라 항상 재프리페치되어 seed가 stale/이미 지운 stroke로 채워지지 않음.
+        queryClient.removeQueries({ queryKey: queryKeys.drawings.bySheet(currentSheetIdRef.current) });
         currentSheetIdRef.current = null;
         setSheetRoom(null);
       }
     };
-  }, [sheetId, enabled, socket]);
+  }, [sheetId, enabled, socket, queryClient]);
 
   // Socket 이벤트 리스너
   useEffect(() => {

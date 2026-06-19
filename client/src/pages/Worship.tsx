@@ -25,11 +25,10 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useWorship, useCommands } from "@/hooks/queries";
+import { useWorship, useCommands, useSheetDrawings, useAdjacentDrawingsPreload } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { useWorshipSocket } from "@/hooks/useWorshipSocket";
 import SheetCanvas, { type EraserType } from "@/components/SheetCanvas";
-import SheetPagePreview from "@/components/SheetPagePreview";
 import { useDrawingSync } from "@/hooks/useDrawingSync";
 import { getSocket, setWorshipRoom } from "@/hooks/useSocket";
 import { useAdjacentSheetPreload } from "@/hooks/useAdjacentSheetPreload";
@@ -314,6 +313,7 @@ export default function Worship() {
   commitSheetIdRef.current = commitSheetId;
 
   useAdjacentSheetPreload(sheets, currentPage);
+  useAdjacentDrawingsPreload(sheets, currentPage);
 
   const shouldReduceMotion = useReducedMotion();
   const isLargeScreen = useMediaQuery("(min-width: 64rem)");
@@ -339,6 +339,10 @@ export default function Worship() {
   });
 
   cancelPageMotionRef.current = cancelPageMotion;
+
+  // 전환 미리보기에 들어올 대상 시트의 stroke (프리페치돼 있으면 즉시 캐시 반환)
+  const previewTargetSheet = activeTargetPage !== null ? sheets[activeTargetPage] : null;
+  const { data: previewDrawings } = useSheetDrawings(previewTargetSheet?.id ?? null);
 
   // 핀치줌 유틸
   const parseOriginPercent = (origin: string): [number, number] => {
@@ -969,14 +973,26 @@ export default function Worship() {
               </div>
             </motion.div>
 
-            {activeTargetPage !== null && sheets[activeTargetPage] && (
+            {previewTargetSheet && (
               <motion.div
                 className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none"
                 style={{ x: previewX }}
                 aria-hidden="true"
               >
                 <div className="relative bg-white rounded-2xl shadow-2xl aspect-3/4 h-full overflow-hidden">
-                  <SheetPagePreview sheet={sheets[activeTargetPage]} />
+                  {/* 읽기 전용 SheetCanvas — 미리 받아둔 stroke를 메인과 동일 좌표계로 렌더 */}
+                  <SheetCanvas
+                    sheetId={previewTargetSheet.id}
+                    imageUrl={previewTargetSheet.imagePath ? `/uploads/${previewTargetSheet.imagePath}` : null}
+                    isDrawMode={false}
+                    penColor={selectedColor}
+                    penWidth={penWidth}
+                    eraserType="none"
+                    eraserWidth={eraserWidth}
+                    paths={previewDrawings ?? []}
+                    remoteInProgress={[]}
+                    profileId={currentProfileId || ""}
+                  />
                 </div>
               </motion.div>
             )}
