@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react";
 import type { DrawingPath, Point } from "@/hooks/useDrawingSync";
 
 export type EraserType = "none" | "area" | "stroke";
@@ -13,6 +13,7 @@ interface RemoteInProgressPath {
 }
 
 interface SheetCanvasProps {
+  sheetId: string;
   imageUrl: string | null;
   isDrawMode: boolean;
   penColor: string;
@@ -72,6 +73,7 @@ function generateId(): string {
 }
 
 export default function SheetCanvas({
+  sheetId,
   imageUrl,
   isDrawMode,
   penColor,
@@ -110,9 +112,28 @@ export default function SheetCanvas({
   const pathsRef = useRef(paths);
   pathsRef.current = paths;
 
+  // 이미지가 바뀌면 종횡비 재계산 (onLoad에서 다시 채워짐)
   useEffect(() => {
     setImageAspect(null);
   }, [imageUrl]);
+
+  // 시트 전환 시 리셋. 부모가 key로 리마운트하지 않으므로(전환 깜박임 방지) 명시적으로 처리한다.
+  // 트리거는 sheetId — 두 시트가 같은 imageUrl을 공유해도 정확히 발화하도록 (훅의 paths 초기화와 동일 기준).
+  // 1) 진행 중인 그리기 상태를 취소 — 펜을 누른 채 페이지가 바뀌어도 이전 획이 새 시트에 저장되지 않도록
+  // 2) 이전 시트의 캔버스 픽셀을 페인트 전에 동기적으로 제거 — 잔상 방지(useLayoutEffect)
+  useLayoutEffect(() => {
+    isDrawingRef.current = false;
+    drawingPointerIdRef.current = null;
+    currentPathRef.current = [];
+    currentPathIdRef.current = "";
+    erasedPathIdsRef.current = new Set();
+    activePointersRef.current = new Set();
+    // 예약된 redraw 취소 — 클리어 후 남은 rAF가 이전 paths를 다시 그려 잔상이 생기는 것 방지
+    cancelAnimationFrame(rafIdRef.current);
+    const canvas = drawingCanvasRef.current;
+    const ctx = canvas?.getContext("2d", { desynchronized: true });
+    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }, [sheetId]);
 
   // Canvas 크기 설정
   useEffect(() => {

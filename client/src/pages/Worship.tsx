@@ -941,7 +941,7 @@ export default function Worship() {
               >
                 {currentSheet ? (
                   <SheetCanvas
-                    key={currentSheet.id}
+                    sheetId={currentSheet.id}
                     imageUrl={currentSheet.imagePath ? `/uploads/${currentSheet.imagePath}` : null}
                     isDrawMode={isDrawMode && !toolPopoverOpen}
                     penColor={selectedColor}

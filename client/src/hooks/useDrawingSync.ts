@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { getSocket, setSheetRoom } from "./useSocket";
 
 export interface Point {
@@ -55,6 +55,12 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     }
 
     currentSheetIdRef.current = sheetId;
+    // 새 시트 입장 시 이전 시트 stroke를 즉시 비움 — 전환 직후 잔상 방지.
+    // 곧 도착하는 서버 drawing:state가 실제 데이터로 채운다.
+    setPaths([]);
+    setRemoteInProgress(new Map());
+    // 진행 중이던 획 지우개 배치를 닫음 — 닫지 않으면 새 시트의 첫 deletePath가 흡수됨
+    batchRef.current = null;
     socket.emit("join:sheet", { sheetId });
     setSheetRoom({ sheetId });
 
@@ -351,9 +357,12 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     });
   }, [sheetId, profileId, socket]);
 
+  // 매 렌더마다 새 배열을 만들지 않도록 메모이즈 — SheetCanvas의 불필요한 redraw 방지
+  const visibleRemoteInProgress = useMemo(() => Array.from(remoteInProgress.values()), [remoteInProgress]);
+
   return {
     paths,
-    remoteInProgress: Array.from(remoteInProgress.values()),
+    remoteInProgress: visibleRemoteInProgress,
     emitDrawStart,
     emitDrawMove,
     addPath,
