@@ -36,6 +36,7 @@ import { getSocket } from "@/hooks/useSocket";
 import { useAdjacentSheetPreload } from "@/hooks/useAdjacentSheetPreload";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useSheetPageMotion } from "@/hooks/useSheetPageMotion";
+import { useSheetZoomPan } from "@/hooks/useSheetZoomPan";
 
 const PANEL_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const panelTransition = { duration: 0.22, ease: PANEL_EASE };
@@ -85,34 +86,27 @@ export default function Worship() {
   const [showNavBar, setShowNavBar] = useState(true);
   const navBarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 핀치줌 상태
-  const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
-  const [transformOrigin, setTransformOrigin] = useState("center center");
+  // 핀치줌 중심점 기준이 되는 악보 카드 ref
   const sheetContainerRef = useRef<HTMLDivElement>(null);
-  const scaleRef = useRef(1);
-  scaleRef.current = scale;
-  const pinchRef = useRef<{
-    startDist: number;
-    startScale: number;
-    startCenter: { x: number; y: number };
-    startTranslate: { x: number; y: number };
-  } | null>(null);
-  const panRef = useRef<{
-    startX: number;
-    startY: number;
-    startTranslate: { x: number; y: number };
-  } | null>(null);
-  const lastTapRef = useRef(0);
+  // 페이지 뷰포트 ref (motion + gesture 컨테이너)
+  const sheetViewportRef = useRef<HTMLDivElement>(null);
+  const cancelPageMotionRef = useRef<() => void>(() => {});
+
+  // 핀치줌/팬 제스처
+  const {
+    scale,
+    translate,
+    transformOrigin,
+    handleSheetTouchStart,
+    handleSheetTouchMove,
+    handleSheetTouchEnd,
+    isZoomActive,
+    resetZoom,
+  } = useSheetZoomPan({ containerRef: sheetContainerRef, isDrawModeRef, cancelPageMotionRef });
 
   const sheets = useMemo(() => worshipData?.sheets || [], [worshipData?.sheets]);
   const currentSheet = sheets.find((s) => s.id === currentSheetId) || null;
   const currentPage = sheets.findIndex((s) => s.id === currentSheetId);
-
-  // 페이지 뷰포트 ref (motion + gesture 컨테이너)
-  const sheetViewportRef = useRef<HTMLDivElement>(null);
-
-  const cancelPageMotionRef = useRef<() => void>(() => {});
 
   const socket = getSocket();
 
@@ -122,9 +116,7 @@ export default function Worship() {
     if (currentSheetId && !updatedSheets.find((s) => s.id === currentSheetId)) {
       cancelPageMotionRef.current();
       setCurrentSheetId(updatedSheets[0]?.id || null);
-      setScale(1);
-      setTranslate({ x: 0, y: 0 });
-      setTransformOrigin("center center");
+      resetZoom();
     }
   });
 
@@ -192,13 +184,11 @@ export default function Worship() {
       if (index >= 0 && index < sheets.length) {
         cancelPageMotionRef.current();
         setCurrentSheetId(sheets[index].id);
-        setScale(1);
-        setTranslate({ x: 0, y: 0 });
-        setTransformOrigin("center center");
+        resetZoom();
         flashNavBar();
       }
     },
-    [sheets, flashNavBar],
+    [sheets, flashNavBar, resetZoom],
   );
 
   const commitSheetId = useCallback(
@@ -231,7 +221,7 @@ export default function Worship() {
     pageCount: sheets.length,
     containerRef: sheetViewportRef,
     enabled: !!currentSheet && !toolPopoverOpen,
-    isBlocked: () => isDrawModeRef.current || scaleRef.current > 1 || !!pinchRef.current || !!panRef.current,
+    isBlocked: () => isDrawModeRef.current || isZoomActive(),
     onCommitPage: commitPage,
     onDragStart: flashNavBar,
     reducedMotion: !!shouldReduceMotion,
@@ -242,130 +232,6 @@ export default function Worship() {
   // 전환 미리보기에 들어올 대상 시트의 stroke (프리페치돼 있으면 즉시 캐시 반환)
   const previewTargetSheet = activeTargetPage !== null ? sheets[activeTargetPage] : null;
   const { data: previewDrawings } = useSheetDrawings(previewTargetSheet?.id ?? null);
-
-  // 핀치줌 유틸
-  const parseOriginPercent = (origin: string): [number, number] => {
-    if (origin === "center center") return [50, 50];
-    const parts = origin.split(/\s+/);
-    return [parseFloat(parts[0]), parseFloat(parts[1])];
-  };
-
-  const getTouchDistance = (touches: React.TouchList) => {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  const getTouchCenter = (touches: React.TouchList) => ({
-    x: (touches[0].clientX + touches[1].clientX) / 2,
-    y: (touches[0].clientY + touches[1].clientY) / 2,
-  });
-
-  // 핀치줌 핸들러 (악보 영역)
-  const handleSheetTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (e.touches.length === 2) {
-        // 진행 중인 page drag/animation 즉시 취소 (pinch 우선)
-        cancelPageMotion();
-        // 핀치 시작
-        const dist = getTouchDistance(e.touches);
-        const center = getTouchCenter(e.touches);
-        panRef.current = null;
-
-        // 핀치 중심점을 transformOrigin으로 설정
-        // scale > 1이면 origin 변경에 따른 translate 보정으로 위치 점프 방지
-        let currentTranslate = { ...translate };
-        const container = sheetContainerRef.current;
-        if (container) {
-          const rect = container.getBoundingClientRect();
-          const newRelX = ((center.x - rect.left) / rect.width) * 100;
-          const newRelY = ((center.y - rect.top) / rect.height) * 100;
-
-          if (scaleRef.current > 1) {
-            const [oldRelX, oldRelY] = parseOriginPercent(transformOrigin);
-            const s = scaleRef.current;
-            // rect는 렌더링 크기(CSS너비×scale)이므로 /s로 CSS 원본 너비 복원
-            const cssWidth = rect.width / s;
-            const cssHeight = rect.height / s;
-            currentTranslate = {
-              x: translate.x + ((oldRelX - newRelX) / 100) * cssWidth * (1 - s),
-              y: translate.y + ((oldRelY - newRelY) / 100) * cssHeight * (1 - s),
-            };
-            setTranslate(currentTranslate);
-          }
-
-          setTransformOrigin(`${newRelX}% ${newRelY}%`);
-        }
-
-        pinchRef.current = {
-          startDist: dist,
-          startScale: scaleRef.current,
-          startCenter: center,
-          startTranslate: currentTranslate,
-        };
-
-        e.preventDefault();
-      } else if (e.touches.length === 1) {
-        // 더블탭 감지
-        const now = Date.now();
-        if (now - lastTapRef.current < 300) {
-          setScale(1);
-          setTranslate({ x: 0, y: 0 });
-          setTransformOrigin("center center");
-          e.preventDefault();
-          lastTapRef.current = 0;
-          return;
-        }
-        lastTapRef.current = now;
-
-        // zoom > 1 + 보기모드 → 패닝 시작
-        if (scaleRef.current > 1 && !isDrawModeRef.current) {
-          panRef.current = {
-            startX: e.touches[0].clientX,
-            startY: e.touches[0].clientY,
-            startTranslate: { ...translate },
-          };
-        }
-      }
-    },
-    [translate, transformOrigin, cancelPageMotion],
-  );
-
-  const handleSheetTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2 && pinchRef.current) {
-      const dist = getTouchDistance(e.touches);
-      const center = getTouchCenter(e.touches);
-      const newScale = Math.min(3, Math.max(1, pinchRef.current.startScale * (dist / pinchRef.current.startDist)));
-      const dx = center.x - pinchRef.current.startCenter.x;
-      const dy = center.y - pinchRef.current.startCenter.y;
-
-      if (newScale <= 1) {
-        setScale(1);
-        setTranslate({ x: 0, y: 0 });
-      } else {
-        setScale(newScale);
-        setTranslate({
-          x: pinchRef.current.startTranslate.x + dx,
-          y: pinchRef.current.startTranslate.y + dy,
-        });
-      }
-      e.preventDefault();
-    } else if (e.touches.length === 1 && panRef.current && scaleRef.current > 1) {
-      // 1-finger 패닝 (zoom > 1, 보기모드)
-      const dx = e.touches[0].clientX - panRef.current.startX;
-      const dy = e.touches[0].clientY - panRef.current.startY;
-      setTranslate({
-        x: panRef.current.startTranslate.x + dx,
-        y: panRef.current.startTranslate.y + dy,
-      });
-      e.preventDefault();
-    }
-  }, []);
-
-  const handleSheetTouchEnd = useCallback(() => {
-    pinchRef.current = null;
-    panRef.current = null;
-  }, []);
 
   const handleSendCommand = (command: { id: string; emoji: string; label: string }) => {
     if (!id || !currentProfileId) return;
