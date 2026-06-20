@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useCallback, useState } from "react";
 import type { DrawingPath, Point } from "@/hooks/useDrawingSync";
 import {
   FALLBACK_SHEET_ASPECT,
@@ -42,7 +42,7 @@ interface SheetCanvasProps {
   profileId: string;
 }
 
-export default function SheetCanvas({
+function SheetCanvas({
   sheetId,
   imageUrl,
   isDrawMode,
@@ -524,3 +524,7 @@ export default function SheetCanvas({
     </div>
   );
 }
+
+// 부모(Worship) 리렌더(presence/navbar/compact 등)가 잦으므로 memo로 감싼다.
+// props 콜백은 useDrawingSync에서 useCallback으로 안정화돼 있어 memo가 실효를 가진다.
+export default memo(SheetCanvas);
