@@ -29,6 +29,7 @@ import { useWorship, useCommands, useSheetDrawings, useAdjacentDrawingsPreload }
 import { useAppStore } from "@/store/appStore";
 import { useWorshipSocket } from "@/hooks/useWorshipSocket";
 import { useWorshipRoom } from "@/hooks/useWorshipRoom";
+import { useWorshipPresence } from "@/hooks/useWorshipPresence";
 import SheetCanvas, { type EraserType, type RemoteInProgressPath } from "@/components/SheetCanvas";
 import { useDrawingSync, type DrawingPath } from "@/hooks/useDrawingSync";
 import { getSocket } from "@/hooks/useSocket";
@@ -61,14 +62,6 @@ const penColors = [
   { color: "bg-black", value: "#000000" },
 ];
 
-interface PresenceUser {
-  profileId: string;
-  name: string;
-  role: string;
-  roleIcon: string;
-  sheetId: string | null;
-}
-
 export default function Worship() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -89,7 +82,6 @@ export default function Worship() {
   const [showCommandPanel, setShowCommandPanel] = useState(false);
   const [presencePopoverOpen, setPresencePopoverOpen] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
-  const [presenceUsers, setPresenceUsers] = useState<PresenceUser[]>([]);
   const [showNavBar, setShowNavBar] = useState(true);
   const navBarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -120,8 +112,6 @@ export default function Worship() {
   // 페이지 뷰포트 ref (motion + gesture 컨테이너)
   const sheetViewportRef = useRef<HTMLDivElement>(null);
 
-  // spotlight toast가 stale callback을 잡지 않도록 ref로 우회
-  const commitSheetIdRef = useRef<(sheetId: string) => void>(() => {});
   const cancelPageMotionRef = useRef<() => void>(() => {});
 
   const socket = getSocket();
@@ -176,84 +166,6 @@ export default function Worship() {
     currentSheetId,
   });
 
-  // Socket: 접속자 현황 + 명령 + 스포트라이트
-  useEffect(() => {
-    const handlePresence = (data: { worshipId: string; users: PresenceUser[] }) => {
-      if (data.worshipId === id) {
-        // 중복 프로필 제거
-        const seen = new Set<string>();
-        const unique = data.users.filter((u) => {
-          if (seen.has(u.profileId)) return false;
-          seen.add(u.profileId);
-          return true;
-        });
-        setPresenceUsers(unique);
-      }
-    };
-
-    const handleCommand = (data: {
-      commandId: string;
-      emoji: string;
-      label: string;
-      senderName: string;
-      senderRole: string;
-      senderRoleIcon: string;
-    }) => {
-      const toastId = `command-${Date.now()}`;
-      toast.custom(
-        () => (
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-87.5 border-4 border-blue-500 cursor-pointer"
-            onClick={() => toast.dismiss(toastId)}
-          >
-            <div className="text-6xl">{data.emoji}</div>
-            <div className="flex-1">
-              <div className="text-2xl font-bold text-slate-800">{data.label}</div>
-              <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
-                <span className="text-lg">{data.senderRoleIcon}</span>
-                <span className="font-semibold">{data.senderName}</span>
-                <span>님이 전송</span>
-              </div>
-            </div>
-          </div>
-        ),
-        { duration: 3000, position: "top-center", id: toastId },
-      );
-    };
-
-    const handleSpotlight = (data: { sheetId: string; sheetTitle: string; senderName: string; senderRole: string }) => {
-      const toastId = `spotlight-${Date.now()}`;
-      toast.custom(
-        () => (
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-87.5 border-4 border-amber-500 cursor-pointer active:bg-amber-50 transition-colors"
-            onClick={() => {
-              commitSheetIdRef.current(data.sheetId);
-              toast.dismiss(toastId);
-            }}
-          >
-            <div className="text-4xl">📢</div>
-            <div className="flex-1">
-              <div className="text-lg font-bold text-slate-800">{data.senderName}님이 호출합니다</div>
-              <div className="text-sm text-slate-500 mt-1">&quot;{data.sheetTitle}&quot;로 이동하려면 클릭하세요</div>
-            </div>
-          </div>
-        ),
-        { duration: 10000, position: "top-center", id: toastId },
-      );
-    };
-
-    socket.on("presence:update", handlePresence);
-    socket.on("command:received", handleCommand);
-    socket.on("page:spotlight", handleSpotlight);
-
-    return () => {
-      socket.off("presence:update", handlePresence);
-      socket.off("command:received", handleCommand);
-      socket.off("page:spotlight", handleSpotlight);
-    };
-  }, [id, socket]);
-
   // 네비게이션 바 자동 숨김 (5초)
   const flashNavBar = useCallback(() => {
     setShowNavBar(true);
@@ -297,7 +209,7 @@ export default function Worship() {
     [sheets, commitPage],
   );
 
-  commitSheetIdRef.current = commitSheetId;
+  const { presenceUsers } = useWorshipPresence({ worshipId: id, onSpotlightAccept: commitSheetId });
 
   useAdjacentSheetPreload(sheets, currentPage);
   useAdjacentDrawingsPreload(sheets, currentPage);

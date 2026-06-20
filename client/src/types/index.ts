@@ -43,3 +43,11 @@ export interface Command {
   label: string;
   isDefault: boolean;
 }
+
+export interface PresenceUser {
+  profileId: string;
+  name: string;
+  role: string;
+  roleIcon: string;
+  sheetId: string | null;
+}
