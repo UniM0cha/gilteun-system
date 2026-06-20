@@ -3,9 +3,16 @@
 ## 좌표 정규화
 
 - 모든 좌표는 0~1 비율로 정규화하여 저장/전송 — 다양한 화면 크기 지원
-- 펜 굵기도 `canvas.width` 기준 비율로 정규화 (`penWidth / canvas.width`)
-- 좌표 변환 시 반드시 `getBoundingClientRect().width/height` 사용 — CSS transform(줌) 보정이 자동 적용됨
-  - `canvas.width`(픽셀)가 아니라 `rect.width`(CSS 크기)를 써야 줌 상태에서도 정확
+- 펜 굵기는 **CSS 레이아웃 폭(`offsetWidth`) 기준 비율**로 정규화 (`penWidth / drawRect.width`, drawRect는 `getCanvasContentRect`)
+  - ⚠️ `canvas.width`로 정규화하지 말 것 — backing store가 **DPR배 물리 픽셀**(`canvas.width = offsetWidth * dpr`)이라 DPR>1(아이패드=2)에서 굵기가 1/dpr로 저장되는 회귀 발생
+- 좌표 변환(pointer→정규화)은 반드시 `getBoundingClientRect().width/height` 사용 — CSS transform(줌) 보정이 자동 적용됨
+  - `canvas.width`(픽셀 버퍼)가 아니라 `rect.width`(CSS 크기)를 써야 줌 상태에서도 정확
+
+## HiDPI / DPR
+
+- canvas backing store는 `offsetWidth * devicePixelRatio`로 키워 기기 해상도로 렌더(stroke 선명도) — `syncCanvasBackingStore`
+- redraw 시 `ctx.setTransform(dpr,…)`로 좌표계를 CSS px로 통일 → 렌더/정규화 수식은 전부 CSS px 기준
+- **그리기/굵기용 content rect는 `getCanvasContentRect(canvas, imageAspect)` 단일 helper로 고정** — 한 call site라도 `canvas.width`로 되돌아가면 DPR배 어긋남
 
 ## 핀치줌
 

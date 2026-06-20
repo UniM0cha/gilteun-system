@@ -68,6 +68,29 @@ function getContainedRect(containerWidth: number, containerHeight: number, aspec
   return { x: 0, y: (containerHeight - height) / 2, width: containerWidth, height };
 }
 
+// 그리기/정규화의 기준이 되는 CSS-space content rect. 좌표·굵기 계산은 모두 CSS px 기준이어야 하므로
+// backing store 픽셀(canvas.width, DPR배)이 아닌 레이아웃 크기(offsetWidth/Height)를 단일 기준으로 고정한다.
+// 한 call site라도 canvas.width로 되돌아가면 DPR배 오차가 나므로 helper로 묶어 불변식을 강제한다.
+function getCanvasContentRect(canvas: HTMLCanvasElement, imageAspect: number | null): ContentRect {
+  return getContainedRect(canvas.offsetWidth, canvas.offsetHeight, imageAspect ?? FALLBACK_SHEET_ASPECT);
+}
+
+// backing store를 CSS 레이아웃 크기 × DPR로 동기화 (실제로 다를 때만 — 재설정 시 canvas가 클리어됨).
+// 사용한 dpr을 반환 — 호출부가 ctx.setTransform(dpr,…)로 좌표계를 CSS px로 통일한다.
+// ResizeObserver 경로와 redraw 경로가 같은 계산을 쓰도록 한곳에 모은다.
+function syncCanvasBackingStore(canvas: HTMLCanvasElement): number {
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.offsetWidth;
+  const cssH = canvas.offsetHeight;
+  const bufW = Math.round(cssW * dpr);
+  const bufH = Math.round(cssH * dpr);
+  if (cssW > 0 && cssH > 0 && (canvas.width !== bufW || canvas.height !== bufH)) {
+    canvas.width = bufW;
+    canvas.height = bufH;
+  }
+  return dpr;
+}
+
 function generateId(): string {
   return Math.random().toString(36).substring(2, 11);
 }
@@ -140,7 +163,11 @@ export default function SheetCanvas({
     cancelAnimationFrame(rafIdRef.current);
     const canvas = drawingCanvasRef.current;
     const ctx = canvas?.getContext("2d", { desynchronized: true });
-    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (canvas && ctx) {
+      // redraw가 남긴 DPR 변환을 초기화하고 전체 버퍼(device px)를 비운다.
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
   }, [sheetId]);
 
   // Canvas 크기 설정
@@ -150,10 +177,10 @@ export default function SheetCanvas({
     if (!canvas || !container) return;
 
     const resizeCanvas = () => {
-      const rect = container.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
-      // canvas.width/height 재설정 시 캔버스 자동 클리어됨 → 다시 그리기
+      // backing store를 CSS 레이아웃 크기 × DPR로 설정 — 아이패드(DPR=2)에서 stroke를
+      // 기기 해상도로 렌더해 선명하게. (helper가 offsetWidth/Height 사용 → 핀치줌 시 버퍼 미부풀음)
+      // canvas.width/height 재설정 시 캔버스 자동 클리어됨 → redraw가 좌표계 변환 후 다시 그림.
+      syncCanvasBackingStore(canvas);
       redrawCanvasRef.current();
     };
 
@@ -189,25 +216,22 @@ export default function SheetCanvas({
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
 
-    // canvas 내부 픽셀을 레이아웃 크기와 동기화 — ResizeObserver 갱신이 지연/누락되면
+    // canvas 내부 픽셀을 레이아웃 크기 × DPR과 동기화 — ResizeObserver 갱신이 지연/누락되면
     // 픽셀 종횡비 ≠ 표시 박스 종횡비가 되어 canvas가 비등방 stretch되고 stroke가 어긋난다.
-    // offsetWidth/Height(CSS transform 미반영 레이아웃 크기)를 사용 — getBoundingClientRect는
-    // 핀치줌(scale) 시 변환 후 크기를 반환해 backing store가 줌 배율만큼 커지고 penWidth 정규화가
-    // 오염되므로 금지. 카드 비율이 3:4로 고정돼 있어 표시 박스와 종횡비가 같아 등방 stretch가 유지된다.
-    const layoutW = canvas.offsetWidth;
-    const layoutH = canvas.offsetHeight;
-    if (layoutW > 0 && layoutH > 0 && (canvas.width !== layoutW || canvas.height !== layoutH)) {
-      canvas.width = layoutW;
-      canvas.height = layoutH;
-    }
+    // (helper는 offsetWidth/Height 사용 — getBoundingClientRect는 핀치줌 시 변환 후 크기를 반환해
+    // backing store가 줌 배율만큼 커지고 penWidth 정규화가 오염되므로 금지. 카드 비율 3:4 고정이라 등방 유지.)
+    // DPR을 곱해 backing store를 기기 해상도로 키우되, 좌표/굵기 계산은 CSS 단위로 유지하고
+    // ctx.setTransform(dpr,…)로 한 번에 스케일 — 이러면 아래 렌더 수식은 그대로 두면 된다.
+    const dpr = syncCanvasBackingStore(canvas);
 
     const ctx = canvas.getContext("2d", { desynchronized: true });
     if (!ctx) return;
-    const w = canvas.width;
-    const h = canvas.height;
-    const drawRect = getContainedRect(w, h, imageAspect ?? FALLBACK_SHEET_ASPECT);
+    // 모든 그리기를 CSS 픽셀 좌표계로 통일 (backing store는 DPR배). redraw마다 호출 →
+    // DPR 변동(디스플레이 이동 등)도 자동 반영.
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const drawRect = getCanvasContentRect(canvas, imageAspect);
 
-    ctx.clearRect(0, 0, w, h);
+    ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
     if (drawRect.width <= 0 || drawRect.height <= 0) return;
 
     // 저장된 paths 렌더링
@@ -284,6 +308,25 @@ export default function SheetCanvas({
     requestRedraw();
   }, [redrawCanvas, requestRedraw]);
 
+  // DPR만 바뀌는 경우(브라우저 줌, Retina↔비Retina 모니터 이동) ResizeObserver는 CSS 크기가
+  // 그대로라 발화하지 않는다. 그러면 backing store가 이전 DPR 버퍼로 남아 HiDPI가 깨지므로,
+  // 현재 DPR에 매칭되는 media query로 변경을 감지해 redraw를 예약한다(redraw가 버퍼를 재동기화).
+  // media query는 DPR 값에 묶이므로 변경 시마다 새 DPR로 재등록한다.
+  useEffect(() => {
+    let mql: MediaQueryList | null = null;
+    const onChange = () => {
+      requestRedraw();
+      register();
+    };
+    const register = () => {
+      mql?.removeEventListener("change", onChange);
+      mql = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      mql.addEventListener("change", onChange);
+    };
+    register();
+    return () => mql?.removeEventListener("change", onChange);
+  }, [requestRedraw]);
+
   // 포인터 좌표 → 정규화 좌표
   const getPointerCoords = (e: PointerEvent | React.PointerEvent, options: { clamp?: boolean } = {}): Point | null => {
     const canvas = drawingCanvasRef.current;
@@ -307,9 +350,9 @@ export default function SheetCanvas({
     (point: Point): string | null => {
       const canvas = drawingCanvasRef.current;
       if (!canvas) return null;
-      const w = canvas.width;
-      const h = canvas.height;
-      const drawRect = getContainedRect(w, h, imageAspect ?? FALLBACK_SHEET_ASPECT);
+      // CSS 레이아웃 크기 기준 — backing store가 DPR배여도 히트테스트는 CSS px로 유지해
+      // threshold(20)가 계속 20 CSS px를 의미하게 한다.
+      const drawRect = getCanvasContentRect(canvas, imageAspect);
       if (drawRect.width <= 0 || drawRect.height <= 0) return null;
 
       const screenPoint = denormalizePoint(point, drawRect);
@@ -408,7 +451,8 @@ export default function SheetCanvas({
 
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
-    const drawRect = getContainedRect(canvas.width, canvas.height, imageAspect ?? FALLBACK_SHEET_ASPECT);
+    // penWidth는 CSS px → CSS 레이아웃 크기로 정규화해야 렌더(CSS 좌표계)와 굵기가 일치.
+    const drawRect = getCanvasContentRect(canvas, imageAspect);
     if (drawRect.width <= 0) return;
     const normalizedWidth = eraserType === "area" ? eraserWidth / drawRect.width : penWidth / drawRect.width;
 
@@ -490,7 +534,8 @@ export default function SheetCanvas({
     if (currentPathRef.current.length > 1) {
       const canvas = drawingCanvasRef.current;
       if (!canvas) return;
-      const drawRect = getContainedRect(canvas.width, canvas.height, imageAspect ?? FALLBACK_SHEET_ASPECT);
+      // penWidth는 CSS px → CSS 레이아웃 크기로 정규화 (handlePointerDown과 동일 기준).
+      const drawRect = getCanvasContentRect(canvas, imageAspect);
       if (drawRect.width <= 0) return;
       const normalizedWidth = eraserType === "area" ? eraserWidth / drawRect.width : penWidth / drawRect.width;
 
