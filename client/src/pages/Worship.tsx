@@ -28,9 +28,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useWorship, useCommands, useSheetDrawings, useAdjacentDrawingsPreload } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { useWorshipSocket } from "@/hooks/useWorshipSocket";
+import { useWorshipRoom } from "@/hooks/useWorshipRoom";
 import SheetCanvas, { type EraserType, type RemoteInProgressPath } from "@/components/SheetCanvas";
 import { useDrawingSync, type DrawingPath } from "@/hooks/useDrawingSync";
-import { getSocket, setWorshipRoom } from "@/hooks/useSocket";
+import { getSocket } from "@/hooks/useSocket";
 import { useAdjacentSheetPreload } from "@/hooks/useAdjacentSheetPreload";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useSheetPageMotion } from "@/hooks/useSheetPageMotion";
@@ -169,37 +170,11 @@ export default function Worship() {
     }
   }, [worshipData, currentSheetId]);
 
-  // Socket: 예배 입장/퇴장
-  useEffect(() => {
-    if (!id || !currentProfileId) return;
-
-    socket.emit("join:worship", { worshipId: id, profileId: currentProfileId });
-    setWorshipRoom({ worshipId: id, profileId: currentProfileId });
-
-    return () => {
-      socket.emit("leave:worship", { worshipId: id });
-      setWorshipRoom(null);
-    };
-  }, [id, currentProfileId, socket]);
-
-  // Socket: 연결 상태 추적
-  const [isConnected, setIsConnected] = useState(socket.connected);
-  useEffect(() => {
-    const onDisconnect = () => setIsConnected(false);
-    const onConnect = () => setIsConnected(true);
-    socket.on("disconnect", onDisconnect);
-    socket.on("connect", onConnect);
-    return () => {
-      socket.off("disconnect", onDisconnect);
-      socket.off("connect", onConnect);
-    };
-  }, [socket]);
-
-  // Socket: 페이지 변경 알림
-  useEffect(() => {
-    if (!id || !currentSheetId) return;
-    socket.emit("page:change", { worshipId: id, sheetId: currentSheetId });
-  }, [id, currentSheetId, socket]);
+  const { isConnected } = useWorshipRoom({
+    worshipId: id,
+    profileId: currentProfileId,
+    currentSheetId,
+  });
 
   // Socket: 접속자 현황 + 명령 + 스포트라이트
   useEffect(() => {
