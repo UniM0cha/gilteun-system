@@ -92,6 +92,7 @@ export default function SheetCanvas({
 }: SheetCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [imageAspect, setImageAspect] = useState<number | null>(null);
   const isDrawingRef = useRef(false);
   const currentPathRef = useRef<Point[]>([]);
@@ -112,9 +113,16 @@ export default function SheetCanvas({
   const pathsRef = useRef(paths);
   pathsRef.current = paths;
 
-  // 이미지가 바뀌면 종횡비 재계산 (onLoad에서 다시 채워짐)
+  // 이미지가 바뀌면 종횡비 재계산. onLoad가 채우지만, 브라우저 캐시된 이미지는 onLoad가
+  // 발화하지 않을 수 있어(그러면 imageAspect가 null로 남아 stroke가 FALLBACK 비율로 왜곡 렌더됨)
+  // complete를 직접 확인해 캐시 이미지도 즉시 종횡비를 설정한다.
   useEffect(() => {
-    setImageAspect(null);
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      setImageAspect(img.naturalWidth / img.naturalHeight);
+    } else {
+      setImageAspect(null);
+    }
   }, [imageUrl]);
 
   // 시트 전환 시 리셋. 부모가 key로 리마운트하지 않으므로(전환 깜박임 방지) 명시적으로 처리한다.
@@ -507,6 +515,7 @@ export default function SheetCanvas({
     <div ref={containerRef} className="relative w-full h-full">
       {imageUrl && (
         <img
+          ref={imgRef}
           src={imageUrl}
           alt="악보"
           className="absolute inset-0 w-full h-full pointer-events-none object-contain"
