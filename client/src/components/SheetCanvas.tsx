@@ -14,7 +14,7 @@ import {
 
 export type EraserType = "none" | "area" | "stroke";
 
-interface RemoteInProgressPath {
+export interface RemoteInProgressPath {
   pathId: string;
   profileId: string;
   color: string;

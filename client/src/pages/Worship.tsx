@@ -28,8 +28,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useWorship, useCommands, useSheetDrawings, useAdjacentDrawingsPreload } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { useWorshipSocket } from "@/hooks/useWorshipSocket";
-import SheetCanvas, { type EraserType } from "@/components/SheetCanvas";
-import { useDrawingSync } from "@/hooks/useDrawingSync";
+import SheetCanvas, { type EraserType, type RemoteInProgressPath } from "@/components/SheetCanvas";
+import { useDrawingSync, type DrawingPath } from "@/hooks/useDrawingSync";
 import { getSocket, setWorshipRoom } from "@/hooks/useSocket";
 import { useAdjacentSheetPreload } from "@/hooks/useAdjacentSheetPreload";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -46,6 +46,10 @@ const SHEET_CARD_SIZE_STYLE: CSSProperties = {
   aspectRatio: "3 / 4",
   height: "min(100cqh, calc(100cqw * 4 / 3))",
 };
+
+// preview SheetCanvas에 넘기는 빈 배열 — 매 렌더 새 배열 생성을 막아 불필요한 redraw 방지
+const EMPTY_PATHS: DrawingPath[] = [];
+const EMPTY_REMOTE: RemoteInProgressPath[] = [];
 
 const penColors = [
   { color: "bg-red-500", value: "#ef4444" },
@@ -1002,8 +1006,8 @@ export default function Worship() {
                     penWidth={penWidth}
                     eraserType="none"
                     eraserWidth={eraserWidth}
-                    paths={previewDrawings ?? []}
-                    remoteInProgress={[]}
+                    paths={previewDrawings ?? EMPTY_PATHS}
+                    remoteInProgress={EMPTY_REMOTE}
                     profileId={currentProfileId || ""}
                   />
                 </div>
