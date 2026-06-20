@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import {
   ChevronLeft,
@@ -38,6 +38,14 @@ import { useSheetPageMotion } from "@/hooks/useSheetPageMotion";
 const PANEL_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const panelTransition = { duration: 0.22, ease: PANEL_EASE };
 const panelContentTransition = { duration: 0.16, ease: PANEL_EASE };
+
+// 악보 카드 sizing — 부모(container-type:size) 안에 항상 3:4로 contain.
+// 너비 clamp로 비율이 깨지면 canvas가 비등방 stretch되어 stroke가 어긋나므로 비율을 고정한다.
+// 메인·preview 카드가 동일 좌표계를 유지해야 stroke 정렬이 맞으므로 한 곳에서 관리한다.
+const SHEET_CARD_SIZE_STYLE: CSSProperties = {
+  aspectRatio: "3 / 4",
+  height: "min(100cqh, calc(100cqw * 4 / 3))",
+};
 
 const penColors = [
   { color: "bg-red-500", value: "#ef4444" },
@@ -930,18 +938,22 @@ export default function Worship() {
             onTouchEnd={handleSheetTouchEnd}
             {...bindPageDrag()}
           >
-            <motion.div className="absolute inset-0 flex items-center justify-center p-4" style={{ x: pageX }}>
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center p-4"
+              style={{ x: pageX, containerType: "size" }}
+            >
               <div
-                className="relative bg-white rounded-2xl shadow-2xl aspect-3/4 h-full overflow-hidden"
+                className="relative bg-white rounded-2xl shadow-2xl overflow-hidden"
                 ref={sheetContainerRef}
-                style={
-                  scale !== 1
+                style={{
+                  ...SHEET_CARD_SIZE_STYLE,
+                  ...(scale !== 1
                     ? {
                         transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
                         transformOrigin,
                       }
-                    : undefined
-                }
+                    : {}),
+                }}
               >
                 {currentSheet ? (
                   <SheetCanvas
@@ -976,10 +988,11 @@ export default function Worship() {
             {previewTargetSheet && (
               <motion.div
                 className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none"
-                style={{ x: previewX }}
+                style={{ x: previewX, containerType: "size" }}
                 aria-hidden="true"
               >
-                <div className="relative bg-white rounded-2xl shadow-2xl aspect-3/4 h-full overflow-hidden">
+                {/* 메인 카드와 동일 좌표계 유지 위해 동일 sizing 상수 사용 */}
+                <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden" style={SHEET_CARD_SIZE_STYLE}>
                   {/* 읽기 전용 SheetCanvas — 미리 받아둔 stroke를 메인과 동일 좌표계로 렌더 */}
                   <SheetCanvas
                     sheetId={previewTargetSheet.id}

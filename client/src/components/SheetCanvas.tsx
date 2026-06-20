@@ -181,6 +181,18 @@ export default function SheetCanvas({
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
 
+    // canvas 내부 픽셀을 레이아웃 크기와 동기화 — ResizeObserver 갱신이 지연/누락되면
+    // 픽셀 종횡비 ≠ 표시 박스 종횡비가 되어 canvas가 비등방 stretch되고 stroke가 어긋난다.
+    // offsetWidth/Height(CSS transform 미반영 레이아웃 크기)를 사용 — getBoundingClientRect는
+    // 핀치줌(scale) 시 변환 후 크기를 반환해 backing store가 줌 배율만큼 커지고 penWidth 정규화가
+    // 오염되므로 금지. 카드 비율이 3:4로 고정돼 있어 표시 박스와 종횡비가 같아 등방 stretch가 유지된다.
+    const layoutW = canvas.offsetWidth;
+    const layoutH = canvas.offsetHeight;
+    if (layoutW > 0 && layoutH > 0 && (canvas.width !== layoutW || canvas.height !== layoutH)) {
+      canvas.width = layoutW;
+      canvas.height = layoutH;
+    }
+
     const ctx = canvas.getContext("2d", { desynchronized: true });
     if (!ctx) return;
     const w = canvas.width;
