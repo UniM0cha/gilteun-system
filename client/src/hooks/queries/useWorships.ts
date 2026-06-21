@@ -1,16 +1,46 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/axios";
 import { queryKeys } from "@/lib/queryKeys";
-import type { Worship, Sheet } from "@/types";
+import type { Worship, Sheet, WorshipPage } from "@/types";
 
 // --- Queries ---
 
-export function useWorships() {
+export interface WorshipListFilters {
+  typeId?: string;
+  q?: string;
+  year?: string;
+  month?: string;
+  limit?: number;
+}
+
+// 무한 스크롤 목록 — 서버 페이지네이션. 필터는 queryKey에 포함되어 변경 시 자동 재조회
+export function useWorships(filters: WorshipListFilters = {}) {
+  const { typeId = "", q = "", year = "", month = "", limit = 20 } = filters;
+  return useInfiniteQuery({
+    queryKey: queryKeys.worships.list({ typeId, q, year, month, limit }),
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams();
+      params.set("page", String(pageParam));
+      params.set("limit", String(limit));
+      if (typeId) params.set("typeId", typeId);
+      if (q) params.set("q", q);
+      if (year) params.set("year", year);
+      if (month) params.set("month", month);
+      const { data } = await api.get<WorshipPage>(`/api/worships?${params.toString()}`);
+      return data;
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
+  });
+}
+
+// 연도 목록 (필터 드롭다운용)
+export function useWorshipYears() {
   return useQuery({
-    queryKey: queryKeys.worships.all,
+    queryKey: queryKeys.worships.years,
     queryFn: async () => {
-      const { data } = await api.get<Worship[]>("/api/worships");
+      const { data } = await api.get<number[]>("/api/worships/years");
       return data;
     },
   });

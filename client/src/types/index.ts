@@ -37,6 +37,14 @@ export interface Worship {
   sheets: Sheet[];
 }
 
+export interface WorshipPage {
+  items: Worship[];
+  total: number;
+  page: number;
+  hasMore: boolean;
+  nextPage: number | null;
+}
+
 export interface Command {
   id: string;
   emoji: string;

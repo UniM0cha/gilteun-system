@@ -16,7 +16,7 @@ createRoot(document.getElementById("root")!).render(
       persistOptions={{
         persister: asyncStoragePersister,
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7일
-        buster: "v2", // 스키마 변경 시 이 값을 올리면 캐시 자동 무효화 (v2: 영속화에서 drawings 제외)
+        buster: "v3", // 스키마 변경 시 이 값을 올리면 캐시 자동 무효화 (v3: worships 무한쿼리 페이지네이션 응답)
         dehydrateOptions: {
           // drawings는 실시간으로 바뀌는 ephemeral 데이터 — 디스크에 영속화하면
           // 다음 세션에서 오래되거나 이미 지워진 stroke 스냅샷이 되살아남

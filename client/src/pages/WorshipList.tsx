@@ -1,7 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { Plus, Calendar, Music, Edit, Trash2, Play, ArrowLeft, Filter, X } from "lucide-react";
-import { useWorships, useWorshipTypes, useDeleteWorship, useProfiles, useRoles } from "@/hooks/queries";
+import {
+  useWorships,
+  useWorshipYears,
+  useWorshipTypes,
+  useDeleteWorship,
+  useProfiles,
+  useRoles,
+} from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { getColorOption } from "@/lib/colors";
 import { Button } from "@/components/ui/button";
@@ -11,18 +18,36 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function WorshipList() {
-  const { data: worships = [] } = useWorships();
   const { data: worshipTypes = [] } = useWorshipTypes();
   const { data: profiles = [] } = useProfiles();
   const { data: roles = [] } = useRoles();
+  const { data: availableYears = [] } = useWorshipYears();
   const deleteWorshipMutation = useDeleteWorship();
   const currentProfileId = useAppStore((s) => s.currentProfileId);
   const navigate = useNavigate();
 
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+
+  // 검색어 디바운스 (서버 호출이므로 매 타이핑마다 요청하지 않도록)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // 무한 스크롤 목록 (서버 페이지네이션 + 날짜 최신순 정렬, 필터는 서버에서 처리)
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useWorships({
+    typeId: selectedTypeId,
+    q: debouncedQuery,
+    year: selectedYear,
+    month: selectedMonth,
+  });
+
+  const worships = data?.pages.flatMap((p) => p.items) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
 
   // 프로필 미선택 시 홈으로 리다이렉트
   useEffect(() => {
@@ -36,38 +61,30 @@ export default function WorshipList() {
     navigator.storage?.persist?.();
   }, []);
 
-  // 악보 이미지 백그라운드 프리로드 (최신 예배 우선)
+  // 필터 변경 시 스크롤 최상단 리셋 (queryKey 변경으로 page 1부터 재조회됨)
   useEffect(() => {
-    if (!worships.length) return;
-    const sorted = [...worships].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    for (const worship of sorted) {
-      for (const sheet of worship.sheets || []) {
-        if (sheet.imagePath) {
-          const img = new Image();
-          img.src = `/uploads/${sheet.imagePath}`;
+    window.scrollTo({ top: 0 });
+  }, [selectedTypeId, debouncedQuery, selectedYear, selectedMonth]);
+
+  // 무한 스크롤 sentinel — 목록 끝이 보이면 다음 페이지 로드
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
         }
-      }
-    }
-  }, [worships]);
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const currentProfile = profiles.find((p) => p.id === currentProfileId);
   const currentRole = currentProfile ? roles.find((r) => r.id === currentProfile.roleId) : undefined;
-
-  // 데이터에서 연도 목록 추출
-  const availableYears = [...new Set(worships.map((w) => new Date(w.date).getFullYear()))].sort((a, b) => b - a);
-
-  const filteredWorships = worships.filter((worship) => {
-    const matchesType = !selectedTypeId || worship.typeId === selectedTypeId;
-    const matchesSearch = worship.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDate = (() => {
-      if (!selectedYear) return true;
-      const worshipDate = new Date(worship.date);
-      if (worshipDate.getFullYear() !== parseInt(selectedYear)) return false;
-      if (selectedMonth && worshipDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
-      return true;
-    })();
-    return matchesType && matchesSearch && matchesDate;
-  });
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -86,6 +103,8 @@ export default function WorshipList() {
   const handleDelete = async (id: string) => {
     await deleteWorshipMutation.mutateAsync(id);
   };
+
+  const hasActiveFilter = !!(debouncedQuery || selectedTypeId || selectedYear);
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
@@ -234,7 +253,7 @@ export default function WorshipList() {
 
         {/* 예배 목록 */}
         <div className="space-y-4">
-          {filteredWorships.map((worship) => {
+          {worships.map((worship) => {
             const worshipType = worshipTypes.find((t) => t.id === worship.typeId);
             return (
               <Card
@@ -301,24 +320,29 @@ export default function WorshipList() {
               </Card>
             );
           })}
+
+          {/* 무한 스크롤 sentinel + 로딩 표시 */}
+          <div ref={sentinelRef} className="h-4" />
+          {isFetchingNextPage && <div className="text-center py-4 text-slate-500 text-sm">불러오는 중...</div>}
         </div>
 
+        {/* 첫 로딩 */}
+        {isLoading && <div className="text-center py-12 text-slate-500">불러오는 중...</div>}
+
         {/* 빈 상태 */}
-        {filteredWorships.length === 0 && (
+        {!isLoading && worships.length === 0 && (
           <Card className="p-16 text-center rounded-3xl">
             <CardContent className="p-0">
               <div className="w-24 h-24 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
                 <Music className="w-12 h-12 text-slate-400" />
               </div>
               <h3 className="text-2xl font-bold text-slate-800 mb-2">
-                {searchQuery || selectedTypeId || selectedYear ? "검색 결과가 없습니다" : "아직 예배가 없습니다"}
+                {hasActiveFilter ? "검색 결과가 없습니다" : "아직 예배가 없습니다"}
               </h3>
               <p className="text-slate-600 mb-8">
-                {searchQuery || selectedTypeId || selectedYear
-                  ? "다른 검색어나 필터를 시도해보세요"
-                  : "새 예배를 만들어 악보를 추가하세요"}
+                {hasActiveFilter ? "다른 검색어나 필터를 시도해보세요" : "새 예배를 만들어 악보를 추가하세요"}
               </p>
-              {!searchQuery && !selectedTypeId && !selectedYear && (
+              {!hasActiveFilter && (
                 <Button size="lg" asChild>
                   <Link to="/worship-edit/new">
                     <Plus className="w-5 h-5" />새 예배 만들기
@@ -330,18 +354,18 @@ export default function WorshipList() {
         )}
 
         {/* 통계 */}
-        {worships.length > 0 && (
+        {total > 0 && (
           <div className="mt-6 grid grid-cols-3 gap-4">
             <Card className="bg-linear-to-br from-blue-50 to-blue-100 border-2 border-blue-200 p-6">
               <CardContent className="p-0">
                 <div className="text-sm font-semibold text-blue-700 mb-1">전체 예배</div>
-                <div className="text-3xl font-bold text-blue-900">{worships.length}개</div>
+                <div className="text-3xl font-bold text-blue-900">{total}개</div>
               </CardContent>
             </Card>
             <Card className="bg-linear-to-br from-green-50 to-green-100 border-2 border-green-200 p-6">
               <CardContent className="p-0">
-                <div className="text-sm font-semibold text-green-700 mb-1">필터링된 예배</div>
-                <div className="text-3xl font-bold text-green-900">{filteredWorships.length}개</div>
+                <div className="text-sm font-semibold text-green-700 mb-1">불러온 예배</div>
+                <div className="text-3xl font-bold text-green-900">{worships.length}개</div>
               </CardContent>
             </Card>
             <Card className="bg-linear-to-br from-purple-50 to-purple-100 border-2 border-purple-200 p-6">
