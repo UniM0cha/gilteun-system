@@ -57,7 +57,7 @@ export default function WorshipTypeSettings() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" asChild>
@@ -66,8 +66,8 @@ export default function WorshipTypeSettings() {
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-slate-800">예배 유형 관리</h1>
-            <p className="text-slate-600">예배 유형을 추가하고 관리하세요</p>
+            <h1 className="text-3xl font-bold text-foreground">예배 유형 관리</h1>
+            <p className="text-muted-foreground">예배 유형을 추가하고 관리하세요</p>
           </div>
           {!isEditing && (
             <Button onClick={handleAdd}>
@@ -78,14 +78,14 @@ export default function WorshipTypeSettings() {
 
         {/* 편집 폼 */}
         {isEditing && (
-          <Card className="mb-6 border-2 border-blue-200">
+          <Card className="mb-6 border-2 border-primary/40">
             <CardContent>
-              <h2 className="text-xl font-bold text-slate-800 mb-6">
+              <h2 className="text-xl font-bold text-foreground mb-6">
                 {editingTypeId ? "예배 유형 수정" : "새 예배 유형 추가"}
               </h2>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">예배 유형 이름 *</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">예배 유형 이름 *</label>
                   <Input
                     type="text"
                     value={formData.name}
@@ -95,7 +95,7 @@ export default function WorshipTypeSettings() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">색상 선택</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">색상 선택</label>
                   <div className="grid grid-cols-5 md:grid-cols-10 gap-3">
                     {COLOR_OPTIONS.map((c) => (
                       <button
@@ -112,7 +112,7 @@ export default function WorshipTypeSettings() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">미리보기</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">미리보기</label>
                   <span
                     className={`inline-block px-4 py-2 rounded-full font-semibold text-white ${getColorOption(formData.color)?.bg || "bg-blue-500"}`}
                   >
@@ -137,13 +137,13 @@ export default function WorshipTypeSettings() {
         {/* 유형 목록 */}
         <Card>
           <CardContent>
-            <h2 className="text-xl font-bold text-slate-800 mb-6">현재 예배 유형 ({worshipTypes.length}개)</h2>
+            <h2 className="text-xl font-bold text-foreground mb-6">현재 예배 유형 ({worshipTypes.length}개)</h2>
             {worshipTypes.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {worshipTypes.map((type) => (
                   <div
                     key={type.id}
-                    className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-5 border-2 border-slate-200 hover:border-blue-300 transition-all"
+                    className="bg-muted rounded-xl p-5 border-2 border-border hover:border-primary/40 transition-all"
                   >
                     <div className="flex items-center justify-between">
                       <span
@@ -173,12 +173,12 @@ export default function WorshipTypeSettings() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
-                <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Tag className="w-8 h-8 text-slate-400" />
+              <div className="text-center py-16 bg-muted rounded-xl border-2 border-dashed border-border">
+                <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Tag className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">아직 예배 유형이 없습니다</h3>
-                <p className="text-slate-500 mb-6">새 유형 추가 버튼을 눌러 예배 유형을 만드세요</p>
+                <h3 className="text-lg font-semibold text-foreground mb-2">아직 예배 유형이 없습니다</h3>
+                <p className="text-muted-foreground mb-6">새 유형 추가 버튼을 눌러 예배 유형을 만드세요</p>
                 <Button onClick={handleAdd}>
                   <Plus className="w-5 h-5" />새 유형 추가
                 </Button>

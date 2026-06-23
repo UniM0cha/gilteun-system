@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function WorshipList() {
@@ -107,7 +108,7 @@ export default function WorshipList() {
   const hasActiveFilter = !!(debouncedQuery || selectedTypeId || selectedYear);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-5xl mx-auto">
         {/* 헤더 */}
         <div className="flex items-center gap-4 mb-8">
@@ -117,19 +118,19 @@ export default function WorshipList() {
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-slate-800">예배 목록</h1>
-            <p className="text-slate-600">예배를 선택하거나 새로운 예배를 만드세요</p>
+            <h1 className="text-3xl font-bold text-foreground">예배 목록</h1>
+            <p className="text-muted-foreground">예배를 선택하거나 새로운 예배를 만드세요</p>
           </div>
           {currentProfile && (
-            <div className="flex items-center gap-3 px-5 py-3 bg-white rounded-xl shadow-md border-2 border-slate-200">
+            <div className="flex items-center gap-3 px-5 py-3 bg-card rounded-xl shadow-sm border-2 border-border">
               <div
                 className={`w-10 h-10 ${currentProfile.color} rounded-full flex items-center justify-center text-xl`}
               >
                 {currentRole?.icon}
               </div>
               <div>
-                <div className="text-sm font-semibold text-slate-800">{currentProfile.name}</div>
-                <div className="text-xs text-slate-500">{currentRole?.name}</div>
+                <div className="text-sm font-semibold text-foreground">{currentProfile.name}</div>
+                <div className="text-xs text-muted-foreground">{currentRole?.name}</div>
               </div>
             </div>
           )}
@@ -144,8 +145,8 @@ export default function WorshipList() {
         <Card className="mb-6 p-6">
           <CardContent className="p-0">
             <div className="flex items-center gap-4 mb-4">
-              <Filter className="w-5 h-5 text-slate-600" />
-              <h3 className="font-bold text-slate-800">필터</h3>
+              <Filter className="w-5 h-5 text-muted-foreground" />
+              <h3 className="font-bold text-foreground">필터</h3>
             </div>
 
             {/* 검색 */}
@@ -157,26 +158,25 @@ export default function WorshipList() {
                 className="pl-12"
                 placeholder="예배 이름 검색..."
               />
-              <Music className="absolute top-1/2 -translate-y-1/2 left-4 w-5 h-5 text-slate-400" />
+              <Music className="absolute top-1/2 -translate-y-1/2 left-4 w-5 h-5 text-muted-foreground" />
               {searchQuery && (
                 <button
-                  className="absolute top-1/2 -translate-y-1/2 right-3 p-1 hover:bg-slate-200 rounded-full transition-colors"
+                  className="absolute top-1/2 -translate-y-1/2 right-2 min-h-11 min-w-11 flex items-center justify-center hover:bg-secondary rounded-full transition-colors"
                   onClick={() => setSearchQuery("")}
                 >
-                  <X className="w-5 h-5 text-slate-500" />
+                  <X className="w-5 h-5 text-muted-foreground" />
                 </button>
               )}
             </div>
 
             {/* 예배 유형 필터 */}
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">예배 유형</label>
+              <label className="block text-sm font-semibold text-foreground mb-2">예배 유형</label>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={!selectedTypeId ? "default" : "secondary"}
                   size="sm"
                   onClick={() => setSelectedTypeId("")}
-                  className={!selectedTypeId ? "bg-slate-800 hover:bg-slate-900" : ""}
                 >
                   전체
                 </Button>
@@ -204,46 +204,59 @@ export default function WorshipList() {
 
             {/* 날짜 필터 */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">날짜</label>
+              <label className="block text-sm font-semibold text-foreground mb-2">날짜</label>
               <div className="flex items-center gap-3">
-                <select
-                  value={selectedYear}
-                  onChange={(e) => {
-                    setSelectedYear(e.target.value);
-                    if (!e.target.value) setSelectedMonth("");
+                <Select
+                  value={selectedYear || "all"}
+                  onValueChange={(v) => {
+                    const year = v === "all" ? "" : v;
+                    setSelectedYear(year);
+                    if (!year) setSelectedMonth("");
                   }}
-                  className="px-4 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm transition-colors"
                 >
-                  <option value="">전체 연도</option>
-                  {availableYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}년
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  <SelectTrigger className="min-w-32 text-base bg-background">
+                    <SelectValue placeholder="전체 연도" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="all">전체 연도</SelectItem>
+                      {availableYears.map((year) => (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}년
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={selectedMonth || "all"}
+                  onValueChange={(v) => setSelectedMonth(v === "all" ? "" : v)}
                   disabled={!selectedYear}
-                  className="px-4 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">전체 월</option>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                    <option key={month} value={month}>
-                      {month}월
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="min-w-28 text-base bg-background">
+                    <SelectValue placeholder="전체 월" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="all">전체 월</SelectItem>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                        <SelectItem key={month} value={String(month)}>
+                          {month}월
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
                 {(selectedYear || selectedMonth) && (
                   <button
                     onClick={() => {
                       setSelectedYear("");
                       setSelectedMonth("");
                     }}
-                    className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                    className="min-h-11 min-w-11 flex items-center justify-center hover:bg-secondary rounded-full transition-colors"
                     title="날짜 필터 초기화"
                   >
-                    <X className="w-4 h-4 text-slate-500" />
+                    <X className="w-4 h-4 text-muted-foreground" />
                   </button>
                 )}
               </div>
@@ -258,19 +271,19 @@ export default function WorshipList() {
             return (
               <Card
                 key={worship.id}
-                className="p-6 border-2 border-transparent hover:border-blue-200 transition-all hover:shadow-xl"
+                className="p-6 border-2 border-transparent hover:border-primary/40 transition-all hover:shadow-md"
               >
                 <CardContent className="p-0">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="mb-3">
-                        <h3 className="text-xl font-bold text-slate-800">{worship.title}</h3>
+                        <h3 className="text-xl font-bold text-foreground">{worship.title}</h3>
                         <div className="flex items-center gap-3 mt-2">
-                          <div className="flex items-center gap-1 text-sm text-slate-500">
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <Calendar className="w-4 h-4" />
                             {formatDate(worship.date)}
                           </div>
-                          <div className="text-sm text-slate-500">악보 {worship.sheets?.length ?? 0}개</div>
+                          <div className="text-sm text-muted-foreground">악보 {worship.sheets?.length ?? 0}개</div>
                           {worshipType && (
                             <Badge
                               variant="secondary"
@@ -281,11 +294,13 @@ export default function WorshipList() {
                           )}
                         </div>
                       </div>
-                      <div className="text-sm text-slate-400">마지막 수정: {formatLastEdited(worship.updatedAt)}</div>
+                      <div className="text-sm text-muted-foreground">
+                        마지막 수정: {formatLastEdited(worship.updatedAt)}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Button asChild className="bg-green-600 hover:bg-green-700">
+                      <Button asChild>
                         <Link to={`/worship/${worship.id}`}>
                           <Play className="w-5 h-5" />
                           시작
@@ -323,23 +338,23 @@ export default function WorshipList() {
 
           {/* 무한 스크롤 sentinel + 로딩 표시 */}
           <div ref={sentinelRef} className="h-4" />
-          {isFetchingNextPage && <div className="text-center py-4 text-slate-500 text-sm">불러오는 중...</div>}
+          {isFetchingNextPage && <div className="text-center py-4 text-muted-foreground text-sm">불러오는 중...</div>}
         </div>
 
         {/* 첫 로딩 */}
-        {isLoading && <div className="text-center py-12 text-slate-500">불러오는 중...</div>}
+        {isLoading && <div className="text-center py-12 text-muted-foreground">불러오는 중...</div>}
 
         {/* 빈 상태 */}
         {!isLoading && worships.length === 0 && (
           <Card className="p-16 text-center rounded-3xl">
             <CardContent className="p-0">
-              <div className="w-24 h-24 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <Music className="w-12 h-12 text-slate-400" />
+              <div className="w-24 h-24 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <Music className="w-12 h-12 text-muted-foreground" />
               </div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-2">
+              <h3 className="text-2xl font-bold text-foreground mb-2">
                 {hasActiveFilter ? "검색 결과가 없습니다" : "아직 예배가 없습니다"}
               </h3>
-              <p className="text-slate-600 mb-8">
+              <p className="text-muted-foreground mb-8">
                 {hasActiveFilter ? "다른 검색어나 필터를 시도해보세요" : "새 예배를 만들어 악보를 추가하세요"}
               </p>
               {!hasActiveFilter && (
@@ -356,22 +371,22 @@ export default function WorshipList() {
         {/* 통계 */}
         {total > 0 && (
           <div className="mt-6 grid grid-cols-3 gap-4">
-            <Card className="bg-linear-to-br from-blue-50 to-blue-100 border-2 border-blue-200 p-6">
+            <Card className="bg-accent p-6">
               <CardContent className="p-0">
-                <div className="text-sm font-semibold text-blue-700 mb-1">전체 예배</div>
-                <div className="text-3xl font-bold text-blue-900">{total}개</div>
+                <div className="text-sm font-semibold text-accent-foreground mb-1">전체 예배</div>
+                <div className="text-3xl font-bold text-primary">{total}개</div>
               </CardContent>
             </Card>
-            <Card className="bg-linear-to-br from-green-50 to-green-100 border-2 border-green-200 p-6">
+            <Card className="bg-accent p-6">
               <CardContent className="p-0">
-                <div className="text-sm font-semibold text-green-700 mb-1">불러온 예배</div>
-                <div className="text-3xl font-bold text-green-900">{worships.length}개</div>
+                <div className="text-sm font-semibold text-accent-foreground mb-1">불러온 예배</div>
+                <div className="text-3xl font-bold text-primary">{worships.length}개</div>
               </CardContent>
             </Card>
-            <Card className="bg-linear-to-br from-purple-50 to-purple-100 border-2 border-purple-200 p-6">
+            <Card className="bg-accent p-6">
               <CardContent className="p-0">
-                <div className="text-sm font-semibold text-purple-700 mb-1">예배 유형</div>
-                <div className="text-3xl font-bold text-purple-900">{worshipTypes.length}개</div>
+                <div className="text-sm font-semibold text-accent-foreground mb-1">예배 유형</div>
+                <div className="text-3xl font-bold text-primary">{worshipTypes.length}개</div>
               </CardContent>
             </Card>
           </div>

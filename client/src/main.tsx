@@ -7,6 +7,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "sonner";
 import { queryClient, asyncStoragePersister } from "./lib/queryClient";
 import { router } from "./routes";
+import "pretendard/dist/web/variable/pretendardvariable.css";
 import "./globals.css";
 
 createRoot(document.getElementById("root")!).render(

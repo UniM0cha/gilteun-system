@@ -41,21 +41,21 @@ export default function CommandSetup() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" asChild>
             <Link to="/">
-              <ArrowLeft className="w-6 h-6 text-slate-600" />
+              <ArrowLeft className="w-6 h-6 text-muted-foreground" />
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-slate-800">명령 설정</h1>
-            <p className="text-slate-600">예배 중 사용할 명령을 관리하세요</p>
+            <h1 className="text-3xl font-bold text-foreground">명령 설정</h1>
+            <p className="text-muted-foreground">예배 중 사용할 명령을 관리하세요</p>
           </div>
           <ConfirmDialog
             trigger={
-              <Button variant="secondary" className="bg-orange-50 text-orange-600 hover:bg-orange-100">
+              <Button variant="secondary">
                 <RotateCcw className="w-5 h-5" />
                 초기화
               </Button>
@@ -72,7 +72,7 @@ export default function CommandSetup() {
         <Card className="mb-6 rounded-3xl p-8">
           <CardContent className="p-0">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-800">현재 명령 ({commands.length})</h2>
+              <h2 className="text-xl font-bold text-foreground">현재 명령 ({commands.length})</h2>
               <Dialog
                 open={dialogOpen}
                 onOpenChange={(open) => {
@@ -91,7 +91,7 @@ export default function CommandSetup() {
                   </DialogHeader>
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">이모티콘 *</label>
+                      <label className="block text-sm font-semibold text-foreground mb-2">이모티콘 *</label>
                       <Input
                         type="text"
                         value={newEmoji}
@@ -101,7 +101,7 @@ export default function CommandSetup() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">명령 이름 *</label>
+                      <label className="block text-sm font-semibold text-foreground mb-2">명령 이름 *</label>
                       <Input
                         type="text"
                         value={newLabel}
@@ -110,11 +110,11 @@ export default function CommandSetup() {
                         className="text-lg"
                       />
                     </div>
-                    <div className="p-6 bg-linear-to-br from-slate-50 to-slate-100 rounded-2xl">
-                      <div className="text-sm font-semibold text-slate-600 mb-3 text-center">미리보기</div>
+                    <div className="p-6 bg-muted rounded-2xl">
+                      <div className="text-sm font-semibold text-muted-foreground mb-3 text-center">미리보기</div>
                       <div className="flex flex-col items-center gap-3">
                         <span className="text-7xl">{newEmoji || "🎵"}</span>
-                        <span className="text-lg font-semibold text-slate-700">{newLabel || "명령 이름"}</span>
+                        <span className="text-lg font-semibold text-foreground">{newLabel || "명령 이름"}</span>
                       </div>
                     </div>
                   </div>
@@ -134,23 +134,20 @@ export default function CommandSetup() {
             {commands.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {commands.map((command) => (
-                  <Card
-                    key={command.id}
-                    className="bg-linear-to-br from-slate-50 to-slate-100 rounded-2xl p-6 shadow-md border-2 border-transparent"
-                  >
+                  <Card key={command.id} className="bg-muted rounded-2xl p-6 shadow-md border-2 border-transparent">
                     <CardContent className="p-0">
                       <div className="flex flex-col items-center gap-3 mb-3">
                         <span className="text-6xl">{command.emoji}</span>
-                        <span className="text-sm font-semibold text-slate-700 text-center">{command.label}</span>
+                        <span className="text-sm font-semibold text-foreground text-center">{command.label}</span>
                         {command.isDefault && (
-                          <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs font-semibold rounded-full">
+                          <span className="px-3 py-1 bg-accent text-accent-foreground text-xs font-semibold rounded-full">
                             기본 명령
                           </span>
                         )}
                       </div>
                       <ConfirmDialog
                         trigger={
-                          <Button variant="destructive" className="w-full border-2 border-red-200">
+                          <Button variant="destructive" className="w-full border-2 border-destructive/30">
                             <Trash2 className="w-4 h-4" />
                             <span className="text-sm font-semibold">삭제</span>
                           </Button>
@@ -166,21 +163,19 @@ export default function CommandSetup() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
-                <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Settings className="w-8 h-8 text-slate-400" />
+              <div className="text-center py-16 bg-muted rounded-xl border-2 border-dashed border-border">
+                <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Settings className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">아직 명령이 없습니다</h3>
-                <p className="text-slate-500 mb-6">새 명령을 추가하거나 초기화 버튼으로 기본 명령을 불러오세요</p>
+                <h3 className="text-lg font-semibold text-foreground mb-2">아직 명령이 없습니다</h3>
+                <p className="text-muted-foreground mb-6">
+                  새 명령을 추가하거나 초기화 버튼으로 기본 명령을 불러오세요
+                </p>
                 <div className="flex items-center justify-center gap-3">
                   <Button onClick={() => setDialogOpen(true)}>
                     <Plus className="w-5 h-5" />새 명령 추가
                   </Button>
-                  <Button
-                    variant="secondary"
-                    className="bg-orange-50 text-orange-600 hover:bg-orange-100"
-                    onClick={() => resetCommandsMutation.mutate()}
-                  >
+                  <Button variant="secondary" onClick={() => resetCommandsMutation.mutate()}>
                     <RotateCcw className="w-5 h-5" />
                     기본 명령 초기화
                   </Button>
@@ -191,9 +186,9 @@ export default function CommandSetup() {
         </Card>
 
         {/* 안내 */}
-        <div className="bg-linear-to-br from-blue-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-100">
-          <h3 className="font-bold text-slate-800 mb-2">명령 사용 안내</h3>
-          <ul className="space-y-2 text-sm text-slate-600">
+        <div className="bg-accent rounded-2xl p-6 border-2 border-border">
+          <h3 className="font-bold text-foreground mb-2">명령 사용 안내</h3>
+          <ul className="space-y-2 text-sm text-muted-foreground">
             <li>- 모든 명령을 삭제할 수 있으며, 삭제된 기본 명령은 초기화 시 복구됩니다</li>
             <li>- 커스텀 명령은 자유롭게 추가/삭제할 수 있습니다</li>
             <li>- 전송된 명령은 모든 세션 멤버에게 실시간으로 표시됩니다</li>

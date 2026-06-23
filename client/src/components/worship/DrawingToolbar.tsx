@@ -76,7 +76,7 @@ function DrawingToolbar({
     >
       <div className="overflow-hidden">
         <div
-          className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between"
+          className="bg-viewer-panel border-b border-viewer-border px-6 py-3 flex items-center justify-between"
           style={{
             opacity: isCompact ? 0 : 1,
             transform: isCompact ? "translateY(-100%)" : "translateY(0)",
@@ -96,8 +96,8 @@ function DrawingToolbar({
               className={cn(
                 "px-5 py-2.5 rounded-xl",
                 isDrawMode
-                  ? "bg-green-600 text-white shadow-lg hover:bg-green-700"
-                  : "bg-slate-700 text-slate-300 hover:bg-slate-600",
+                  ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                  : "bg-white/5 text-viewer-muted hover:bg-white/10",
               )}
             >
               {isDrawMode ? (
@@ -120,17 +120,17 @@ function DrawingToolbar({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="bg-slate-700 text-slate-300 hover:bg-slate-600 px-4 py-2.5 rounded-xl"
+                      className="bg-white/5 text-viewer-muted hover:bg-white/10 px-4 py-2.5 rounded-xl"
                     >
                       <Palette className="w-5 h-5" />
                       <span className="text-sm">도구</span>
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 bg-slate-800 border-slate-700 p-4" align="start">
+                  <PopoverContent className="w-80 bg-viewer-panel border-viewer-border p-4" align="start">
                     <div className="space-y-4">
                       {/* 색상 팔레트 */}
                       <div>
-                        <div className="text-xs font-semibold text-slate-400 mb-2">색상</div>
+                        <div className="text-xs font-semibold text-viewer-muted mb-2">색상</div>
                         <div className="flex items-center gap-2">
                           {penColors.map((pen) => (
                             <button
@@ -139,7 +139,7 @@ function DrawingToolbar({
                                 setSelectedColor(pen.value);
                                 setEraserType("none");
                               }}
-                              className={`w-10 h-10 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
+                              className={`w-11 h-11 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
                                 selectedColor === pen.value && eraserType === "none"
                                   ? `ring-4 scale-110 ${pen.value === "#ffffff" ? "ring-blue-400" : "ring-white"}`
                                   : ""
@@ -151,21 +151,21 @@ function DrawingToolbar({
 
                       {/* 펜 굵기 */}
                       <div>
-                        <div className="text-xs font-semibold text-slate-400 mb-2">펜 굵기</div>
-                        <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2 w-fit">
+                        <div className="text-xs font-semibold text-viewer-muted mb-2">펜 굵기</div>
+                        <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 w-fit">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
+                            className="min-h-11 min-w-11 hover:bg-white/10 text-viewer-muted rounded"
                             onClick={() => setPenWidth((p) => Math.max(p - 1, 1))}
                           >
                             <Minus className="w-4 h-4" />
                           </Button>
-                          <div className="text-slate-300 font-semibold min-w-7.5 text-center">{penWidth}</div>
+                          <div className="text-viewer-foreground font-semibold min-w-7.5 text-center">{penWidth}</div>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="p-1 h-auto w-auto hover:bg-slate-600 text-slate-300 rounded"
+                            className="min-h-11 min-w-11 hover:bg-white/10 text-viewer-muted rounded"
                             onClick={() => setPenWidth((p) => Math.min(p + 1, 20))}
                           >
                             <PlusIcon className="w-4 h-4" />
@@ -175,7 +175,7 @@ function DrawingToolbar({
 
                       {/* 지우개 */}
                       <div>
-                        <div className="text-xs font-semibold text-slate-400 mb-2">지우개</div>
+                        <div className="text-xs font-semibold text-viewer-muted mb-2">지우개</div>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
@@ -184,8 +184,8 @@ function DrawingToolbar({
                             className={cn(
                               "px-3 py-2.5 flex-1",
                               eraserType === "area"
-                                ? "bg-orange-600 text-white hover:bg-orange-700"
-                                : "bg-slate-700 text-slate-300 hover:bg-slate-600",
+                                ? "bg-white/15 text-viewer-foreground hover:bg-white/20"
+                                : "bg-white/5 text-viewer-muted hover:bg-white/10",
                             )}
                           >
                             <Eraser className="w-5 h-5" />
@@ -198,8 +198,8 @@ function DrawingToolbar({
                             className={cn(
                               "px-3 py-2.5 flex-1",
                               eraserType === "stroke"
-                                ? "bg-red-600 text-white hover:bg-red-700"
-                                : "bg-slate-700 text-slate-300 hover:bg-slate-600",
+                                ? "bg-white/15 text-viewer-foreground hover:bg-white/20"
+                                : "bg-white/5 text-viewer-muted hover:bg-white/10",
                             )}
                           >
                             <Trash className="w-5 h-5" />
@@ -211,21 +211,23 @@ function DrawingToolbar({
                       {/* 지우개 크기 (영역 선택 시) */}
                       {eraserType === "area" && (
                         <div>
-                          <div className="text-xs font-semibold text-slate-400 mb-2">지우개 크기</div>
-                          <div className="flex items-center gap-2 bg-orange-700 rounded-lg px-3 py-2 w-fit">
+                          <div className="text-xs font-semibold text-viewer-muted mb-2">지우개 크기</div>
+                          <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2 w-fit">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
+                              className="min-h-11 min-w-11 hover:bg-white/15 text-viewer-foreground rounded"
                               onClick={() => setEraserWidth((p) => Math.max(p - 2, 5))}
                             >
                               <Minus className="w-4 h-4" />
                             </Button>
-                            <div className="text-white font-semibold min-w-7.5 text-center">{eraserWidth}</div>
+                            <div className="text-viewer-foreground font-semibold min-w-7.5 text-center">
+                              {eraserWidth}
+                            </div>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="p-1 h-auto w-auto hover:bg-orange-600 text-white rounded"
+                              className="min-h-11 min-w-11 hover:bg-white/15 text-viewer-foreground rounded"
                               onClick={() => setEraserWidth((p) => Math.min(p + 2, 50))}
                             >
                               <PlusIcon className="w-4 h-4" />
@@ -236,12 +238,12 @@ function DrawingToolbar({
 
                       {/* 실행취소/다시실행 */}
                       <div>
-                        <div className="text-xs font-semibold text-slate-400 mb-2">실행취소</div>
+                        <div className="text-xs font-semibold text-viewer-muted mb-2">실행취소</div>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
+                            className="bg-white/5 hover:bg-white/10 text-viewer-muted flex-1"
                             onClick={() => undo()}
                           >
                             <Undo className="w-5 h-5" />
@@ -250,7 +252,7 @@ function DrawingToolbar({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="bg-slate-700 hover:bg-slate-600 text-slate-300 flex-1"
+                            className="bg-white/5 hover:bg-white/10 text-viewer-muted flex-1"
                             onClick={() => redo()}
                           >
                             <Redo className="w-5 h-5" />
@@ -265,7 +267,7 @@ function DrawingToolbar({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
+                  className="bg-white/5 hover:bg-white/10 text-viewer-muted min-h-11 min-w-11"
                   onClick={() => undo()}
                 >
                   <Undo className="w-5 h-5" />
@@ -273,7 +275,7 @@ function DrawingToolbar({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="bg-slate-700 hover:bg-slate-600 text-slate-300 p-2.5"
+                  className="bg-white/5 hover:bg-white/10 text-viewer-muted min-h-11 min-w-11"
                   onClick={() => redo()}
                 >
                   <Redo className="w-5 h-5" />
@@ -301,8 +303,8 @@ function DrawingToolbar({
               className={cn(
                 "px-5 py-2.5 rounded-xl",
                 showCommandPanel
-                  ? "bg-purple-600 text-white shadow-lg hover:bg-purple-700"
-                  : "bg-slate-700 text-slate-300 hover:bg-slate-600",
+                  ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                  : "bg-white/5 text-viewer-muted hover:bg-white/10",
               )}
             >
               명령 패널

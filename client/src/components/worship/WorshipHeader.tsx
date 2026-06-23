@@ -37,7 +37,7 @@ function WorshipHeader({
     >
       <div className="overflow-hidden">
         <header
-          className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between"
+          className="bg-viewer-panel border-b border-viewer-border px-6 py-4 flex items-center justify-between"
           style={{
             opacity: isCompact ? 0 : 1,
             transform: isCompact ? "translateY(-100%)" : "translateY(0)",
@@ -46,16 +46,21 @@ function WorshipHeader({
           inert={isCompact}
         >
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="hover:bg-slate-700 text-slate-300" asChild>
+            <Button variant="ghost" size="icon" className="hover:bg-white/10 text-viewer-muted" asChild>
               <Link to="/worship-list">
                 <ArrowLeft className="w-6 h-6" />
               </Link>
             </Button>
-            <Button variant="ghost" size="icon" className="hover:bg-slate-700 text-slate-300" onClick={onToggleSidebar}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hover:bg-white/10 text-viewer-muted"
+              onClick={onToggleSidebar}
+            >
               <Menu className="w-6 h-6" />
             </Button>
-            <div className="h-8 w-px bg-slate-600" />
-            <h1 className="text-xl font-bold text-white">{worshipTitle || "예배"}</h1>
+            <div className="h-8 w-px bg-viewer-border" />
+            <h1 className="text-xl font-bold text-viewer-foreground">{worshipTitle || "예배"}</h1>
           </div>
 
           <div className="flex items-center gap-3">
@@ -66,7 +71,7 @@ function WorshipHeader({
                 <span className="text-xs font-medium text-red-400">연결 끊김</span>
               </div>
             )}
-            <Button variant="ghost" size="sm" className="bg-slate-700 text-slate-300 hover:bg-slate-600" asChild>
+            <Button variant="ghost" size="sm" className="bg-white/5 text-viewer-muted hover:bg-white/10" asChild>
               <Link to={`/worship-edit/${worshipId}`}>
                 <Edit className="w-5 h-5" />
                 <span>편집</span>
@@ -78,23 +83,23 @@ function WorshipHeader({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="bg-slate-700 text-slate-300 hover:bg-slate-600 cursor-pointer"
+                  className="bg-white/5 text-viewer-muted hover:bg-white/10 cursor-pointer"
                 >
                   <Users className="w-5 h-5" />
                   <span>{presenceUsers.length}명 접속</span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 bg-slate-800 border-slate-700 p-0" align="end">
-                <div className="p-3 border-b border-slate-700">
-                  <h3 className="text-sm font-semibold text-white">접속 중인 사용자</h3>
+              <PopoverContent className="w-64 bg-viewer-panel border-viewer-border p-0" align="end">
+                <div className="p-3 border-b border-viewer-border">
+                  <h3 className="text-sm font-semibold text-viewer-foreground">접속 중인 사용자</h3>
                 </div>
                 <div className="p-2 max-h-60 overflow-y-auto">
                   {presenceUsers.map((user) => (
                     <div key={user.profileId} className="flex items-center gap-3 px-2 py-2 rounded-lg">
                       <span className="text-lg">{user.roleIcon}</span>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate">{user.name}</div>
-                        <div className="text-xs text-slate-400">{user.role}</div>
+                        <div className="text-sm font-medium text-viewer-foreground truncate">{user.name}</div>
+                        <div className="text-xs text-viewer-muted">{user.role}</div>
                       </div>
                     </div>
                   ))}

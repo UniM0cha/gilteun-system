@@ -259,7 +259,7 @@ export default function Worship() {
   );
 
   return (
-    <div className="h-dvh flex flex-col bg-slate-900">
+    <div className="h-dvh flex flex-col bg-viewer-bg">
       <WorshipHeader
         worshipTitle={worshipData?.title}
         worshipId={id}
@@ -292,7 +292,7 @@ export default function Worship() {
 
         {/* 중앙 악보 뷰어 */}
         <main
-          className="flex-1 flex flex-col bg-slate-900"
+          className="flex-1 flex flex-col bg-viewer-bg"
           style={isDrawMode ? { touchAction: "none", overscrollBehaviorX: "none" } : undefined}
         >
           <DrawingToolbar
@@ -366,10 +366,10 @@ export default function Worship() {
                     profileId={currentProfileId || ""}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                  <div className="w-full h-full flex items-center justify-center bg-muted">
                     <div className="text-center">
-                      <Upload className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                      <p className="text-slate-500 text-lg">악보를 업로드하세요</p>
+                      <Upload className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground text-lg">악보를 업로드하세요</p>
                     </div>
                   </div>
                 )}

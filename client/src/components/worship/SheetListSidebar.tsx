@@ -34,7 +34,7 @@ function SheetListSidebar({
       initial={false}
       animate={show ? { width: "16rem", opacity: 1, x: 0 } : { width: "0rem", opacity: 0, x: -12 }}
       transition={reducedMotion ? { duration: 0 } : panelTransition}
-      className={cn("shrink-0 bg-slate-800 overflow-hidden", show && "border-r border-slate-700")}
+      className={cn("shrink-0 bg-viewer-panel overflow-hidden", show && "border-r border-viewer-border")}
       style={{ pointerEvents: show ? "auto" : "none" }}
     >
       {/* 좌측은 첫 flex 항목이라 콘텐츠가 화면 끝에 고정됨 → 내부 독립 translate를
@@ -46,7 +46,7 @@ function SheetListSidebar({
         transition={reducedMotion ? { duration: 0 } : panelContentTransition}
         className="w-64 h-full overflow-y-auto p-4 box-border"
       >
-        <h2 className="text-lg font-bold text-white mb-4">악보 목록</h2>
+        <h2 className="text-lg font-bold text-viewer-foreground mb-4">악보 목록</h2>
 
         {sheets.length > 0 ? (
           <div className="space-y-2">
@@ -58,8 +58,8 @@ function SheetListSidebar({
                   onClick={() => onSelectPage(index)}
                   className={`w-full text-left p-4 rounded-xl cursor-pointer transition-colors ${
                     currentSheetId === sheet.id
-                      ? "bg-blue-600 text-white shadow-lg"
-                      : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-white/5 text-viewer-muted hover:bg-white/10"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -76,7 +76,7 @@ function SheetListSidebar({
                           </span>
                         ))}
                         {usersOnSheet.length > 3 && (
-                          <span className="text-xs text-slate-400 ml-1">+{usersOnSheet.length - 3}</span>
+                          <span className="text-xs text-viewer-muted ml-1">+{usersOnSheet.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -86,10 +86,10 @@ function SheetListSidebar({
             })}
           </div>
         ) : (
-          <div className="text-center py-12 bg-slate-700 rounded-xl">
-            <FileMusic className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-            <p className="text-slate-400 text-sm mb-4">악보가 없습니다</p>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" asChild>
+          <div className="text-center py-12 bg-white/5 rounded-xl">
+            <FileMusic className="w-12 h-12 text-viewer-muted mx-auto mb-3" />
+            <p className="text-viewer-muted text-sm mb-4">악보가 없습니다</p>
+            <Button size="sm" asChild>
               <Link to={`/worship-edit/${worshipId}`}>
                 <Edit className="w-4 h-4" />
                 편집 페이지에서 추가

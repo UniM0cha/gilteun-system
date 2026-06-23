@@ -19,15 +19,15 @@ export default function PinLock() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center p-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-8">
       <Card className="rounded-3xl w-full max-w-sm">
         <CardContent className="p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-slate-600" />
+            <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-800 mb-2">길튼 시스템</h1>
-            <p className="text-slate-500">PIN을 입력해주세요</p>
+            <h1 className="text-2xl font-bold text-foreground mb-2">길튼 시스템</h1>
+            <p className="text-muted-foreground">PIN을 입력해주세요</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

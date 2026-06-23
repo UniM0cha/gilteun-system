@@ -13,7 +13,7 @@ export default function ProfileSetup() {
   const getRoleById = (roleId: string) => roles.find((r) => r.id === roleId);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" asChild>
@@ -22,8 +22,8 @@ export default function ProfileSetup() {
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-slate-800">프로필 관리</h1>
-            <p className="text-slate-600">프로필을 추가하거나 수정하세요</p>
+            <h1 className="text-3xl font-bold text-foreground">프로필 관리</h1>
+            <p className="text-muted-foreground">프로필을 추가하거나 수정하세요</p>
           </div>
           <Button asChild>
             <Link to="/profile-setup/new">
@@ -32,15 +32,15 @@ export default function ProfileSetup() {
           </Button>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl p-8">
-          <h2 className="text-xl font-bold text-slate-800 mb-6">프로필 목록 ({profiles.length}개)</h2>
+        <div className="bg-card rounded-3xl shadow-xl p-8">
+          <h2 className="text-xl font-bold text-foreground mb-6">프로필 목록 ({profiles.length}개)</h2>
 
           {profiles.length > 0 ? (
             <div className="space-y-3">
               {profiles.map((profile) => (
                 <div
                   key={profile.id}
-                  className="flex items-center justify-between p-5 bg-linear-to-r from-slate-50 to-slate-100 rounded-xl hover:shadow-md transition-all border-2 border-transparent hover:border-blue-200"
+                  className="flex items-center justify-between p-5 bg-muted rounded-xl hover:shadow-md transition-all border-2 border-transparent hover:border-primary/40"
                 >
                   <div className="flex items-center gap-4">
                     <div
@@ -49,7 +49,7 @@ export default function ProfileSetup() {
                       {getRoleById(profile.roleId)?.icon}
                     </div>
                     <div>
-                      <div className="font-bold text-lg text-slate-800">{profile.name}</div>
+                      <div className="font-bold text-lg text-foreground">{profile.name}</div>
                       <Badge variant="secondary" className="mt-1">
                         {getRoleById(profile.roleId)?.name}
                       </Badge>
@@ -77,12 +77,12 @@ export default function ProfileSetup() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
-              <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <User className="w-8 h-8 text-slate-400" />
+            <div className="text-center py-16 bg-muted rounded-xl border-2 border-dashed border-border">
+              <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <User className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-700 mb-2">아직 프로필이 없습니다</h3>
-              <p className="text-slate-500 mb-6">새 프로필 버튼을 눌러 프로필을 만드세요</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">아직 프로필이 없습니다</h3>
+              <p className="text-muted-foreground mb-6">새 프로필 버튼을 눌러 프로필을 만드세요</p>
               <Button asChild>
                 <Link to="/profile-setup/new">
                   <Plus className="w-5 h-5" />새 프로필 추가

@@ -58,7 +58,7 @@ export default function ProfileEdit() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" asChild>
@@ -67,8 +67,8 @@ export default function ProfileEdit() {
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-slate-800">{isNewProfile ? "새 프로필 추가" : "프로필 수정"}</h1>
-            <p className="text-slate-600">프로필 정보를 입력하세요</p>
+            <h1 className="text-3xl font-bold text-foreground">{isNewProfile ? "새 프로필 추가" : "프로필 수정"}</h1>
+            <p className="text-muted-foreground">프로필 정보를 입력하세요</p>
           </div>
         </div>
 
@@ -80,15 +80,15 @@ export default function ProfileEdit() {
                 <div className={`w-32 h-32 ${color} rounded-3xl flex items-center justify-center text-7xl shadow-xl`}>
                   {getRoleById(roleId)?.icon}
                 </div>
-                <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-lg">
-                  <User className="w-6 h-6 text-slate-600" />
+                <div className="absolute -bottom-2 -right-2 bg-card rounded-full p-2 shadow-lg">
+                  <User className="w-6 h-6 text-muted-foreground" />
                 </div>
               </div>
             </div>
 
             {/* 이름 */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">이름 *</label>
+              <label className="block text-sm font-semibold text-foreground mb-2">이름 *</label>
               <Input
                 type="text"
                 value={name}
@@ -100,7 +100,7 @@ export default function ProfileEdit() {
 
             {/* 역할 선택 */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-3">역할 *</label>
+              <label className="block text-sm font-semibold text-foreground mb-3">역할 *</label>
               {roles.length > 0 ? (
                 <div className="grid grid-cols-3 gap-3">
                   {roles.map((role) => (
@@ -109,8 +109,8 @@ export default function ProfileEdit() {
                       onClick={() => setRoleId(role.id)}
                       className={`flex items-center justify-center gap-2 py-4 rounded-xl font-semibold transition-all ${
                         roleId === role.id
-                          ? "bg-blue-600 text-white shadow-lg scale-105"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                          : "bg-muted text-foreground hover:bg-secondary"
                       }`}
                     >
                       <span className="text-2xl">{role.icon}</span>
@@ -137,7 +137,7 @@ export default function ProfileEdit() {
 
             {/* 색상 선택 */}
             <div className="mb-8">
-              <label className="block text-sm font-semibold text-slate-700 mb-3">배경 색상</label>
+              <label className="block text-sm font-semibold text-foreground mb-3">배경 색상</label>
               <div className="grid grid-cols-6 gap-3">
                 {PROFILE_COLORS.map((c) => (
                   <button

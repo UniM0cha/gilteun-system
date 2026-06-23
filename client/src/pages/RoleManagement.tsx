@@ -59,7 +59,7 @@ export default function RoleManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="outline" size="icon" asChild>
@@ -68,8 +68,8 @@ export default function RoleManagement() {
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-slate-800">역할 관리</h1>
-            <p className="text-slate-600">팀원의 역할을 추가하고 관리하세요</p>
+            <h1 className="text-3xl font-bold text-foreground">역할 관리</h1>
+            <p className="text-muted-foreground">팀원의 역할을 추가하고 관리하세요</p>
           </div>
           {!isAdding && !editingId && (
             <Button onClick={() => setIsAdding(true)}>
@@ -80,12 +80,12 @@ export default function RoleManagement() {
 
         {/* 추가 폼 */}
         {isAdding && (
-          <Card className="mb-6 border-2 border-blue-200">
+          <Card className="mb-6 border-2 border-border">
             <CardContent>
-              <h3 className="text-lg font-bold text-slate-800 mb-4">새 역할 추가</h3>
+              <h3 className="text-lg font-bold text-foreground mb-4">새 역할 추가</h3>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">역할 이름</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">역할 이름</label>
                   <Input
                     type="text"
                     value={formData.name}
@@ -94,7 +94,7 @@ export default function RoleManagement() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">이모지 아이콘</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">이모지 아이콘</label>
                   <Input
                     type="text"
                     value={formData.icon}
@@ -127,7 +127,7 @@ export default function RoleManagement() {
                 <Card
                   key={role.id}
                   className={
-                    isEditing ? "border-2 border-blue-200" : "border-2 border-transparent hover:border-blue-100"
+                    isEditing ? "border-2 border-border" : "border-2 border-transparent hover:border-primary/40"
                   }
                 >
                   <CardContent>
@@ -135,7 +135,7 @@ export default function RoleManagement() {
                       <div>
                         <div className="grid grid-cols-2 gap-4 mb-4">
                           <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">역할 이름</label>
+                            <label className="block text-sm font-semibold text-foreground mb-2">역할 이름</label>
                             <Input
                               type="text"
                               value={formData.name}
@@ -143,7 +143,7 @@ export default function RoleManagement() {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">이모지 아이콘</label>
+                            <label className="block text-sm font-semibold text-foreground mb-2">이모지 아이콘</label>
                             <Input
                               type="text"
                               value={formData.icon}
@@ -165,13 +165,13 @@ export default function RoleManagement() {
                     ) : (
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-3xl shadow-md">
+                          <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center text-3xl shadow-sm">
                             {role.icon}
                           </div>
                           <div>
-                            <h3 className="text-xl font-bold text-slate-800">{role.name}</h3>
+                            <h3 className="text-xl font-bold text-foreground">{role.name}</h3>
                             {inUse && (
-                              <div className="flex items-center gap-1 text-sm text-blue-600 mt-1">
+                              <div className="flex items-center gap-1 text-sm text-primary mt-1">
                                 <AlertCircle className="w-4 h-4" />
                                 사용 중
                               </div>
@@ -183,7 +183,12 @@ export default function RoleManagement() {
                             <Edit className="w-5 h-5" />
                           </Button>
                           {inUse ? (
-                            <Button variant="ghost" size="icon" disabled className="text-slate-400 cursor-not-allowed">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled
+                              className="text-muted-foreground cursor-not-allowed"
+                            >
                               <Trash2 className="w-5 h-5" />
                             </Button>
                           ) : (
@@ -209,12 +214,12 @@ export default function RoleManagement() {
             })}
           </div>
         ) : (
-          <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
-            <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-slate-400" />
+          <div className="text-center py-16 bg-muted rounded-xl border-2 border-dashed border-border">
+            <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-700 mb-2">아직 역할이 없습니다</h3>
-            <p className="text-slate-500 mb-6">새 역할 추가 버튼을 눌러 역할을 만드세요</p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">아직 역할이 없습니다</h3>
+            <p className="text-muted-foreground mb-6">새 역할 추가 버튼을 눌러 역할을 만드세요</p>
             <Button onClick={() => setIsAdding(true)}>
               <Plus className="w-5 h-5" />새 역할 추가
             </Button>
@@ -222,10 +227,10 @@ export default function RoleManagement() {
         )}
 
         {roles.length > 0 && (
-          <Card className="mt-6 bg-linear-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
+          <Card className="mt-6 bg-accent border-2 border-border">
             <CardContent>
-              <div className="text-sm font-semibold text-blue-700 mb-1">전체 역할</div>
-              <div className="text-3xl font-bold text-blue-900">{roles.length}개</div>
+              <div className="text-sm font-semibold text-accent-foreground mb-1">전체 역할</div>
+              <div className="text-3xl font-bold text-accent-foreground">{roles.length}개</div>
             </CardContent>
           </Card>
         )}
