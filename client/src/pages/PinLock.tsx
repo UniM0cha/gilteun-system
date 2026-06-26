@@ -19,7 +19,7 @@ export default function PinLock() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-8">
       <Card className="rounded-3xl w-full max-w-sm">
         <CardContent className="p-8">
           <div className="text-center mb-8">

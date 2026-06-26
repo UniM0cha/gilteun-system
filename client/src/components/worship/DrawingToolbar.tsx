@@ -76,7 +76,7 @@ function DrawingToolbar({
     >
       <div className="overflow-hidden">
         <div
-          className="bg-viewer-panel border-b border-viewer-border px-6 py-3 flex items-center justify-between"
+          className="bg-viewer-panel border-b border-viewer-border px-3 sm:px-6 py-3 flex items-center justify-between gap-2 overflow-x-auto"
           style={{
             opacity: isCompact ? 0 : 1,
             transform: isCompact ? "translateY(-100%)" : "translateY(0)",

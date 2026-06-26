@@ -185,6 +185,8 @@ export default function Worship() {
 
   const shouldReduceMotion = useReducedMotion();
   const isLargeScreen = useMediaQuery("(min-width: 64rem)");
+  // 폰(< md): 좌/우 패널을 밀어내기 대신 오버레이 드로어로 동작시킨다.
+  const isMobile = !useMediaQuery("(min-width: 48rem)");
   const commandPanelWidth = isLargeScreen ? "20rem" : "11rem";
 
   const {
@@ -235,8 +237,21 @@ export default function Worship() {
     toast.success("현재 페이지를 호출했습니다");
   }, [id, currentProfileId, currentSheet, socket]);
 
-  const handleToggleSidebar = useCallback(() => setShowSidebar((s) => !s), []);
-  const handleToggleCommandPanel = useCallback(() => setShowCommandPanel((s) => !s), []);
+  // 모바일에선 한 쪽 드로어만 — 하나를 열면 다른 하나를 닫는다.
+  const handleToggleSidebar = useCallback(() => {
+    setShowSidebar((s) => {
+      const next = !s;
+      if (next && isMobile) setShowCommandPanel(false);
+      return next;
+    });
+  }, [isMobile]);
+  const handleToggleCommandPanel = useCallback(() => {
+    setShowCommandPanel((s) => {
+      const next = !s;
+      if (next && isMobile) setShowSidebar(false);
+      return next;
+    });
+  }, [isMobile]);
 
   const drawingTool: DrawingToolState = useMemo(
     () => ({ isDrawMode, selectedColor, penWidth, eraserType, eraserWidth, toolPopoverOpen }),
@@ -271,17 +286,28 @@ export default function Worship() {
         onToggleSidebar={handleToggleSidebar}
       />
 
-      {/* 컴팩트 모드: 연결 끊김 시 플로팅 인디케이터 */}
-      {isCompact && !isConnected && (
+      {/* 컴팩트 모드 또는 모바일(헤더 칩 숨김): 연결 끊김 시 플로팅 인디케이터 */}
+      {(isCompact || isMobile) && !isConnected && (
         <div className="absolute top-3 right-3 z-50 flex items-center gap-2 px-3 py-1.5 bg-red-600/20 border border-red-500/30 rounded-lg backdrop-blur-sm">
           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           <span className="text-xs font-medium text-red-400">연결 끊김</span>
         </div>
       )}
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* 모바일: 패널 열림 시 배경을 탭하면 닫힘 */}
+        {isMobile && (showSidebar || showCommandPanel) && (
+          <div
+            className="absolute inset-0 z-30 bg-black/40"
+            onClick={() => {
+              setShowSidebar(false);
+              setShowCommandPanel(false);
+            }}
+          />
+        )}
         <SheetListSidebar
           show={showSidebar}
+          isMobile={isMobile}
           reducedMotion={!!shouldReduceMotion}
           sheets={sheets}
           currentSheetId={currentSheetId}
@@ -415,6 +441,7 @@ export default function Worship() {
 
         <CommandPanel
           show={showCommandPanel}
+          isMobile={isMobile}
           width={commandPanelWidth}
           reducedMotion={!!shouldReduceMotion}
           commands={commands}

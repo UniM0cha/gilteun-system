@@ -30,7 +30,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
         <div className="relative text-center mb-12">
@@ -46,8 +46,8 @@ export default function Home() {
             </Button>
           )}
           <img src="/pwa-192x192.png" alt="길튼 시스템" className="mx-auto w-24 h-24 rounded-3xl mb-6 shadow-sm" />
-          <h1 className="text-5xl font-bold text-foreground mb-3 tracking-tight">길튼 시스템</h1>
-          <p className="text-xl text-muted-foreground">예배 찬양 지원 시스템</p>
+          <h1 className="text-3xl sm:text-5xl font-bold text-foreground mb-3 tracking-tight">길튼 시스템</h1>
+          <p className="text-base sm:text-xl text-muted-foreground">예배 찬양 지원 시스템</p>
         </div>
 
         {/* 프로필 선택 */}

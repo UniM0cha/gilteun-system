@@ -123,7 +123,7 @@ function SortableSheetItem({
         </div>
 
         {/* 제목 편집 영역 */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           {isEditing ? (
             <div className="space-y-2">
               <Input
@@ -173,7 +173,7 @@ function SortableSheetItem({
           )}
         </div>
 
-        <div className="text-2xl font-bold text-muted-foreground min-w-10 text-center">{index + 1}</div>
+        <div className="text-2xl font-bold text-muted-foreground min-w-10 shrink-0 text-center">{index + 1}</div>
 
         {!isEditing && (
           <ConfirmDialog
@@ -391,20 +391,23 @@ export default function WorshipEdit() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-5xl mx-auto">
         {/* 헤더 */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <Button variant="outline" size="icon" className="shrink-0" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-6 h-6" />
           </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">{isNew ? "새 예배 만들기" : "예배 편집"}</h1>
-            <p className="text-muted-foreground">예배 정보와 악보를 관리하세요</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">
+              {isNew ? "새 예배 만들기" : "예배 편집"}
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground">예배 정보와 악보를 관리하세요</p>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving} className="shrink-0">
             <Save className="w-5 h-5" />
-            {saving ? "저장 중..." : "저장하기"}
+            <span className="hidden sm:inline">{saving ? "저장 중..." : "저장하기"}</span>
+            <span className="sm:hidden">{saving ? "저장 중" : "저장"}</span>
           </Button>
         </div>
 
@@ -490,14 +493,14 @@ export default function WorshipEdit() {
         {/* 악보 업로드 섹션 */}
         <Card className="mb-6">
           <CardContent>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
               <div>
                 <h2 className="text-xl font-bold text-foreground">악보 관리</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   드래그하여 순서를 변경하거나 제목을 수정할 수 있습니다
                 </p>
               </div>
-              <Button onClick={() => fileInputRef.current?.click()}>
+              <Button onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
                 <Upload className="w-5 h-5" />
                 악보 추가
               </Button>
@@ -573,30 +576,6 @@ export default function WorshipEdit() {
             )}
           </CardContent>
         </Card>
-
-        {/* 통계 카드 */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card className="bg-accent shadow-none">
-            <CardContent>
-              <div className="text-sm font-semibold text-accent-foreground mb-1">총 악보</div>
-              <div className="text-3xl font-bold text-primary">{sheets.length}개</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-accent shadow-none">
-            <CardContent>
-              <div className="text-sm font-semibold text-accent-foreground mb-1">예배 날짜</div>
-              <div className="text-xl font-bold text-primary">{date || "미정"}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-accent shadow-none">
-            <CardContent>
-              <div className="text-sm font-semibold text-accent-foreground mb-1">상태</div>
-              <div className="text-xl font-bold text-primary">
-                {title && date && sheets.length > 0 ? "준비완료" : "작성중"}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );

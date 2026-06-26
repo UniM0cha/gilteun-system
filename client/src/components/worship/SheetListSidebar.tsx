@@ -9,6 +9,7 @@ import { panelTransition, panelContentTransition } from "./panelMotion";
 
 interface SheetListSidebarProps {
   show: boolean;
+  isMobile: boolean;
   reducedMotion: boolean;
   sheets: Sheet[];
   currentSheetId: string | null;
@@ -18,8 +19,10 @@ interface SheetListSidebarProps {
 }
 
 // 좌측 악보 리스트 (슬라이드 인/아웃 + 접속자 표시).
+// 폰(isMobile)에선 밀어내기 대신 좌측 오버레이 드로어로 동작한다.
 function SheetListSidebar({
   show,
+  isMobile,
   reducedMotion,
   sheets,
   currentSheetId,
@@ -32,9 +35,20 @@ function SheetListSidebar({
       aria-hidden={!show}
       inert={!show}
       initial={false}
-      animate={show ? { width: "16rem", opacity: 1, x: 0 } : { width: "0rem", opacity: 0, x: -12 }}
+      animate={
+        isMobile
+          ? { x: show ? 0 : "-100%", width: "16rem", opacity: 1 }
+          : show
+            ? { width: "16rem", opacity: 1, x: 0 }
+            : { width: "0rem", opacity: 0, x: -12 }
+      }
       transition={reducedMotion ? { duration: 0 } : panelTransition}
-      className={cn("shrink-0 bg-viewer-panel overflow-hidden", show && "border-r border-viewer-border")}
+      className={cn(
+        "bg-viewer-panel overflow-hidden",
+        isMobile
+          ? "absolute inset-y-0 left-0 z-40 w-64 border-r border-viewer-border shadow-2xl"
+          : cn("shrink-0", show && "border-r border-viewer-border"),
+      )}
       style={{ pointerEvents: show ? "auto" : "none" }}
     >
       {/* 좌측은 첫 flex 항목이라 콘텐츠가 화면 끝에 고정됨 → 내부 독립 translate를
