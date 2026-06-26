@@ -1,0 +1,39 @@
+name: Claude Code Review
+
+# PR이 열리거나(또는 draft -> ready 전환, 재오픈) 될 때 Claude가 자동으로 코드 리뷰를 남긴다.
+# (push마다 재리뷰하지 않도록 synchronize는 제외 — 필요하면 PR에 "@claude review" 코멘트로 수동 트리거)
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    # 드래프트 PR은 리뷰하지 않음
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 한국어로 리뷰하고, 실제로 고칠 가치가 있는 것만 지적한다.
+          prompt: |
+            이 풀 리퀘스트를 코드 리뷰해 주세요. 리뷰는 한국어로 작성합니다.
+            다음을 중점적으로 봐주세요:
+            - 버그·로직 오류, 엣지 케이스, 경쟁 상태
+            - 보안 취약점(입력 검증, 인증/인가, 비밀값 노출)
+            - 성능 문제 및 불필요한 리렌더
+            - 테스트 누락
+            - 저장소 루트의 CLAUDE.md / client/CLAUDE.md 규칙 위반(특히 좌표 정규화·DPR, 프로필 가드, 화이트보드 드로잉 원칙)
+            확실한 문제는 해당 코드 줄에 인라인 코멘트로, 전반 요약은 PR 코멘트로 남겨주세요.
+            사소한 스타일 지적은 피하고, 우선순위(P1/P2/P3)를 함께 표기하세요.
+          claude_args: "--max-turns 15"
+          track_progress: true
