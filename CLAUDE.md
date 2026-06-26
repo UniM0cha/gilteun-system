@@ -3,6 +3,7 @@
 ## Git
 
 - 커밋 메시지에 `Co-Authored-By` 태그 절대 붙이지 않기
+- PR 본문/설명에 `🤖 Generated with Claude Code` 등 Claude Code 생성 표기·서명 붙이지 않기
 - `develop` 브랜치에서 개발 → `main`에 머지/push 시 Railway 자동 배포
 - 평소 작업은 `develop`에서 진행할 것
 

@@ -1,0 +1,68 @@
+name: Claude Code Review
+
+# - PR이 열리거나(draft -> ready 전환, 재오픈) 될 때 Claude가 자동으로 코드 리뷰를 남긴다.
+# - PR 코멘트에 "@claude ..."(예: "@claude review")를 남기면 수동으로 재리뷰/질문을 트리거한다.
+#   (GitHub은 PR 대화 코멘트를 issue_comment 이벤트로 전달하므로 해당 트리거가 필요)
+# - push마다 재리뷰하지 않도록 pull_request synchronize는 일부러 제외했다.
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  id-token: write
+
+jobs:
+  # PR open/ready/reopen 시 자동 코드 리뷰 (draft 제외)
+  auto-review:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # 한국어로 리뷰하고, 실제로 고칠 가치가 있는 것만 지적한다.
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            이 풀 리퀘스트를 코드 리뷰해 주세요. 리뷰는 한국어로 작성합니다.
+            다음을 중점적으로 봐주세요:
+            - 버그·로직 오류, 엣지 케이스, 경쟁 상태
+            - 보안 취약점(입력 검증, 인증/인가, 비밀값 노출)
+            - 성능 문제 및 불필요한 리렌더
+            - 테스트 누락
+            - 저장소 루트의 CLAUDE.md / client/CLAUDE.md 규칙 위반(특히 좌표 정규화·DPR, 프로필 가드, 화이트보드 드로잉 원칙)
+            확실한 문제는 `mcp__github_inline_comment__create_inline_comment` 로 해당 코드 줄에
+            **인라인 코멘트**를 남기고, 전반 요약은 PR 상단 코멘트로 남겨주세요.
+            사소한 스타일 지적은 피하고, 우선순위(P1/P2/P3)를 함께 표기하세요.
+          # 인라인 코멘트 도구는 자동 리뷰 경로에서 기본 비활성이라 명시 허용해야 한다.
+          claude_args: |
+            --max-turns 15
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+          track_progress: true
+
+  # PR 코멘트에 "@claude" 멘션이 있으면 수동 트리거(재리뷰·질문·수정 요청)
+  mention:
+    if: >
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--max-turns 15"
