@@ -1,20 +1,25 @@
 name: Claude Code Review
 
-# PR이 열리거나(또는 draft -> ready 전환, 재오픈) 될 때 Claude가 자동으로 코드 리뷰를 남긴다.
-# (push마다 재리뷰하지 않도록 synchronize는 제외 — 필요하면 PR에 "@claude review" 코멘트로 수동 트리거)
+# - PR이 열리거나(draft -> ready 전환, 재오픈) 될 때 Claude가 자동으로 코드 리뷰를 남긴다.
+# - PR 코멘트에 "@claude ..."(예: "@claude review")를 남기면 수동으로 재리뷰/질문을 트리거한다.
+#   (GitHub은 PR 대화 코멘트를 issue_comment 이벤트로 전달하므로 해당 트리거가 필요)
+# - push마다 재리뷰하지 않도록 pull_request synchronize는 일부러 제외했다.
 on:
   pull_request:
     types: [opened, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
   pull-requests: write
+  issues: read
   id-token: write
 
 jobs:
-  review:
-    # 드래프트 PR은 리뷰하지 않음
-    if: github.event.pull_request.draft == false
+  # PR open/ready/reopen 시 자동 코드 리뷰 (draft 제외)
+  auto-review:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,3 +42,20 @@ jobs:
             사소한 스타일 지적은 피하고, 우선순위(P1/P2/P3)를 함께 표기하세요.
           claude_args: "--max-turns 15"
           track_progress: true
+
+  # PR 코멘트에 "@claude" 멘션이 있으면 수동 트리거(재리뷰·질문·수정 요청)
+  mention:
+    if: >
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--max-turns 15"
