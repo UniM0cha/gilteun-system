@@ -160,18 +160,7 @@ function SortableSheetItem({
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <div className="flex-1 min-w-0 font-semibold text-foreground line-clamp-2">{sheet.title}</div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onEdit(sheet.id, sheet.title)}
-                  title="제목 수정"
-                  className="min-h-11 min-w-11 shrink-0 text-primary hover:bg-accent"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </Button>
-              </div>
+              <div className="font-semibold text-foreground line-clamp-2">{sheet.title}</div>
               <div className="text-sm text-muted-foreground mt-1 truncate">{sheet.fileName}</div>
             </>
           )}
@@ -181,19 +170,35 @@ function SortableSheetItem({
           {index + 1}
         </div>
 
+        {/* 수정·삭제 액션 묶음 — 같은 행 직계 자식 + 동일 크기로 세로 정렬 일치 */}
         {!isEditing && (
-          <ConfirmDialog
-            trigger={
-              <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
-                <Trash2 className="w-5 h-5" />
-              </Button>
-            }
-            title="악보 삭제"
-            description="이 악보를 삭제하시겠습니까?"
-            confirmLabel="삭제"
-            onConfirm={() => onDelete(sheet.id)}
-            destructive
-          />
+          <div className="flex items-center shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onEdit(sheet.id, sheet.title)}
+              title="제목 수정"
+              className="min-h-11 min-w-11 text-primary hover:bg-accent"
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+            <ConfirmDialog
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="min-h-11 min-w-11 text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              }
+              title="악보 삭제"
+              description="이 악보를 삭제하시겠습니까?"
+              confirmLabel="삭제"
+              onConfirm={() => onDelete(sheet.id)}
+              destructive
+            />
+          </div>
         )}
       </div>
     </div>
