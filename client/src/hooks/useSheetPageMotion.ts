@@ -156,13 +156,15 @@ export function useSheetPageMotion({
     const w = widthRef.current;
     stopAnimation();
     const newX = x.get() + dir * w;
-    baseOffsetRef.current = newX;
     committedPageRef.current = target;
     inFlightRef.current = null;
     resetPreview();
     setIsAnimating(false);
-    x.set(newX);
+    // 부모 commitPage가 cancelPageMotion으로 x/baseOffset을 0으로 되돌리므로,
+    // 재앵커(baseOffset/x = newX)는 반드시 onCommitPage "후"에 적용해야 점프가 안 생긴다.
     onCommitPage(target);
+    baseOffsetRef.current = newX;
+    x.set(newX);
   }, [stopAnimation, x, resetPreview, onCommitPage]);
 
   // 버튼/프로그램 내비용: 진행 중 커밋을 즉시 홈으로 마무리(작은 스냅 허용).
@@ -304,13 +306,13 @@ export function useSheetPageMotion({
         if (Math.abs(mx) > CLICK_DRAG_THRESHOLD) {
           markSuppressNextClick();
         }
-        if (intendedTarget !== activeTargetPage) {
-          setActiveTargetPage(intendedTarget);
-        }
-        if (intendedDir !== activeDirection) {
-          directionRef.current = intendedDir;
-          setActiveDirection(intendedDir);
-        }
+        // 인터럽트 직후엔 activeTargetPage/activeDirection(closure 값)이 stale이라
+        // `!==` 게이트로 비교하면 같은 방향 연속 플릭에서 방향/타깃이 복구되지 않는다.
+        // directionRef는 매 프레임 동기화(previewX 즉시 보정), state는 무조건 set
+        // (값이 같으면 React가 리렌더를 bail-out 하므로 비용 없음).
+        directionRef.current = intendedDir;
+        setActiveTargetPage(intendedTarget);
+        setActiveDirection(intendedDir);
         // baseOffset은 인터럽트로 이어받은 드래그의 시작 좌표(일반 드래그는 0).
         x.set(baseOffsetRef.current + offset);
       }
