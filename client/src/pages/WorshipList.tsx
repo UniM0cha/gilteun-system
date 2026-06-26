@@ -1,14 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { Plus, Calendar, Music, Edit, Trash2, Play, ArrowLeft, Filter, X } from "lucide-react";
-import {
-  useWorships,
-  useWorshipYears,
-  useWorshipTypes,
-  useDeleteWorship,
-  useProfiles,
-  useRoles,
-} from "@/hooks/queries";
+import { useWorships, useWorshipYears, useWorshipTypes, useDeleteWorship } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { getColorOption } from "@/lib/colors";
 import { Button } from "@/components/ui/button";
@@ -20,8 +13,6 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function WorshipList() {
   const { data: worshipTypes = [] } = useWorshipTypes();
-  const { data: profiles = [] } = useProfiles();
-  const { data: roles = [] } = useRoles();
   const { data: availableYears = [] } = useWorshipYears();
   const deleteWorshipMutation = useDeleteWorship();
   const currentProfileId = useAppStore((s) => s.currentProfileId);
@@ -48,7 +39,6 @@ export default function WorshipList() {
   });
 
   const worships = data?.pages.flatMap((p) => p.items) ?? [];
-  const total = data?.pages[0]?.total ?? 0;
 
   // 프로필 미선택 시 홈으로 리다이렉트
   useEffect(() => {
@@ -84,9 +74,6 @@ export default function WorshipList() {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const currentProfile = profiles.find((p) => p.id === currentProfileId);
-  const currentRole = currentProfile ? roles.find((r) => r.id === currentProfile.roleId) : undefined;
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("ko-KR", {
@@ -108,35 +95,24 @@ export default function WorshipList() {
   const hasActiveFilter = !!(debouncedQuery || selectedTypeId || selectedYear);
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-5xl mx-auto">
         {/* 헤더 */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="outline" size="icon" asChild>
+        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <Button variant="outline" size="icon" className="shrink-0" asChild>
             <Link to="/">
               <ArrowLeft className="w-6 h-6" />
             </Link>
           </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">예배 목록</h1>
-            <p className="text-muted-foreground">예배를 선택하거나 새로운 예배를 만드세요</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">예배 목록</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">예배를 선택하거나 새로운 예배를 만드세요</p>
           </div>
-          {currentProfile && (
-            <div className="flex items-center gap-3 px-5 py-3 bg-card rounded-xl shadow-sm border-2 border-border">
-              <div
-                className={`w-10 h-10 ${currentProfile.color} rounded-full flex items-center justify-center text-xl`}
-              >
-                {currentRole?.icon}
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-foreground">{currentProfile.name}</div>
-                <div className="text-xs text-muted-foreground">{currentRole?.name}</div>
-              </div>
-            </div>
-          )}
-          <Button asChild>
+          <Button className="shrink-0" asChild>
             <Link to="/worship-edit/new">
-              <Plus className="w-5 h-5" />새 예배 만들기
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">새 예배 만들기</span>
+              <span className="sm:hidden">새 예배</span>
             </Link>
           </Button>
         </div>
@@ -271,16 +247,16 @@ export default function WorshipList() {
             return (
               <Card
                 key={worship.id}
-                className="p-6 border-2 border-transparent hover:border-primary/40 transition-all hover:shadow-md"
+                className="p-4 sm:p-6 border-2 border-transparent hover:border-primary/40 transition-all hover:shadow-md"
               >
                 <CardContent className="p-0">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
                       <div className="mb-3">
-                        <h3 className="text-xl font-bold text-foreground">{worship.title}</h3>
-                        <div className="flex items-center gap-3 mt-2">
+                        <h3 className="text-lg sm:text-xl font-bold text-foreground">{worship.title}</h3>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Calendar className="w-4 h-4" />
+                            <Calendar className="w-4 h-4 shrink-0" />
                             {formatDate(worship.date)}
                           </div>
                           <div className="text-sm text-muted-foreground">악보 {worship.sheets?.length ?? 0}개</div>
@@ -299,7 +275,7 @@ export default function WorshipList() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Button asChild>
                         <Link to={`/worship/${worship.id}`}>
                           <Play className="w-5 h-5" />
@@ -366,30 +342,6 @@ export default function WorshipList() {
               )}
             </CardContent>
           </Card>
-        )}
-
-        {/* 통계 */}
-        {total > 0 && (
-          <div className="mt-6 grid grid-cols-3 gap-4">
-            <Card className="bg-accent p-6">
-              <CardContent className="p-0">
-                <div className="text-sm font-semibold text-accent-foreground mb-1">전체 예배</div>
-                <div className="text-3xl font-bold text-primary">{total}개</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-accent p-6">
-              <CardContent className="p-0">
-                <div className="text-sm font-semibold text-accent-foreground mb-1">불러온 예배</div>
-                <div className="text-3xl font-bold text-primary">{worships.length}개</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-accent p-6">
-              <CardContent className="p-0">
-                <div className="text-sm font-semibold text-accent-foreground mb-1">예배 유형</div>
-                <div className="text-3xl font-bold text-primary">{worshipTypes.length}개</div>
-              </CardContent>
-            </Card>
-          </div>
         )}
       </div>
     </div>
