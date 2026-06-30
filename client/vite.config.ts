@@ -4,6 +4,10 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 
+// 워크트리 등에서 메인 dev와 충돌 없이 다른 포트로 띄울 때 사용:
+// PORT로 client 포트, VITE_PROXY_TARGET으로 백엔드(server) 주소를 지정한다. 미지정 시 기본값.
+const PROXY_TARGET = process.env.VITE_PROXY_TARGET || "http://localhost:3002";
+
 export default defineConfig({
   plugins: [
     react(),
@@ -76,12 +80,12 @@ export default defineConfig({
   },
   server: {
     host: true,
-    port: 5174,
+    port: Number(process.env.PORT) || 5174,
     proxy: {
-      "/api": "http://localhost:3002",
-      "/uploads": "http://localhost:3002",
+      "/api": PROXY_TARGET,
+      "/uploads": PROXY_TARGET,
       "/socket.io": {
-        target: "http://localhost:3002",
+        target: PROXY_TARGET,
         ws: true,
       },
     },

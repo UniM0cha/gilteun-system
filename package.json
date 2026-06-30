@@ -11,6 +11,7 @@
     "install:all": "cd server && npm install && cd ../client && npm install",
     "db:seed": "cd server && npm run db:seed",
     "db:migrate": "cd server && npm run db:migrate",
+    "db:migrate:draw": "cd server && npm run db:migrate:draw",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "concurrently \"npm run check:client\" \"npm run check:server\" \"npm run format:check\"",

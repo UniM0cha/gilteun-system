@@ -1,11 +1,10 @@
-import { memo, useEffect, useLayoutEffect, useRef, useCallback, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import type { DrawingPath, Point } from "@/hooks/useDrawingSync";
 import {
-  FALLBACK_SHEET_ASPECT,
   denormalizePoint,
   normalizePoint,
   clamp01,
-  getContainedRect,
+  fullRect,
   getCanvasContentRect,
   syncCanvasBackingStore,
   distanceToSegment,
@@ -76,8 +75,6 @@ function SheetCanvas({
 }: SheetCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
-  const [imageAspect, setImageAspect] = useState<number | null>(null);
   const isDrawingRef = useRef(false);
   const currentPathRef = useRef<Point[]>([]);
   const currentPathIdRef = useRef<string>("");
@@ -96,18 +93,6 @@ function SheetCanvas({
   // 현재 paths를 ref로 유지 (findPathAtPoint에서 최신 값 참조용)
   const pathsRef = useRef(paths);
   pathsRef.current = paths;
-
-  // 이미지가 바뀌면 종횡비 재계산. onLoad가 채우지만, 브라우저 캐시된 이미지는 onLoad가
-  // 발화하지 않을 수 있어(그러면 imageAspect가 null로 남아 stroke가 FALLBACK 비율로 왜곡 렌더됨)
-  // complete를 직접 확인해 캐시 이미지도 즉시 종횡비를 설정한다.
-  useEffect(() => {
-    const img = imgRef.current;
-    if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-      setImageAspect(img.naturalWidth / img.naturalHeight);
-    } else {
-      setImageAspect(null);
-    }
-  }, [imageUrl]);
 
   // 시트 전환 시 리셋. 부모가 key로 리마운트하지 않으므로(전환 깜박임 방지) 명시적으로 처리한다.
   // 트리거는 sheetId — 두 시트가 같은 imageUrl을 공유해도 정확히 발화하도록 (훅의 paths 초기화와 동일 기준).
@@ -190,7 +175,7 @@ function SheetCanvas({
     // 모든 그리기를 CSS 픽셀 좌표계로 통일 (backing store는 DPR배). redraw마다 호출 →
     // DPR 변동(디스플레이 이동 등)도 자동 반영.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const drawRect = getCanvasContentRect(canvas, imageAspect);
+    const drawRect = getCanvasContentRect(canvas);
 
     ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
     if (drawRect.width <= 0 || drawRect.height <= 0) return;
@@ -259,7 +244,7 @@ function SheetCanvas({
 
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1; // 형광펜 alpha 누수 방지 — 다음 redraw·다른 컨텍스트 사용이 반투명해지지 않도록
-  }, [paths, remoteInProgress, penColor, penWidth, isHighlighter, eraserType, eraserWidth, imageAspect]);
+  }, [paths, remoteInProgress, penColor, penWidth, isHighlighter, eraserType, eraserWidth]);
 
   // redraw ref 갱신 (ResizeObserver + rAF에서 사용)
   redrawCanvasRef.current = redrawCanvas;
@@ -302,7 +287,8 @@ function SheetCanvas({
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const drawRect = getContainedRect(rect.width, rect.height, imageAspect ?? FALLBACK_SHEET_ASPECT);
+    // 그리기 영역 = 캔버스(흰 카드) 전체. getBoundingClientRect로 CSS transform(줌) 자동 보정.
+    const drawRect = fullRect(rect.width, rect.height);
     if (drawRect.width <= 0 || drawRect.height <= 0) return null;
 
     const point = normalizePoint(x, y, drawRect);
@@ -319,7 +305,7 @@ function SheetCanvas({
       if (!canvas) return null;
       // CSS 레이아웃 크기 기준 — backing store가 DPR배여도 히트테스트는 CSS px로 유지해
       // threshold(20)가 계속 20 CSS px를 의미하게 한다.
-      const drawRect = getCanvasContentRect(canvas, imageAspect);
+      const drawRect = getCanvasContentRect(canvas);
       if (drawRect.width <= 0 || drawRect.height <= 0) return null;
 
       const screenPoint = denormalizePoint(point, drawRect);
@@ -341,7 +327,7 @@ function SheetCanvas({
       }
       return null;
     },
-    [imageAspect], // pathsRef로 참조하므로 paths 의존성 불필요
+    [], // pathsRef로 참조하므로 paths 의존성 불필요 (좌표계가 이미지에 의존하지 않음)
   );
 
   // 진행 중인 그리기 취소
@@ -399,7 +385,7 @@ function SheetCanvas({
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
     // penWidth는 CSS px → CSS 레이아웃 크기로 정규화해야 렌더(CSS 좌표계)와 굵기가 일치.
-    const drawRect = getCanvasContentRect(canvas, imageAspect);
+    const drawRect = getCanvasContentRect(canvas);
     if (drawRect.width <= 0) return;
     const normalizedWidth = eraserType === "area" ? eraserWidth / drawRect.width : penWidth / drawRect.width;
 
@@ -438,7 +424,7 @@ function SheetCanvas({
       const canvas = drawingCanvasRef.current;
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
-        const drawRect = getContainedRect(rect.width, rect.height, imageAspect ?? FALLBACK_SHEET_ASPECT);
+        const drawRect = fullRect(rect.width, rect.height);
         if (drawRect.width <= 0 || drawRect.height <= 0) return;
         for (const ce of coalesced) {
           const cp = normalizePoint(ce.clientX - rect.left, ce.clientY - rect.top, drawRect);
@@ -483,7 +469,7 @@ function SheetCanvas({
       const canvas = drawingCanvasRef.current;
       if (!canvas) return;
       // penWidth는 CSS px → CSS 레이아웃 크기로 정규화 (handlePointerDown과 동일 기준).
-      const drawRect = getCanvasContentRect(canvas, imageAspect);
+      const drawRect = getCanvasContentRect(canvas);
       if (drawRect.width <= 0) return;
       const normalizedWidth = eraserType === "area" ? eraserWidth / drawRect.width : penWidth / drawRect.width;
 
@@ -508,18 +494,7 @@ function SheetCanvas({
   return (
     <div ref={containerRef} className="relative w-full h-full">
       {imageUrl && (
-        <img
-          ref={imgRef}
-          src={imageUrl}
-          alt="악보"
-          className="absolute inset-0 w-full h-full pointer-events-none object-contain"
-          onLoad={(event) => {
-            const image = event.currentTarget;
-            if (image.naturalWidth > 0 && image.naturalHeight > 0) {
-              setImageAspect(image.naturalWidth / image.naturalHeight);
-            }
-          }}
-        />
+        <img src={imageUrl} alt="악보" className="absolute inset-0 w-full h-full pointer-events-none object-contain" />
       )}
 
       <canvas
