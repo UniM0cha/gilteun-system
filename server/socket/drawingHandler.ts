@@ -35,6 +35,7 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
       color: string;
       width: number;
       isEraser: boolean;
+      isHighlighter: boolean;
       point: { x: number; y: number };
     }) => {
       socket.to(`sheet:${data.sheetId}`).emit("drawing:started", data);
@@ -56,6 +57,7 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
       color: string;
       width: number;
       isEraser: boolean;
+      isHighlighter: boolean;
       points: { x: number; y: number }[];
     }) => {
       try {
@@ -70,6 +72,7 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
             width: data.width,
             points: JSON.stringify(data.points),
             isEraser: data.isEraser,
+            isHighlighter: data.isHighlighter ?? false,
             createdAt: now,
           })
           .run();

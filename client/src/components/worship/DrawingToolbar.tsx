@@ -1,5 +1,17 @@
 import { memo, type Dispatch, type SetStateAction } from "react";
-import { Pencil, Eye, Eraser, Undo, Redo, Minus, Plus as PlusIcon, Trash, Megaphone, Palette } from "lucide-react";
+import {
+  Pencil,
+  Highlighter,
+  Eye,
+  Eraser,
+  Undo,
+  Redo,
+  Minus,
+  Plus as PlusIcon,
+  Trash,
+  Megaphone,
+  Palette,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -9,6 +21,9 @@ export interface DrawingToolState {
   isDrawMode: boolean;
   selectedColor: string;
   penWidth: number;
+  isHighlighter: boolean;
+  highlighterColor: string;
+  highlighterWidth: number;
   eraserType: EraserType;
   eraserWidth: number;
   toolPopoverOpen: boolean;
@@ -18,6 +33,9 @@ export interface DrawingToolActions {
   setIsDrawMode: (v: boolean) => void;
   setSelectedColor: (v: string) => void;
   setPenWidth: Dispatch<SetStateAction<number>>;
+  setIsHighlighter: (v: boolean) => void;
+  setHighlighterColor: (v: string) => void;
+  setHighlighterWidth: Dispatch<SetStateAction<number>>;
   setEraserType: Dispatch<SetStateAction<EraserType>>;
   setEraserWidth: Dispatch<SetStateAction<number>>;
   setToolPopoverOpen: (v: boolean) => void;
@@ -38,6 +56,7 @@ interface DrawingToolbarProps {
   hasSheet: boolean;
   showCommandPanel: boolean;
   penColors: PenColor[];
+  highlighterColors: PenColor[];
   onToggleCommandPanel: () => void;
   onSpotlightCall: () => void;
 }
@@ -50,14 +69,28 @@ function DrawingToolbar({
   hasSheet,
   showCommandPanel,
   penColors,
+  highlighterColors,
   onToggleCommandPanel,
   onSpotlightCall,
 }: DrawingToolbarProps) {
-  const { isDrawMode, selectedColor, penWidth, eraserType, eraserWidth, toolPopoverOpen } = tool;
+  const {
+    isDrawMode,
+    selectedColor,
+    penWidth,
+    isHighlighter,
+    highlighterColor,
+    highlighterWidth,
+    eraserType,
+    eraserWidth,
+    toolPopoverOpen,
+  } = tool;
   const {
     setIsDrawMode,
     setSelectedColor,
     setPenWidth,
+    setIsHighlighter,
+    setHighlighterColor,
+    setHighlighterWidth,
     setEraserType,
     setEraserWidth,
     setToolPopoverOpen,
@@ -65,6 +98,10 @@ function DrawingToolbar({
     redo,
     setIsCompact,
   } = actions;
+
+  // 그리기 도구가 펜/형광펜인지(지우개가 아닐 때만 색·굵기 활성 표시)
+  const isPenActive = !isHighlighter && eraserType === "none";
+  const isHighlighterActive = isHighlighter && eraserType === "none";
 
   return (
     <div
@@ -128,45 +165,113 @@ function DrawingToolbar({
                   </PopoverTrigger>
                   <PopoverContent className="w-80 bg-viewer-panel border-viewer-border p-4" align="start">
                     <div className="space-y-4">
-                      {/* 색상 팔레트 */}
+                      {/* 펜 / 형광펜 토글 */}
                       <div>
-                        <div className="text-xs font-semibold text-viewer-muted mb-2">색상</div>
+                        <div className="text-xs font-semibold text-viewer-muted mb-2">도구</div>
                         <div className="flex items-center gap-2">
-                          {penColors.map((pen) => (
-                            <button
-                              key={pen.value}
-                              onClick={() => {
-                                setSelectedColor(pen.value);
-                                setEraserType("none");
-                              }}
-                              className={`w-11 h-11 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
-                                selectedColor === pen.value && eraserType === "none"
-                                  ? `ring-4 scale-110 ${pen.value === "#ffffff" ? "ring-blue-400" : "ring-white"}`
-                                  : ""
-                              }`}
-                            />
-                          ))}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setIsHighlighter(false);
+                              setEraserType("none");
+                            }}
+                            className={cn(
+                              "px-3 py-2.5 flex-1",
+                              isPenActive
+                                ? "bg-white/15 text-viewer-foreground hover:bg-white/20"
+                                : "bg-white/5 text-viewer-muted hover:bg-white/10",
+                            )}
+                          >
+                            <Pencil className="w-5 h-5" />
+                            <span className="text-sm">펜</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setIsHighlighter(true);
+                              setEraserType("none");
+                            }}
+                            className={cn(
+                              "px-3 py-2.5 flex-1",
+                              isHighlighterActive
+                                ? "bg-white/15 text-viewer-foreground hover:bg-white/20"
+                                : "bg-white/5 text-viewer-muted hover:bg-white/10",
+                            )}
+                          >
+                            <Highlighter className="w-5 h-5" />
+                            <span className="text-sm">형광펜</span>
+                          </Button>
                         </div>
                       </div>
 
-                      {/* 펜 굵기 */}
+                      {/* 색상 팔레트 (도구별) */}
                       <div>
-                        <div className="text-xs font-semibold text-viewer-muted mb-2">펜 굵기</div>
+                        <div className="text-xs font-semibold text-viewer-muted mb-2">색상</div>
+                        <div className="flex items-center gap-2">
+                          {isHighlighter
+                            ? highlighterColors.map((hl) => (
+                                <button
+                                  key={hl.value}
+                                  onClick={() => {
+                                    setHighlighterColor(hl.value);
+                                    setEraserType("none");
+                                  }}
+                                  className={`w-11 h-11 rounded-lg ${hl.color} transition-transform hover:scale-110 ${
+                                    highlighterColor === hl.value && isHighlighterActive
+                                      ? "ring-4 scale-110 ring-blue-500"
+                                      : ""
+                                  }`}
+                                />
+                              ))
+                            : penColors.map((pen) => (
+                                <button
+                                  key={pen.value}
+                                  onClick={() => {
+                                    setSelectedColor(pen.value);
+                                    setEraserType("none");
+                                  }}
+                                  className={`w-11 h-11 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
+                                    selectedColor === pen.value && isPenActive
+                                      ? `ring-4 scale-110 ${pen.value === "#ffffff" ? "ring-blue-400" : "ring-white"}`
+                                      : ""
+                                  }`}
+                                />
+                              ))}
+                        </div>
+                      </div>
+
+                      {/* 굵기 (도구별) */}
+                      <div>
+                        <div className="text-xs font-semibold text-viewer-muted mb-2">
+                          {isHighlighter ? "형광펜 굵기" : "펜 굵기"}
+                        </div>
                         <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 w-fit">
                           <Button
                             variant="ghost"
                             size="icon"
                             className="min-h-11 min-w-11 hover:bg-white/10 text-viewer-muted rounded"
-                            onClick={() => setPenWidth((p) => Math.max(p - 1, 1))}
+                            onClick={() =>
+                              isHighlighter
+                                ? setHighlighterWidth((p) => Math.max(p - 2, 8))
+                                : setPenWidth((p) => Math.max(p - 1, 1))
+                            }
                           >
                             <Minus className="w-4 h-4" />
                           </Button>
-                          <div className="text-viewer-foreground font-semibold min-w-7.5 text-center">{penWidth}</div>
+                          <div className="text-viewer-foreground font-semibold min-w-7.5 text-center">
+                            {isHighlighter ? highlighterWidth : penWidth}
+                          </div>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="min-h-11 min-w-11 hover:bg-white/10 text-viewer-muted rounded"
-                            onClick={() => setPenWidth((p) => Math.min(p + 1, 20))}
+                            onClick={() =>
+                              isHighlighter
+                                ? setHighlighterWidth((p) => Math.min(p + 2, 40))
+                                : setPenWidth((p) => Math.min(p + 1, 20))
+                            }
                           >
                             <PlusIcon className="w-4 h-4" />
                           </Button>

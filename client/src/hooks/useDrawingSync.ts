@@ -16,6 +16,7 @@ export interface DrawingPath {
   width: number;
   points: Point[];
   isEraser: boolean;
+  isHighlighter: boolean;
 }
 
 interface RemoteInProgressPath {
@@ -24,6 +25,7 @@ interface RemoteInProgressPath {
   color: string;
   width: number;
   isEraser: boolean;
+  isHighlighter: boolean;
   points: Point[];
 }
 
@@ -105,6 +107,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
       color: string;
       width: number;
       isEraser: boolean;
+      isHighlighter: boolean;
       point: Point;
     }) => {
       if (data.sheetId !== currentSheetIdRef.current) return;
@@ -117,6 +120,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
           color: data.color,
           width: data.width,
           isEraser: data.isEraser,
+          isHighlighter: data.isHighlighter ?? false,
           points: [data.point],
         });
         return next;
@@ -146,6 +150,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
       color: string;
       width: number;
       isEraser: boolean;
+      isHighlighter: boolean;
       points: Point[];
     }) => {
       if (data.sheetId !== currentSheetIdRef.current) return;
@@ -166,6 +171,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
         width: data.width,
         points: data.points,
         isEraser: data.isEraser,
+        isHighlighter: data.isHighlighter ?? false,
       };
       setPaths((prev) => [...prev, path]);
     };
@@ -200,7 +206,14 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
 
   // 드로잉 시작 전송
   const emitDrawStart = useCallback(
-    (data: { pathId: string; color: string; width: number; isEraser: boolean; point: Point }) => {
+    (data: {
+      pathId: string;
+      color: string;
+      width: number;
+      isEraser: boolean;
+      isHighlighter: boolean;
+      point: Point;
+    }) => {
       if (!sheetId || !profileId) return;
       socket.emit("drawing:start", { sheetId, profileId, ...data });
     },
@@ -228,6 +241,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
         color: path.color,
         width: path.width,
         isEraser: path.isEraser,
+        isHighlighter: path.isHighlighter,
         points: path.points,
       });
       setUndoStack((prev) => [...prev, { added: [path], deleted: [] }]);
@@ -314,6 +328,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
               color: path.color,
               width: path.width,
               isEraser: path.isEraser,
+              isHighlighter: path.isHighlighter,
               points: path.points,
             });
           }
@@ -346,6 +361,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
               color: path.color,
               width: path.width,
               isEraser: path.isEraser,
+              isHighlighter: path.isHighlighter,
               points: path.points,
             });
           }

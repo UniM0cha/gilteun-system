@@ -42,6 +42,14 @@ const penColors = [
   { color: "bg-black", value: "#000000" },
 ];
 
+// 형광펜 전용 팔레트 — 반투명(35%)에서 글자가 비쳐 보이도록 밝은 형광색만.
+const highlighterColors = [
+  { color: "bg-yellow-300", value: "#fde047" }, // 노랑
+  { color: "bg-lime-300", value: "#bef264" }, // 연두
+  { color: "bg-pink-300", value: "#f9a8d4" }, // 핑크
+  { color: "bg-sky-300", value: "#7dd3fc" }, // 하늘
+];
+
 export default function Worship() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -58,6 +66,10 @@ export default function Worship() {
   const [penWidth, setPenWidth] = useState(3);
   const [eraserType, setEraserType] = useState<EraserType>("none");
   const [eraserWidth, setEraserWidth] = useState(15);
+  // 형광펜 — 펜과 색·굵기를 독립적으로 기억(별개 도구처럼 동작)
+  const [isHighlighter, setIsHighlighter] = useState(false);
+  const [highlighterColor, setHighlighterColor] = useState("#fde047");
+  const [highlighterWidth, setHighlighterWidth] = useState(18);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showCommandPanel, setShowCommandPanel] = useState(false);
   const [presencePopoverOpen, setPresencePopoverOpen] = useState(false);
@@ -253,9 +265,33 @@ export default function Worship() {
     });
   }, [isMobile]);
 
+  // 활성 도구 기준 색·굵기 — 형광펜이면 형광 상태, 아니면 펜 상태를 SheetCanvas에 넘긴다.
+  const activeColor = isHighlighter ? highlighterColor : selectedColor;
+  const activeWidth = isHighlighter ? highlighterWidth : penWidth;
+
   const drawingTool: DrawingToolState = useMemo(
-    () => ({ isDrawMode, selectedColor, penWidth, eraserType, eraserWidth, toolPopoverOpen }),
-    [isDrawMode, selectedColor, penWidth, eraserType, eraserWidth, toolPopoverOpen],
+    () => ({
+      isDrawMode,
+      selectedColor,
+      penWidth,
+      isHighlighter,
+      highlighterColor,
+      highlighterWidth,
+      eraserType,
+      eraserWidth,
+      toolPopoverOpen,
+    }),
+    [
+      isDrawMode,
+      selectedColor,
+      penWidth,
+      isHighlighter,
+      highlighterColor,
+      highlighterWidth,
+      eraserType,
+      eraserWidth,
+      toolPopoverOpen,
+    ],
   );
 
   const drawingActions: DrawingToolActions = useMemo(
@@ -263,6 +299,9 @@ export default function Worship() {
       setIsDrawMode,
       setSelectedColor,
       setPenWidth,
+      setIsHighlighter,
+      setHighlighterColor,
+      setHighlighterWidth,
       setEraserType,
       setEraserWidth,
       setToolPopoverOpen,
@@ -328,6 +367,7 @@ export default function Worship() {
             hasSheet={!!currentSheet}
             showCommandPanel={showCommandPanel}
             penColors={penColors}
+            highlighterColors={highlighterColors}
             onToggleCommandPanel={handleToggleCommandPanel}
             onSpotlightCall={handleSpotlightCall}
           />
@@ -377,8 +417,9 @@ export default function Worship() {
                     sheetId={currentSheet.id}
                     imageUrl={currentSheet.imagePath ? `/uploads/${currentSheet.imagePath}` : null}
                     isDrawMode={isDrawMode && !toolPopoverOpen}
-                    penColor={selectedColor}
-                    penWidth={penWidth}
+                    penColor={activeColor}
+                    penWidth={activeWidth}
+                    isHighlighter={isHighlighter && eraserType === "none"}
                     eraserType={eraserType}
                     eraserWidth={eraserWidth}
                     paths={drawingPaths}
@@ -417,6 +458,7 @@ export default function Worship() {
                     isDrawMode={false}
                     penColor={selectedColor}
                     penWidth={penWidth}
+                    isHighlighter={false}
                     eraserType="none"
                     eraserWidth={eraserWidth}
                     paths={previewDrawings ?? EMPTY_PATHS}

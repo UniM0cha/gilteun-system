@@ -68,5 +68,6 @@ export const drawingPaths = sqliteTable("drawing_paths", {
   width: real("width").notNull(),
   points: text("points").notNull(), // JSON string
   isEraser: integer("is_eraser", { mode: "boolean" }).notNull().default(false),
+  isHighlighter: integer("is_highlighter", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull(),
 });

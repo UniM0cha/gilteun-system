@@ -14,12 +14,17 @@ import {
 
 export type EraserType = "none" | "area" | "stroke";
 
+// 형광펜 반투명도 — 단일 stroke()로 그리므로 한 획 내 겹침은 alpha가 누적되지 않고(평평한 띠),
+// 서로 다른 획이 겹칠 때만 진해진다(실제 형광펜과 동일). 오프스크린 합성 불필요.
+const HIGHLIGHTER_ALPHA = 0.35;
+
 export interface RemoteInProgressPath {
   pathId: string;
   profileId: string;
   color: string;
   width: number;
   isEraser: boolean;
+  isHighlighter: boolean;
   points: Point[];
 }
 
@@ -29,11 +34,19 @@ interface SheetCanvasProps {
   isDrawMode: boolean;
   penColor: string;
   penWidth: number;
+  isHighlighter: boolean;
   eraserType: EraserType;
   eraserWidth: number;
   paths: DrawingPath[];
   remoteInProgress: RemoteInProgressPath[];
-  onDrawStart?: (data: { pathId: string; color: string; width: number; isEraser: boolean; point: Point }) => void;
+  onDrawStart?: (data: {
+    pathId: string;
+    color: string;
+    width: number;
+    isEraser: boolean;
+    isHighlighter: boolean;
+    point: Point;
+  }) => void;
   onDrawMove?: (data: { pathId: string; point: Point }) => void;
   onPathAdd?: (path: DrawingPath) => void;
   onPathDelete?: (pathId: string) => void;
@@ -48,6 +61,7 @@ function SheetCanvas({
   isDrawMode,
   penColor,
   penWidth,
+  isHighlighter,
   eraserType,
   eraserWidth,
   paths,
@@ -190,6 +204,9 @@ function SheetCanvas({
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.globalCompositeOperation = path.isEraser ? "destination-out" : "source-over";
+      // 지우개(destination-out)엔 alpha를 적용하지 않음 — 손상된 데이터로 isEraser+isHighlighter가
+      // 함께 true여도 부분 지우기가 되지 않도록 방어.
+      ctx.globalAlpha = path.isHighlighter && !path.isEraser ? HIGHLIGHTER_ALPHA : 1;
 
       const p0 = denormalizePoint(path.points[0], drawRect);
       ctx.moveTo(p0.x, p0.y);
@@ -209,6 +226,7 @@ function SheetCanvas({
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.globalCompositeOperation = rip.isEraser ? "destination-out" : "source-over";
+      ctx.globalAlpha = rip.isHighlighter && !rip.isEraser ? HIGHLIGHTER_ALPHA : 1;
 
       const p0 = denormalizePoint(rip.points[0], drawRect);
       ctx.moveTo(p0.x, p0.y);
@@ -228,6 +246,7 @@ function SheetCanvas({
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.globalCompositeOperation = eraserType === "area" ? "destination-out" : "source-over";
+      ctx.globalAlpha = eraserType === "none" && isHighlighter ? HIGHLIGHTER_ALPHA : 1;
 
       const p0 = denormalizePoint(curPath[0], drawRect);
       ctx.moveTo(p0.x, p0.y);
@@ -239,7 +258,8 @@ function SheetCanvas({
     }
 
     ctx.globalCompositeOperation = "source-over";
-  }, [paths, remoteInProgress, penColor, penWidth, eraserType, eraserWidth, imageAspect]);
+    ctx.globalAlpha = 1; // 형광펜 alpha 누수 방지 — 다음 redraw·다른 컨텍스트 사용이 반투명해지지 않도록
+  }, [paths, remoteInProgress, penColor, penWidth, isHighlighter, eraserType, eraserWidth, imageAspect]);
 
   // redraw ref 갱신 (ResizeObserver + rAF에서 사용)
   redrawCanvasRef.current = redrawCanvas;
@@ -388,6 +408,7 @@ function SheetCanvas({
       color: eraserType === "area" ? "#FFFFFF" : penColor,
       width: normalizedWidth,
       isEraser: eraserType === "area",
+      isHighlighter: eraserType === "none" && isHighlighter,
       point,
     });
   };
@@ -474,6 +495,7 @@ function SheetCanvas({
         width: normalizedWidth,
         points: [...currentPathRef.current],
         isEraser: eraserType === "area",
+        isHighlighter: eraserType === "none" && isHighlighter,
       };
 
       onPathAdd?.(newPath);
