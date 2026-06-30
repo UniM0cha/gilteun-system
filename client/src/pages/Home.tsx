@@ -71,7 +71,7 @@ export default function Home() {
                     <button
                       key={profile.id}
                       onClick={() => handleProfileSelect(profile.id)}
-                      className="group relative bg-muted rounded-2xl p-6 hover:shadow-md transition-all duration-200 border-2 border-transparent hover:border-primary/40 active:scale-95 text-left"
+                      className="group relative bg-card rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border-2 border-border hover:border-primary/40 active:scale-95 text-left"
                     >
                       <div className="flex items-center gap-4">
                         <div
@@ -81,7 +81,7 @@ export default function Home() {
                         </div>
                         <div className="flex-1">
                           <h3 className="text-xl font-bold text-foreground mb-1">{profile.name}</h3>
-                          <Badge variant="secondary" className="px-3 py-1 text-sm font-semibold">
+                          <Badge className="bg-accent text-accent-foreground px-3 py-1 text-sm font-semibold">
                             {role?.name}
                           </Badge>
                         </div>
