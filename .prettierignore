@@ -13,3 +13,5 @@ server/package-lock.json
 # macOS APFS는 한글 경로를 NFD로 노출 — 위 NFC 라인에 더해 NFD 형태도 무시(--check . 매칭용)
 길튼 시스템/
 .remember/
+# 다른 git worktree(.claude/worktrees/*)는 메인 작업과 무관 — prettier --check . 에서 제외
+.claude/worktrees/
