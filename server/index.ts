@@ -8,6 +8,7 @@ import path from "path";
 import os from "os";
 import { config } from "./config.js";
 import { setupDatabase } from "./db/setup.js";
+import { runDrawingCoordMigration } from "./db/migrateDrawingCoords.js";
 import { registerRoutes } from "./routes";
 import { initSocket } from "./socket";
 import { authMiddleware } from "./middleware/auth.js";
@@ -27,6 +28,25 @@ function getLocalIP(): string {
 
 // DB 테이블 생성
 setupDatabase();
+
+// 드로잉 좌표계 마이그레이션(letterbox→카드 전체 기준)을 1회 자동 적용. 멱등 플래그로 적용 후엔 즉시 스킵.
+// 배포(서버 재시작) 직후 클라이언트 접속 전에 적용돼 좌표계 혼합 창을 없앤다.
+// 적용에 실패(aborted/예외)하면 fail-closed로 부팅을 막는다 — 미적용 상태로 새 좌표계 클라이언트를
+// 서비스하면 기존 획이 어긋나고, 그 사이 저장된 card-basis 획이 복구 후 재시도 때 이중 변환되기 때문.
+// (already-applied/done은 정상 통과하므로 정상 운영에는 영향 없음 — aborted는 첫 적용 + 이미지 누락 시뿐.)
+try {
+  const result = await runDrawingCoordMigration();
+  if (result.status === "aborted") {
+    console.error(
+      `[migrate-draw] 좌표계 마이그레이션 미적용(이미지 누락 시트: ${result.unresolvedSheets.join(", ")}). ` +
+        "좌표계 혼합을 막기 위해 서버를 종료합니다. 이미지 파일을 복구한 뒤 다시 시작하세요.",
+    );
+    process.exit(1);
+  }
+} catch (err) {
+  console.error("[migrate-draw] 마이그레이션 중 예외 — 좌표계 혼합 위험으로 서버를 종료합니다.", err);
+  process.exit(1);
+}
 
 const app = express();
 const httpServer = createServer(app);

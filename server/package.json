@@ -7,6 +7,7 @@
     "start": "NODE_ENV=production tsx index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx db/migrate.ts",
+    "db:migrate:draw": "tsx db/migrateDrawingCoords.ts",
     "db:seed": "tsx db/seed.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
