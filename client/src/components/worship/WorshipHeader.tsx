@@ -4,6 +4,7 @@ import { ArrowLeft, Menu, Edit, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { PresenceUser } from "@/types";
+import type { PanelSide } from "@/store/deviceSettingsStore";
 
 interface WorshipHeaderProps {
   worshipTitle: string | undefined;
@@ -14,6 +15,7 @@ interface WorshipHeaderProps {
   presencePopoverOpen: boolean;
   onPresencePopoverChange: (open: boolean) => void;
   onToggleSidebar: () => void;
+  sidebarSide: PanelSide;
 }
 
 // 상단 헤더 (컴팩트 시 세로 콜랩스 + 페이드 — 찌그러짐 없는 push).
@@ -26,7 +28,19 @@ function WorshipHeader({
   presencePopoverOpen,
   onPresencePopoverChange,
   onToggleSidebar,
+  sidebarSide,
 }: WorshipHeaderProps) {
+  // 악보 목록 토글은 패널이 나타나는 가장자리와 같은 쪽에 배치 (기기 설정으로 좌/우 스왑)
+  const sidebarToggleButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="hover:bg-white/10 text-viewer-muted shrink-0"
+      onClick={onToggleSidebar}
+    >
+      <Menu className="w-6 h-6" />
+    </Button>
+  );
   return (
     <div
       className="grid"
@@ -51,14 +65,7 @@ function WorshipHeader({
                 <ArrowLeft className="w-6 h-6" />
               </Link>
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hover:bg-white/10 text-viewer-muted shrink-0"
-              onClick={onToggleSidebar}
-            >
-              <Menu className="w-6 h-6" />
-            </Button>
+            {sidebarSide === "left" && sidebarToggleButton}
             <div className="h-8 w-px bg-viewer-border shrink-0" />
             <h1 className="text-base sm:text-xl font-bold text-viewer-foreground truncate">{worshipTitle || "예배"}</h1>
           </div>
@@ -84,9 +91,12 @@ function WorshipHeader({
                   variant="ghost"
                   size="sm"
                   className="bg-white/5 text-viewer-muted hover:bg-white/10 cursor-pointer"
+                  aria-label={`${presenceUsers.length}명 접속`}
                 >
                   <Users className="w-5 h-5" />
-                  <span>{presenceUsers.length}명 접속</span>
+                  {/* 좁은 폭에선 숫자만 (편집 버튼의 hidden sm:inline 축약 패턴과 동일) */}
+                  <span className="hidden sm:inline">{presenceUsers.length}명 접속</span>
+                  <span className="sm:hidden">{presenceUsers.length}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64 bg-viewer-panel border-viewer-border p-0" align="end">
@@ -106,6 +116,7 @@ function WorshipHeader({
                 </div>
               </PopoverContent>
             </Popover>
+            {sidebarSide === "right" && sidebarToggleButton}
           </div>
         </header>
       </div>

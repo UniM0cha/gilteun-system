@@ -9,6 +9,7 @@ import ProfileEdit from "./pages/ProfileEdit";
 import RoleManagement from "./pages/RoleManagement";
 import CommandSetup from "./pages/CommandSetup";
 import WorshipTypeSettings from "./pages/WorshipTypeSettings";
+import DeviceSettings from "./pages/DeviceSettings";
 
 export const router = createBrowserRouter([
   {
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: "role-management", element: <RoleManagement /> },
       { path: "command-setup", element: <CommandSetup /> },
       { path: "worship-type-settings", element: <WorshipTypeSettings /> },
+      { path: "device-settings", element: <DeviceSettings /> },
     ],
   },
 ]);

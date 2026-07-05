@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { EraserType } from "@/components/SheetCanvas";
+import type { PanelSide } from "@/store/deviceSettingsStore";
 
 export interface DrawingToolState {
   isDrawMode: boolean;
@@ -59,6 +60,7 @@ interface DrawingToolbarProps {
   highlighterColors: PenColor[];
   onToggleCommandPanel: () => void;
   onSpotlightCall: () => void;
+  commandPanelSide: PanelSide;
 }
 
 // 도구 바 (컴팩트 시 세로 콜랩스 + 페이드). 모드 전환·도구 팝오버·실행취소·호출·명령 패널 토글.
@@ -72,6 +74,7 @@ function DrawingToolbar({
   highlighterColors,
   onToggleCommandPanel,
   onSpotlightCall,
+  commandPanelSide,
 }: DrawingToolbarProps) {
   const {
     isDrawMode,
@@ -103,6 +106,23 @@ function DrawingToolbar({
   const isPenActive = !isHighlighter && eraserType === "none";
   const isHighlighterActive = isHighlighter && eraserType === "none";
 
+  // 명령 패널 토글은 패널이 나타나는 가장자리와 같은 쪽에 배치 (기기 설정으로 좌/우 스왑)
+  const commandPanelButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={onToggleCommandPanel}
+      className={cn(
+        "px-5 py-2.5 rounded-xl",
+        showCommandPanel
+          ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+          : "bg-white/5 text-viewer-muted hover:bg-white/10",
+      )}
+    >
+      명령 패널
+    </Button>
+  );
+
   return (
     <div
       className="grid"
@@ -122,6 +142,7 @@ function DrawingToolbar({
           inert={isCompact}
         >
           <div className="flex items-center gap-3">
+            {commandPanelSide === "left" && commandPanelButton}
             <Button
               variant="ghost"
               size="sm"
@@ -401,19 +422,7 @@ function DrawingToolbar({
                 <span className="text-sm">호출</span>
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggleCommandPanel}
-              className={cn(
-                "px-5 py-2.5 rounded-xl",
-                showCommandPanel
-                  ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-                  : "bg-white/5 text-viewer-muted hover:bg-white/10",
-              )}
-            >
-              명령 패널
-            </Button>
+            {commandPanelSide === "right" && commandPanelButton}
           </div>
         </div>
       </div>
