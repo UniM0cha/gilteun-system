@@ -190,7 +190,21 @@ export default function Worship() {
     [sheets, commitPage],
   );
 
-  const { presenceUsers } = useWorshipPresence({ worshipId: id, onSpotlightAccept: commitSheetId });
+  // 호출된 악보가 현재 악보에서 몇 장 떨어져 있는지 (+: 오른쪽, -: 왼쪽, null: 계산 불가)
+  const getSheetOffset = useCallback(
+    (sheetId: string): number | null => {
+      const target = sheets.findIndex((s) => s.id === sheetId);
+      if (target < 0 || currentPage < 0) return null;
+      return target - currentPage;
+    },
+    [sheets, currentPage],
+  );
+
+  const { presenceUsers } = useWorshipPresence({
+    worshipId: id,
+    onSpotlightAccept: commitSheetId,
+    getSheetOffset,
+  });
 
   useAdjacentSheetPreload(sheets, currentPage);
   useAdjacentDrawingsPreload(sheets, currentPage);
