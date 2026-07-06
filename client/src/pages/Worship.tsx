@@ -101,15 +101,20 @@ export default function Worship() {
 
   const socket = getSocket();
 
-  // Socket.IO + TanStack Query 브릿지 (sheets:updated, worship:updated)
-  useWorshipSocket(id, (updatedSheets) => {
-    // 현재 보는 악보가 삭제되면 첫 번째로 이동
-    if (currentSheetId && !updatedSheets.find((s) => s.id === currentSheetId)) {
-      cancelPageMotionRef.current();
-      setCurrentSheetId(updatedSheets[0]?.id || null);
-      resetZoom();
-    }
-  });
+  // Socket.IO + TanStack Query 브릿지 (sheets:updated, worship:updated, worship:deleted, commands:updated)
+  useWorshipSocket(
+    id,
+    (updatedSheets) => {
+      // 현재 보는 악보가 삭제되면 첫 번째로 이동
+      if (currentSheetId && !updatedSheets.find((s) => s.id === currentSheetId)) {
+        cancelPageMotionRef.current();
+        setCurrentSheetId(updatedSheets[0]?.id || null);
+        resetZoom();
+      }
+    },
+    // 예배 자체가 삭제되면 홈으로
+    () => navigate("/"),
+  );
 
   // 드로잉 동기화 훅
   const {

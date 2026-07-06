@@ -125,7 +125,7 @@ export function useUpdateSheet() {
       await api.put(`/api/sheets/${id}`, { title });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["worships"] });
+      qc.invalidateQueries({ queryKey: queryKeys.worships.all });
       toast.success("악보 제목이 수정되었습니다");
     },
   });
@@ -138,7 +138,7 @@ export function useDeleteSheet() {
       await api.delete(`/api/sheets/${id}`);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["worships"] });
+      qc.invalidateQueries({ queryKey: queryKeys.worships.all });
       toast.success("악보가 삭제되었습니다");
     },
   });

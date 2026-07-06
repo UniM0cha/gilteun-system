@@ -34,6 +34,11 @@ export function getSocket(): Socket {
         socket!.emit("join:sheet", roomRegistry.sheet);
       }
     });
+
+    // dev 전용: 재연결 시나리오 검증용 (preview_eval에서 __socket.disconnect()/connect())
+    if (import.meta.env.DEV) {
+      (window as unknown as { __socket?: Socket }).__socket = socket;
+    }
   }
   return socket;
 }

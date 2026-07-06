@@ -78,5 +78,7 @@ export function distanceToSegment(
 }
 
 export function generateId(): string {
-  return Math.random().toString(36).substring(2, 11);
+  // HTTP(비보안 컨텍스트)에서는 randomUUID가 없고, crypto 식별자 자체가 없는 구형
+  // 웹뷰에서는 ReferenceError가 나므로 globalThis 경유 + 폴백 필수
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

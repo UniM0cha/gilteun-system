@@ -34,6 +34,21 @@ interface UndoAction {
   deleted: DrawingPath[];
 }
 
+// 스택에서 해당 id를 담은 가장 최근 added 항목 1개만 걷어낸다 — 충돌 교정/롤백된
+// 낙관적 add를 회수하되, 더 깊은 항목은 정상 기록일 수 있으므로 보존
+function purgeLatestAdded(stack: UndoAction[], id: string): UndoAction[] {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (stack[i].added.some((p) => p.id === id)) {
+      const next = [...stack];
+      const updated = { ...next[i], added: next[i].added.filter((p) => p.id !== id) };
+      if (updated.added.length > 0 || updated.deleted.length > 0) next[i] = updated;
+      else next.splice(i, 1);
+      return next;
+    }
+  }
+  return stack;
+}
+
 interface UseDrawingSyncOptions {
   sheetId: string | null;
   profileId: string | null;
@@ -47,6 +62,9 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
   const [, setRedoStack] = useState<UndoAction[]>([]);
   const currentSheetIdRef = useRef<string | null>(null);
   const batchRef = useRef<DrawingPath[] | null>(null);
+  // 소켓 핸들러의 stale closure를 피하기 위한 최신 paths 미러 (읽기 전용)
+  const pathsRef = useRef<DrawingPath[]>([]);
+  pathsRef.current = paths;
 
   const socket = getSocket();
   const queryClient = useQueryClient();
@@ -173,12 +191,70 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
         isEraser: data.isEraser,
         isHighlighter: data.isHighlighter ?? false,
       };
-      setPaths((prev) => [...prev, path]);
+      // 같은 id가 이미 있으면 전부 접어 권위 row 하나만 남긴다 — 중복 도착(재연결 flush)은
+      // 내용이 같아 무해하고, id 충돌 시(기존 row + 낙관적 add로 같은 id가 2개일 수 있음)
+      // 서버가 보내는 DB 권위 row로 로컬(송신자 포함) 상태가 교정된다
+      setPaths((prev) => {
+        const idx = prev.findIndex((p) => p.id === path.id);
+        if (idx === -1) return [...prev, path];
+        // 첫 번째 항목 자리에 권위 row를 두고, 그 뒤의 같은 id 항목은 제거
+        const next = prev.filter((p, i) => i === idx || p.id !== path.id);
+        next[idx] = path;
+        return next;
+      });
+      // 동일 내용 재전송(replay)이면 undo 기록을 건드리지 않는다 — 내 획이 네트워크
+      // 재전송으로 한 번 더 도착한 경우까지 purge하면 정상 Undo가 사라진다.
+      // 판정 기준은 "가장 최근 매칭"(낙관적 add는 항상 뒤에 append됨) — 첫 매칭으로
+      // 비교하면 기존 DB 획과 일치해 진짜 충돌을 replay로 오판한다.
+      let local: DrawingPath | undefined;
+      for (let i = pathsRef.current.length - 1; i >= 0; i--) {
+        if (pathsRef.current[i].id === path.id) {
+          local = pathsRef.current[i];
+          break;
+        }
+      }
+      const isIdenticalReplay =
+        !!local &&
+        local.profileId === path.profileId &&
+        local.color === path.color &&
+        local.width === path.width &&
+        local.isEraser === path.isEraser &&
+        local.isHighlighter === path.isHighlighter &&
+        local.points.length === path.points.length &&
+        local.points.every((pt, i) => pt.x === path.points[i].x && pt.y === path.points[i].y);
+      if (isIdenticalReplay) return;
+
+      // 내 획은 socket.to로 에코되지 않으므로, 내 undo 스택에 있는 id로 ended가 오는
+      // 경우는 id 충돌 교정뿐 — 충돌을 일으킨 낙관적 add만 걷어내 직후 Undo가
+      // 같은 id의 DB 기존 획을 drawing:delete로 지우는 것을 방지한다
+      setUndoStack((stack) => purgeLatestAdded(stack, path.id));
+      setRedoStack((stack) => purgeLatestAdded(stack, path.id));
     };
 
     const handleDeleted = (data: { sheetId: string; pathId: string }) => {
       if (data.sheetId !== currentSheetIdRef.current) return;
       setPaths((prev) => prev.filter((p) => p.id !== data.pathId));
+    };
+
+    // 서버가 저장을 거부한 내 낙관적 획 롤백 (id 충돌 등, 송신자 전용) —
+    // 화면의 획과 undo/redo 기록을 함께 회수한다
+    const handleRejected = (data: { sheetId: string; pathId: string }) => {
+      if (data.sheetId !== currentSheetIdRef.current) return;
+      setPaths((prev) => prev.filter((p) => p.id !== data.pathId));
+      setUndoStack((stack) => purgeLatestAdded(stack, data.pathId));
+      setRedoStack((stack) => purgeLatestAdded(stack, data.pathId));
+    };
+
+    // 거부된 획의 피어측 정리 — started/moved로 그려지던 진행 중 획만 치운다
+    // (paths/undo는 건드리지 않음: 피어의 로컬 상태는 롤백 대상이 아님)
+    const handleCancelled = (data: { sheetId: string; pathId: string }) => {
+      if (data.sheetId !== currentSheetIdRef.current) return;
+      setRemoteInProgress((prev) => {
+        if (!prev.has(data.pathId)) return prev;
+        const next = new Map(prev);
+        next.delete(data.pathId);
+        return next;
+      });
     };
 
     const handleCleared = (data: { sheetId: string; profileId: string; deletedPathIds: string[] }) => {
@@ -192,6 +268,8 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     socket.on("drawing:moved", handleMoved);
     socket.on("drawing:ended", handleEnded);
     socket.on("drawing:deleted", handleDeleted);
+    socket.on("drawing:rejected", handleRejected);
+    socket.on("drawing:cancelled", handleCancelled);
     socket.on("drawing:cleared", handleCleared);
 
     return () => {
@@ -200,6 +278,8 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
       socket.off("drawing:moved", handleMoved);
       socket.off("drawing:ended", handleEnded);
       socket.off("drawing:deleted", handleDeleted);
+      socket.off("drawing:rejected", handleRejected);
+      socket.off("drawing:cancelled", handleCancelled);
       socket.off("drawing:cleared", handleCleared);
     };
   }, [enabled, profileId, socket]);

@@ -168,9 +168,12 @@ router.put("/worships/:worshipId/sheets/order", (req, res) => {
       res.status(400).json({ error: "orderedIds array is required" });
       return;
     }
-    for (let i = 0; i < orderedIds.length; i++) {
-      db.update(sheets).set({ order: i }).where(eq(sheets.id, orderedIds[i])).run();
-    }
+    // 부분 적용된 order가 브로드캐스트되지 않도록 원자적으로 갱신
+    db.transaction((tx) => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        tx.update(sheets).set({ order: i }).where(eq(sheets.id, orderedIds[i])).run();
+      }
+    });
     const worshipId = req.params.worshipId as string;
     res.json({ success: true });
 
