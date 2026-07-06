@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { EraserType } from "@/components/SheetCanvas";
+import type { PanelSide } from "@/store/deviceSettingsStore";
 
 export interface DrawingToolState {
   isDrawMode: boolean;
@@ -58,6 +59,7 @@ interface DrawingToolbarProps {
   highlighterColors: PenColor[];
   onToggleCommandPanel: () => void;
   onSpotlightCall: () => void;
+  commandPanelSide: PanelSide;
 }
 
 // 도구 바 (컴팩트 시 세로 콜랩스 + 페이드). 모드 전환·도구 팝오버·실행취소·호출·명령 패널 토글.
@@ -71,6 +73,7 @@ function DrawingToolbar({
   highlighterColors,
   onToggleCommandPanel,
   onSpotlightCall,
+  commandPanelSide,
 }: DrawingToolbarProps) {
   const {
     isDrawMode,
@@ -102,6 +105,13 @@ function DrawingToolbar({
   const isPenActive = !isHighlighter && eraserType === "none";
   const isHighlighterActive = isHighlighter && eraserType === "none";
 
+  // 명령 패널 토글은 패널이 나타나는 가장자리와 같은 쪽에 배치 (기기 설정으로 좌/우 스왑)
+  const commandPanelButton = (
+    <Button variant={showCommandPanel ? "default" : "secondary"} className="h-11" onClick={onToggleCommandPanel}>
+      명령 패널
+    </Button>
+  );
+
   return (
     <div
       className="grid"
@@ -121,6 +131,7 @@ function DrawingToolbar({
           inert={isCompact}
         >
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+            {commandPanelSide === "left" && commandPanelButton}
             <Button
               variant={isDrawMode ? "default" : "secondary"}
               className="h-11"
@@ -404,13 +415,7 @@ function DrawingToolbar({
                 호출
               </Button>
             )}
-            <Button
-              variant={showCommandPanel ? "default" : "secondary"}
-              className="h-11"
-              onClick={onToggleCommandPanel}
-            >
-              명령 패널
-            </Button>
+            {commandPanelSide === "right" && commandPanelButton}
           </div>
         </div>
       </div>

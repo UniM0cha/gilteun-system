@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import { useForm } from "react-hook-form";
 import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Settings } from "lucide-react";
 import { useCommands, useAddCommand, useDeleteCommand, useResetCommands } from "@/hooks/queries";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,11 @@ import {
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState } from "@/components/EmptyState";
 
+type CommandFormValues = {
+  emoji: string;
+  label: string;
+};
+
 export default function CommandSetup() {
   const { data: commands = [] } = useCommands();
   const addCommandMutation = useAddCommand();
@@ -28,22 +34,20 @@ export default function CommandSetup() {
   const resetCommandsMutation = useResetCommands();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newEmoji, setNewEmoji] = useState("🎵");
-  const [newLabel, setNewLabel] = useState("");
 
-  const handleAdd = async () => {
-    if (newLabel.trim()) {
-      await addCommandMutation.mutateAsync({ emoji: newEmoji, label: newLabel.trim() });
-      setNewLabel("");
-      setNewEmoji("🎵");
-      setDialogOpen(false);
-    }
-  };
+  const { register, handleSubmit, reset, watch } = useForm<CommandFormValues>({
+    defaultValues: { emoji: "🎵", label: "" },
+  });
 
-  const resetForm = () => {
-    setNewLabel("");
-    setNewEmoji("🎵");
-  };
+  const newEmoji = watch("emoji");
+  const newLabel = watch("label");
+
+  const handleAdd = handleSubmit(async (data) => {
+    if (!data.label.trim()) return;
+    await addCommandMutation.mutateAsync({ emoji: data.emoji, label: data.label.trim() });
+    reset();
+    setDialogOpen(false);
+  });
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
@@ -85,7 +89,7 @@ export default function CommandSetup() {
                 open={dialogOpen}
                 onOpenChange={(open) => {
                   setDialogOpen(open);
-                  if (!open) resetForm();
+                  if (!open) reset();
                 }}
               >
                 <DialogTrigger render={<Button className="h-11" />}>
@@ -103,8 +107,7 @@ export default function CommandSetup() {
                       <Input
                         id="command-emoji"
                         type="text"
-                        value={newEmoji}
-                        onChange={(e) => setNewEmoji(e.target.value)}
+                        {...register("emoji")}
                         className="h-11 text-center text-2xl"
                         maxLength={4}
                       />
@@ -116,8 +119,7 @@ export default function CommandSetup() {
                       <Input
                         id="command-label"
                         type="text"
-                        value={newLabel}
-                        onChange={(e) => setNewLabel(e.target.value)}
+                        {...register("label")}
                         placeholder="예: 후렴구, 다같이 등"
                         className="h-11"
                       />

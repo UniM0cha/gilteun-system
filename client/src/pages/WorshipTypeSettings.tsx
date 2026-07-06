@@ -1,6 +1,6 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router";
-import { toast } from "sonner";
 import { ArrowLeft, Plus, Edit, Trash2, Save, Tag } from "lucide-react";
 import { useWorshipTypes, useAddWorshipType, useUpdateWorshipType, useDeleteWorshipType } from "@/hooks/queries";
 import { COLOR_OPTIONS, getColorOption } from "@/lib/colors";
@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState } from "@/components/EmptyState";
 
+type WorshipTypeFormValues = { name: string; color: string };
+
 export default function WorshipTypeSettings() {
   const { data: worshipTypes = [] } = useWorshipTypes();
   const addMutation = useAddWorshipType();
@@ -22,34 +24,35 @@ export default function WorshipTypeSettings() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: "", color: "blue" });
+  const { register, handleSubmit, reset, watch, setValue } = useForm<WorshipTypeFormValues>({
+    defaultValues: { name: "", color: "blue" },
+  });
+  const nameValue = watch("name");
+  const colorValue = watch("color");
 
   const handleEdit = (type: { id: string; name: string; color: string }) => {
     setEditingTypeId(type.id);
-    setFormData({ name: type.name, color: type.color });
+    // keepDefaultValues: reset(values)가 defaultValues를 교체해 이후 빈 reset()이 이 값으로 복원되는 롤백 버그 방지
+    reset({ name: type.name, color: type.color }, { keepDefaultValues: true });
     setDialogOpen(true);
   };
 
   const handleAdd = () => {
     setEditingTypeId(null);
-    setFormData({ name: "", color: "blue" });
+    reset({ name: "", color: "blue" });
     setDialogOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!formData.name.trim()) {
-      toast.error("예배 유형 이름을 입력해주세요.");
-      return;
-    }
+  const handleSave = handleSubmit(async (data) => {
     if (editingTypeId) {
-      await updateMutation.mutateAsync({ id: editingTypeId, name: formData.name.trim(), color: formData.color });
+      await updateMutation.mutateAsync({ id: editingTypeId, name: data.name.trim(), color: data.color });
     } else {
-      await addMutation.mutateAsync({ name: formData.name.trim(), color: formData.color });
+      await addMutation.mutateAsync({ name: data.name.trim(), color: data.color });
     }
     setDialogOpen(false);
     setEditingTypeId(null);
-    setFormData({ name: "", color: "blue" });
-  };
+    reset({ name: "", color: "blue" });
+  });
 
   const handleDelete = async (id: string) => {
     await deleteMutation.mutateAsync(id);
@@ -90,8 +93,7 @@ export default function WorshipTypeSettings() {
                 <Input
                   id="type-name"
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  {...register("name", { validate: (v) => v.trim().length > 0 })}
                   placeholder="예: 주일 1부 예배"
                   className="h-11"
                   autoFocus
@@ -103,10 +105,10 @@ export default function WorshipTypeSettings() {
                   {COLOR_OPTIONS.map((c) => (
                     <button
                       key={c.name}
-                      onClick={() => setFormData({ ...formData, color: c.name })}
+                      onClick={() => setValue("color", c.name, { shouldDirty: true })}
                       aria-label={`색상 ${c.name}`}
                       className={`size-11 rounded-md transition-shadow ${c.bg} ${
-                        formData.color === c.name ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : ""
+                        colorValue === c.name ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : ""
                       }`}
                       title={c.name}
                     />
@@ -115,14 +117,14 @@ export default function WorshipTypeSettings() {
               </div>
               <div>
                 <Label className="mb-2">미리보기</Label>
-                <Badge className={`text-white ${getColorOption(formData.color)?.bg || "bg-blue-500"}`}>
-                  {formData.name || "예배 유형 이름"}
+                <Badge className={`text-white ${getColorOption(colorValue)?.bg || "bg-blue-500"}`}>
+                  {nameValue || "예배 유형 이름"}
                 </Badge>
               </div>
             </div>
             <DialogFooter>
               <DialogClose render={<Button variant="outline" className="h-11" />}>취소</DialogClose>
-              <Button className="h-11" onClick={handleSave} disabled={!formData.name.trim()}>
+              <Button className="h-11" onClick={handleSave} disabled={!nameValue?.trim()}>
                 <Save />
                 저장하기
               </Button>

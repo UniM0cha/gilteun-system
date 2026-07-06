@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { nanoid } from "nanoid";
 import { eq, and, like, desc, inArray, sql } from "drizzle-orm";
+import type { Server } from "socket.io";
 import fs from "fs";
 import path from "path";
 import { db } from "../db";
@@ -160,6 +161,9 @@ router.put("/:id", (req, res) => {
       .all()
       .sort((a, b) => a.order - b.order);
     res.json({ ...updated, sheets: worshipSheets });
+
+    const io = req.app.get("io") as Server | undefined;
+    if (io) io.to(`worship:${id}`).emit("worship:updated", { worshipId: id, worship: updated });
   } catch (error) {
     console.error("Failed to update worship:", error);
     res.status(500).json({ error: "Failed to update worship" });
@@ -186,6 +190,9 @@ router.delete("/:id", (req, res) => {
     db.delete(sheets).where(eq(sheets.worshipId, id)).run();
     db.delete(worships).where(eq(worships.id, id)).run();
     res.json({ success: true });
+
+    const io = req.app.get("io") as Server | undefined;
+    if (io) io.to(`worship:${id}`).emit("worship:deleted", { worshipId: id });
   } catch (error) {
     console.error("Failed to delete worship:", error);
     res.status(500).json({ error: "Failed to delete worship" });

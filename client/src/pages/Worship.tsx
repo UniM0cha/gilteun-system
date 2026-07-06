@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { useWorship, useCommands, useSheetDrawings, useAdjacentDrawingsPreload } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
+import { useDeviceSettingsStore, type PanelSide } from "@/store/deviceSettingsStore";
 import { useWorshipSocket } from "@/hooks/useWorshipSocket";
 import { useWorshipRoom } from "@/hooks/useWorshipRoom";
 import { useWorshipPresence } from "@/hooks/useWorshipPresence";
@@ -101,15 +102,20 @@ export default function Worship() {
 
   const socket = getSocket();
 
-  // Socket.IO + TanStack Query 브릿지 (sheets:updated, worship:updated)
-  useWorshipSocket(id, (updatedSheets) => {
-    // 현재 보는 악보가 삭제되면 첫 번째로 이동
-    if (currentSheetId && !updatedSheets.find((s) => s.id === currentSheetId)) {
-      cancelPageMotionRef.current();
-      setCurrentSheetId(updatedSheets[0]?.id || null);
-      resetZoom();
-    }
-  });
+  // Socket.IO + TanStack Query 브릿지 (sheets:updated, worship:updated, worship:deleted, commands:updated)
+  useWorshipSocket(
+    id,
+    (updatedSheets) => {
+      // 현재 보는 악보가 삭제되면 첫 번째로 이동
+      if (currentSheetId && !updatedSheets.find((s) => s.id === currentSheetId)) {
+        cancelPageMotionRef.current();
+        setCurrentSheetId(updatedSheets[0]?.id || null);
+        resetZoom();
+      }
+    },
+    // 예배 자체가 삭제되면 홈으로
+    () => navigate("/"),
+  );
 
   // 드로잉 동기화 훅
   const {
@@ -199,7 +205,21 @@ export default function Worship() {
     [sheets, commitPage],
   );
 
-  const { presenceUsers } = useWorshipPresence({ worshipId: id, onSpotlightAccept: commitSheetId });
+  // 호출된 악보가 현재 악보에서 몇 장 떨어져 있는지 (+: 오른쪽, -: 왼쪽, null: 계산 불가)
+  const getSheetOffset = useCallback(
+    (sheetId: string): number | null => {
+      const target = sheets.findIndex((s) => s.id === sheetId);
+      if (target < 0 || currentPage < 0) return null;
+      return target - currentPage;
+    },
+    [sheets, currentPage],
+  );
+
+  const { presenceUsers } = useWorshipPresence({
+    worshipId: id,
+    onSpotlightAccept: commitSheetId,
+    getSheetOffset,
+  });
 
   useAdjacentSheetPreload(sheets, currentPage);
   useAdjacentDrawingsPreload(sheets, currentPage);
@@ -209,6 +229,9 @@ export default function Worship() {
   // 폰(< md): 좌/우 패널을 밀어내기 대신 오버레이 드로어로 동작시킨다.
   const isMobile = !useMediaQuery("(min-width: 48rem)");
   const commandPanelWidth = isLargeScreen ? "20rem" : "11rem";
+  // 기기 설정: 명령 패널 좌/우 위치 — 악보 목록은 항상 반대편
+  const commandPanelSide = useDeviceSettingsStore((s) => s.commandPanelSide);
+  const sidebarSide: PanelSide = commandPanelSide === "left" ? "right" : "left";
 
   const {
     x: pageX,
@@ -321,6 +344,36 @@ export default function Worship() {
     [drawingUndo, drawingRedo],
   );
 
+  // 좌/우 패널 — 기기 설정(commandPanelSide)에 따라 실제 JSX 순서를 바꿔 렌더한다.
+  // CSS order 대신 DOM 순서를 바꿔야 키보드 탭·스크린리더 순서가 화면 배치와 일치한다.
+  // 고정 key 덕에 side가 바뀌어도 React가 리마운트 없이 노드를 이동시킨다.
+  const sheetListPanel = (
+    <SheetListSidebar
+      key="sheet-list-panel"
+      side={sidebarSide}
+      show={showSidebar}
+      isMobile={isMobile}
+      reducedMotion={!!shouldReduceMotion}
+      sheets={sheets}
+      currentSheetId={currentSheetId}
+      presenceUsers={presenceUsers}
+      worshipId={id}
+      onSelectPage={commitPage}
+    />
+  );
+  const commandPanel = (
+    <CommandPanel
+      key="command-panel"
+      side={commandPanelSide}
+      show={showCommandPanel}
+      isMobile={isMobile}
+      width={commandPanelWidth}
+      reducedMotion={!!shouldReduceMotion}
+      commands={commands}
+      onSendCommand={handleSendCommand}
+    />
+  );
+
   return (
     <div className="h-dvh flex flex-col bg-background">
       <WorshipHeader
@@ -332,6 +385,7 @@ export default function Worship() {
         presencePopoverOpen={presencePopoverOpen}
         onPresencePopoverChange={setPresencePopoverOpen}
         onToggleSidebar={handleToggleSidebar}
+        sidebarSide={sidebarSide}
       />
 
       {/* 컴팩트 모드 또는 모바일(헤더 칩 숨김): 연결 끊김 시 플로팅 인디케이터 */}
@@ -353,16 +407,7 @@ export default function Worship() {
             }}
           />
         )}
-        <SheetListSidebar
-          show={showSidebar}
-          isMobile={isMobile}
-          reducedMotion={!!shouldReduceMotion}
-          sheets={sheets}
-          currentSheetId={currentSheetId}
-          presenceUsers={presenceUsers}
-          worshipId={id}
-          onSelectPage={commitPage}
-        />
+        {commandPanelSide === "left" ? commandPanel : sheetListPanel}
 
         {/* 중앙 악보 뷰어 */}
         <main
@@ -379,6 +424,7 @@ export default function Worship() {
             highlighterColors={highlighterColors}
             onToggleCommandPanel={handleToggleCommandPanel}
             onSpotlightCall={handleSpotlightCall}
+            commandPanelSide={commandPanelSide}
           />
 
           {/* 악보 영역 */}
@@ -490,14 +536,7 @@ export default function Worship() {
           </div>
         </main>
 
-        <CommandPanel
-          show={showCommandPanel}
-          isMobile={isMobile}
-          width={commandPanelWidth}
-          reducedMotion={!!shouldReduceMotion}
-          commands={commands}
-          onSendCommand={handleSendCommand}
-        />
+        {commandPanelSide === "left" ? sheetListPanel : commandPanel}
       </div>
     </div>
   );

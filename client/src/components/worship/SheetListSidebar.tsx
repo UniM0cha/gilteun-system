@@ -6,9 +6,11 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
 import type { Sheet, PresenceUser } from "@/types";
-import { panelTransition, panelContentTransition } from "./panelMotion";
+import type { PanelSide } from "@/store/deviceSettingsStore";
+import { panelTransition, panelContentTransition, getPanelSlideX, getPanelSideConfig } from "./panelMotion";
 
 interface SheetListSidebarProps {
+  side: PanelSide;
   show: boolean;
   isMobile: boolean;
   reducedMotion: boolean;
@@ -19,9 +21,10 @@ interface SheetListSidebarProps {
   onSelectPage: (index: number) => void;
 }
 
-// 좌측 악보 리스트 (슬라이드 인/아웃 + 접속자 표시).
-// 폰(isMobile)에선 밀어내기 대신 좌측 오버레이 드로어로 동작한다.
+// 악보 리스트 패널 (슬라이드 인/아웃 + 접속자 표시). 기기 설정에 따라 좌/우 어느 쪽이든 배치 가능.
+// 폰(isMobile)에선 밀어내기 대신 오버레이 드로어로 동작한다.
 function SheetListSidebar({
+  side,
   show,
   isMobile,
   reducedMotion,
@@ -31,6 +34,8 @@ function SheetListSidebar({
   worshipId,
   onSelectPage,
 }: SheetListSidebarProps) {
+  const slideX = getPanelSlideX(side, show, isMobile);
+  const { edgeClass, borderClass, contentClosedX } = getPanelSideConfig(side);
   return (
     <motion.aside
       aria-hidden={!show}
@@ -38,24 +43,23 @@ function SheetListSidebar({
       initial={false}
       animate={
         isMobile
-          ? { x: show ? 0 : "-100%", width: "16rem", opacity: 1 }
+          ? { x: slideX, width: "16rem", opacity: 1 }
           : show
             ? { width: "16rem", opacity: 1, x: 0 }
-            : { width: "0rem", opacity: 0, x: -12 }
+            : { width: "0rem", opacity: 0, x: slideX }
       }
       transition={reducedMotion ? { duration: 0 } : panelTransition}
       className={cn(
         "bg-card overflow-hidden",
-        isMobile ? "absolute inset-y-0 left-0 z-40 w-64 border-r shadow-lg" : cn("shrink-0", show && "border-r"),
+        isMobile
+          ? cn("absolute inset-y-0 z-40 w-64 shadow-lg", edgeClass, borderClass)
+          : cn("shrink-0", show && borderClass),
       )}
       style={{ pointerEvents: show ? "auto" : "none" }}
     >
-      {/* 좌측은 첫 flex 항목이라 콘텐츠가 화면 끝에 고정됨 → 내부 독립 translate를
-          쓰면 프레임과 분리된 parallax로 보인다. opacity만 페이드하고 슬라이드는
-          aside의 x(-12→0)에 맡겨 패널 전체가 한 덩어리로 움직이게 한다.
-          (우측 패널은 콘텐츠가 움직이는 divider를 따라가 통합 슬라이드로 읽히므로 내부 x 유지) */}
+      {/* 내부 콘텐츠 x는 side 규칙(getPanelSideConfig.contentClosedX 주석 참고)을 따른다. */}
       <motion.div
-        animate={show ? { opacity: 1 } : { opacity: 0 }}
+        animate={show ? { opacity: 1, x: 0 } : { opacity: 0, x: contentClosedX }}
         transition={reducedMotion ? { duration: 0 } : panelContentTransition}
         className="w-64 h-full overflow-y-auto p-4 box-border"
       >

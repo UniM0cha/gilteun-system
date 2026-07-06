@@ -1,22 +1,30 @@
-import { SubmitEvent, useState } from "react";
+import { useForm } from "react-hook-form";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useVerifyPin } from "@/hooks/queries/useAuth";
 
+type PinFormValues = {
+  pin: string;
+};
+
 export default function PinLock() {
-  const [pin, setPin] = useState("");
   const verifyPin = useVerifyPin();
 
-  const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const { register, handleSubmit, watch } = useForm<PinFormValues>({
+    defaultValues: { pin: "" },
+  });
+
+  const pin = watch("pin");
+
+  const onSubmit = handleSubmit(async (data) => {
     try {
-      await verifyPin.mutateAsync(pin);
+      await verifyPin.mutateAsync(data.pin);
     } catch {
       // axios 인터셉터에서 toast 처리됨
     }
-  };
+  });
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-8">
@@ -30,13 +38,12 @@ export default function PinLock() {
             <p className="text-muted-foreground">PIN을 입력해주세요</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4">
             <Input
               type="password"
               inputMode="numeric"
               placeholder="PIN 입력"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
+              {...register("pin")}
               className="h-11 text-center text-xl tracking-widest"
               autoFocus
             />

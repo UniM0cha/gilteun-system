@@ -1,10 +1,16 @@
 import { Router } from "express";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
+import type { Server } from "socket.io";
 import { db } from "../db";
 import { commands } from "../db/schema.js";
 
 const router = Router();
+
+// 명령은 전역 리소스 — room 없이 전체 브로드캐스트, 클라이언트가 refetch
+function broadcastCommandsUpdate(io: Server | undefined) {
+  if (io) io.emit("commands:updated");
+}
 
 const defaultCommands = [
   { emoji: "1️⃣", label: "1절" },
@@ -41,6 +47,7 @@ router.post("/", (req, res) => {
     db.insert(commands).values({ id, emoji, label, isDefault: false }).run();
     const created = db.select().from(commands).where(eq(commands.id, id)).get();
     res.status(201).json(created);
+    broadcastCommandsUpdate(req.app.get("io") as Server | undefined);
   } catch (error) {
     console.error("Failed to create command:", error);
     res.status(500).json({ error: "Failed to create command" });
@@ -57,13 +64,14 @@ router.delete("/:id", (req, res) => {
     }
     db.delete(commands).where(eq(commands.id, id)).run();
     res.json({ success: true });
+    broadcastCommandsUpdate(req.app.get("io") as Server | undefined);
   } catch (error) {
     console.error("Failed to delete command:", error);
     res.status(500).json({ error: "Failed to delete command" });
   }
 });
 
-router.post("/reset", (_req, res) => {
+router.post("/reset", (req, res) => {
   try {
     db.delete(commands).run();
     for (const cmd of defaultCommands) {
@@ -71,6 +79,7 @@ router.post("/reset", (_req, res) => {
     }
     const allCommands = db.select().from(commands).all();
     res.json(allCommands);
+    broadcastCommandsUpdate(req.app.get("io") as Server | undefined);
   } catch (error) {
     console.error("Failed to reset commands:", error);
     res.status(500).json({ error: "Failed to reset commands" });

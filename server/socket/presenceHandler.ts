@@ -1,7 +1,7 @@
 import { Server, Socket } from "socket.io";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { db } from "../db";
-import { profiles, roles } from "../db/schema.js";
+import { profiles, roles, worships, sheets } from "../db/schema.js";
 
 interface UserInfo {
   profileId: string;
@@ -73,6 +73,27 @@ export function setupPresenceHandler(io: Server, socket: Socket): void {
     (socket as unknown as { _worshipId?: string })._worshipId = data.worshipId;
 
     broadcastPresence(io, data.worshipId);
+
+    // 입장한 소켓에 최신 스냅샷 전송 (drawing:state 패턴과 대칭) —
+    // 재연결 시 끊긴 동안 놓친 sheets:updated/worship:updated를 복구한다
+    try {
+      const worship = db.select().from(worships).where(eq(worships.id, data.worshipId)).get();
+      if (worship) {
+        const worshipSheets = db
+          .select()
+          .from(sheets)
+          .where(eq(sheets.worshipId, data.worshipId))
+          .orderBy(asc(sheets.order))
+          .all();
+        socket.emit("sheets:updated", { worshipId: data.worshipId, sheets: worshipSheets });
+        socket.emit("worship:updated", { worshipId: data.worshipId, worship });
+      } else {
+        // 접속이 끊긴 사이 예배 자체가 삭제된 경우
+        socket.emit("worship:deleted", { worshipId: data.worshipId });
+      }
+    } catch (error) {
+      console.error("[Presence] Failed to send worship snapshot:", error);
+    }
   });
 
   // 예배 퇴장

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Edit, Trash2, Save, AlertCircle, Users } from "lucide-react";
@@ -13,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState } from "@/components/EmptyState";
 
+type RoleFormValues = { name: string; icon: string };
+
 export default function RoleManagement() {
   const { data: roles = [] } = useRoles();
   const { data: profiles = [] } = useProfiles();
@@ -22,13 +25,17 @@ export default function RoleManagement() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: "", icon: "" });
+  const { register, handleSubmit, reset, watch } = useForm<RoleFormValues>({
+    defaultValues: { name: "", icon: "" },
+  });
+  const nameValue = watch("name");
+  const iconValue = watch("icon");
 
   const isRoleInUse = (roleId: string) => profiles.some((p) => p.roleId === roleId);
 
   const openAdd = () => {
     setEditingId(null);
-    setFormData({ name: "", icon: "" });
+    reset({ name: "", icon: "" });
     setDialogOpen(true);
   };
 
@@ -36,25 +43,22 @@ export default function RoleManagement() {
     const role = roles.find((r) => r.id === id);
     if (role) {
       setEditingId(id);
-      setFormData({ name: role.name, icon: role.icon });
+      // keepDefaultValues: reset(values)가 defaultValues를 교체해 이후 빈 reset()이 이 값으로 복원되는 롤백 버그 방지
+      reset({ name: role.name, icon: role.icon }, { keepDefaultValues: true });
       setDialogOpen(true);
     }
   };
 
-  const handleSave = async () => {
-    if (!formData.name.trim() || !formData.icon.trim()) {
-      toast.error("역할 이름과 아이콘을 입력해주세요.");
-      return;
-    }
+  const handleSave = handleSubmit(async (data) => {
     if (editingId) {
-      await updateRoleMutation.mutateAsync({ id: editingId, name: formData.name, icon: formData.icon });
+      await updateRoleMutation.mutateAsync({ id: editingId, name: data.name, icon: data.icon });
     } else {
-      await addRoleMutation.mutateAsync({ name: formData.name, icon: formData.icon });
+      await addRoleMutation.mutateAsync({ name: data.name, icon: data.icon });
     }
     setDialogOpen(false);
     setEditingId(null);
-    setFormData({ name: "", icon: "" });
-  };
+    reset({ name: "", icon: "" });
+  });
 
   const handleDelete = async (id: string) => {
     if (isRoleInUse(id)) {
@@ -99,8 +103,7 @@ export default function RoleManagement() {
                 <Input
                   id="role-name"
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  {...register("name", { validate: (v) => v.trim().length > 0 })}
                   placeholder="예: 기타, 드럼, 보컬..."
                   className="h-11"
                   autoFocus
@@ -113,8 +116,7 @@ export default function RoleManagement() {
                 <Input
                   id="role-icon"
                   type="text"
-                  value={formData.icon}
-                  onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                  {...register("icon", { validate: (v) => v.trim().length > 0 })}
                   className="h-11 text-center text-xl"
                   placeholder="🎸"
                   maxLength={2}
@@ -123,7 +125,7 @@ export default function RoleManagement() {
             </div>
             <DialogFooter>
               <DialogClose render={<Button variant="outline" className="h-11" />}>취소</DialogClose>
-              <Button className="h-11" onClick={handleSave} disabled={!formData.name.trim() || !formData.icon.trim()}>
+              <Button className="h-11" onClick={handleSave} disabled={!nameValue?.trim() || !iconValue?.trim()}>
                 <Save />
                 저장하기
               </Button>
