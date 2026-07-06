@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import { useForm } from "react-hook-form";
 import { ArrowLeft, Plus, Trash2, RotateCcw, Save, Settings } from "lucide-react";
 import { useCommands, useAddCommand, useDeleteCommand, useResetCommands } from "@/hooks/queries";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,11 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
+type CommandFormValues = {
+  emoji: string;
+  label: string;
+};
+
 export default function CommandSetup() {
   const { data: commands = [] } = useCommands();
   const addCommandMutation = useAddCommand();
@@ -23,22 +29,20 @@ export default function CommandSetup() {
   const resetCommandsMutation = useResetCommands();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newEmoji, setNewEmoji] = useState("🎵");
-  const [newLabel, setNewLabel] = useState("");
 
-  const handleAdd = async () => {
-    if (newLabel.trim()) {
-      await addCommandMutation.mutateAsync({ emoji: newEmoji, label: newLabel.trim() });
-      setNewLabel("");
-      setNewEmoji("🎵");
-      setDialogOpen(false);
-    }
-  };
+  const { register, handleSubmit, reset, watch } = useForm<CommandFormValues>({
+    defaultValues: { emoji: "🎵", label: "" },
+  });
 
-  const resetForm = () => {
-    setNewLabel("");
-    setNewEmoji("🎵");
-  };
+  const newEmoji = watch("emoji");
+  const newLabel = watch("label");
+
+  const handleAdd = handleSubmit(async (data) => {
+    if (!data.label.trim()) return;
+    await addCommandMutation.mutateAsync({ emoji: data.emoji, label: data.label.trim() });
+    reset();
+    setDialogOpen(false);
+  });
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
@@ -77,7 +81,7 @@ export default function CommandSetup() {
                 open={dialogOpen}
                 onOpenChange={(open) => {
                   setDialogOpen(open);
-                  if (!open) resetForm();
+                  if (!open) reset();
                 }}
               >
                 <DialogTrigger asChild>
@@ -92,20 +96,13 @@ export default function CommandSetup() {
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-semibold text-foreground mb-2">이모티콘 *</label>
-                      <Input
-                        type="text"
-                        value={newEmoji}
-                        onChange={(e) => setNewEmoji(e.target.value)}
-                        className="text-3xl text-center"
-                        maxLength={4}
-                      />
+                      <Input type="text" {...register("emoji")} className="text-3xl text-center" maxLength={4} />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-foreground mb-2">명령 이름 *</label>
                       <Input
                         type="text"
-                        value={newLabel}
-                        onChange={(e) => setNewLabel(e.target.value)}
+                        {...register("label")}
                         placeholder="예: 후렴구, 다같이 등"
                         className="text-lg"
                       />
