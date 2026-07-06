@@ -16,30 +16,34 @@ function PageNavigator({ visible, currentPage, total, onNavigate }: PageNavigato
     <div
       onClick={(e) => e.stopPropagation()}
       className={cn(
-        "absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-viewer-panel/70 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-2xl transition-opacity duration-300",
+        "absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 rounded-lg border bg-card/80 backdrop-blur-sm px-4 py-3 shadow-lg transition-opacity duration-300",
         visible ? "opacity-100" : "opacity-0 pointer-events-none",
       )}
     >
       <Button
-        variant="ghost"
+        variant="secondary"
         size="icon"
-        className="bg-white/5 hover:bg-white/10 text-viewer-foreground"
+        className="size-11"
         onClick={() => onNavigate(currentPage - 1)}
         disabled={currentPage <= 0}
+        title="이전 페이지"
+        aria-label="이전 페이지"
       >
-        <ChevronLeft className="w-6 h-6" />
+        <ChevronLeft />
       </Button>
-      <span className="text-viewer-foreground font-semibold text-lg min-w-25 text-center">
+      <span className="font-medium text-lg min-w-25 text-center">
         {currentPage + 1} / {total}
       </span>
       <Button
-        variant="ghost"
+        variant="secondary"
         size="icon"
-        className="bg-white/5 hover:bg-white/10 text-viewer-foreground"
+        className="size-11"
         onClick={() => onNavigate(currentPage + 1)}
         disabled={currentPage >= total - 1}
+        title="다음 페이지"
+        aria-label="다음 페이지"
       >
-        <ChevronRight className="w-6 h-6" />
+        <ChevronRight />
       </Button>
     </div>
   );

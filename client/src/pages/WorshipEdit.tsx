@@ -42,12 +42,16 @@ import {
   useReorderSheets,
 } from "@/hooks/queries";
 import type { Sheet } from "@/types";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { EmptyState } from "@/components/EmptyState";
 
 function SortableSheetItem({
   sheet,
@@ -78,17 +82,17 @@ function SortableSheetItem({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`bg-card rounded-xl p-3 sm:p-4 border-2 transition-colors ${
-        isDragging ? "opacity-30 border-dashed border-border" : "border-border hover:border-primary/40 hover:shadow-md"
+      className={`rounded-lg border bg-card p-3 sm:p-4 transition-colors ${
+        isDragging ? "opacity-30 border-dashed" : ""
       }`}
     >
       <div className="flex items-center gap-2 sm:gap-4">
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing min-h-11 min-w-11 shrink-0 flex items-center justify-center hover:bg-accent rounded-lg transition-colors touch-none"
+          className="cursor-grab active:cursor-grabbing min-h-11 min-w-11 shrink-0 flex items-center justify-center hover:bg-accent rounded-md transition-colors touch-none"
         >
-          <GripVertical className="w-5 h-5 text-muted-foreground" />
+          <GripVertical className="size-5 text-muted-foreground" />
         </div>
 
         {/* 이미지 미리보기 */}
@@ -99,28 +103,32 @@ function SortableSheetItem({
           </div>
           {sheet.imagePath ? (
             <Dialog>
-              <DialogTrigger asChild>
-                <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded-lg overflow-hidden border-2 border-border cursor-pointer shadow-md">
-                  <img src={`/uploads/${sheet.imagePath}`} alt={sheet.title} className="w-full h-full object-cover" />
-                  <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-2 flex items-center justify-center">
-                    <Eye className="w-4 h-4 text-white" />
-                  </div>
+              <DialogTrigger
+                render={
+                  <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded-md overflow-hidden border cursor-pointer" />
+                }
+                nativeButton={false}
+              >
+                <img src={`/uploads/${sheet.imagePath}`} alt={sheet.title} className="w-full h-full object-cover" />
+                <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-2 flex items-center justify-center">
+                  <Eye className="size-4 text-white" />
                 </div>
               </DialogTrigger>
               <DialogContent className="max-w-5xl bg-transparent border-none shadow-none p-0" showCloseButton={false}>
                 <DialogTitle className="sr-only">{sheet.title} 미리보기</DialogTitle>
+                <DialogClose className="sr-only">닫기</DialogClose>
                 <div className="relative flex flex-col items-center">
                   <img
                     src={`/uploads/${sheet.imagePath}`}
                     alt={sheet.title}
-                    className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                    className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-lg"
                   />
-                  <div className="mt-4 bg-black/70 text-white px-6 py-3 rounded-full font-semibold">{sheet.title}</div>
+                  <div className="mt-4 rounded-full bg-black/70 px-6 py-3 font-medium text-white">{sheet.title}</div>
                 </div>
               </DialogContent>
             </Dialog>
           ) : (
-            <div className="w-16 h-20 sm:w-20 sm:h-24 bg-muted rounded-lg flex items-center justify-center text-3xl border-2 border-border">
+            <div className="w-16 h-20 sm:w-20 sm:h-24 bg-muted rounded-md flex items-center justify-center text-3xl border">
               📄
             </div>
           )}
@@ -144,29 +152,29 @@ function SortableSheetItem({
                   }
                 }}
                 autoFocus
-                className="border-ring"
+                className="h-11"
                 placeholder="악보 제목"
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={onSaveTitle}>
-                  <Check className="w-3.5 h-3.5" />
+                <Button className="h-11" onClick={onSaveTitle}>
+                  <Check />
                   저장
                 </Button>
-                <Button variant="secondary" size="sm" onClick={onCancelEdit}>
-                  <X className="w-3.5 h-3.5" />
+                <Button variant="outline" className="h-11" onClick={onCancelEdit}>
+                  <X />
                   취소
                 </Button>
               </div>
             </div>
           ) : (
             <>
-              <div className="font-semibold text-foreground line-clamp-2">{sheet.title}</div>
+              <div className="font-medium line-clamp-2">{sheet.title}</div>
               <div className="text-sm text-muted-foreground mt-1 truncate">{sheet.fileName}</div>
             </>
           )}
         </div>
 
-        <div className="hidden sm:block text-2xl font-bold text-muted-foreground min-w-10 shrink-0 text-center">
+        <div className="hidden sm:block text-xl font-semibold text-muted-foreground min-w-10 shrink-0 text-center">
           {index + 1}
         </div>
 
@@ -178,22 +186,25 @@ function SortableSheetItem({
               size="icon"
               onClick={() => onEdit(sheet.id, sheet.title)}
               title="제목 수정"
-              className="min-h-11 min-w-11 text-primary hover:bg-accent"
+              aria-label={`${sheet.title} 제목 수정`}
+              className="size-11"
             >
-              <Pencil className="w-4 h-4" />
+              <Pencil />
             </Button>
             <ConfirmDialog
               trigger={
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="min-h-11 min-w-11 text-destructive hover:bg-destructive/10"
+                  className="size-11"
+                  title="악보 삭제"
+                  aria-label={`${sheet.title} 삭제`}
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Trash2 />
                 </Button>
               }
               title="악보 삭제"
-              description="이 악보를 삭제하시겠습니까?"
+              description={`"${sheet.title}" 악보를 삭제하시겠습니까?`}
               confirmLabel="삭제"
               onConfirm={() => onDelete(sheet.id)}
               destructive
@@ -207,22 +218,20 @@ function SortableSheetItem({
 
 function SheetDragPreview({ sheet }: { sheet: Sheet }) {
   return (
-    <div className="bg-card rounded-xl p-4 border-2 border-primary shadow-lg">
+    <div className="rounded-lg border bg-card p-4 shadow-md">
       <div className="flex items-center gap-4">
         <div className="p-2">
-          <GripVertical className="w-5 h-5 text-muted-foreground" />
+          <GripVertical className="size-5 text-muted-foreground" />
         </div>
         {sheet.imagePath ? (
-          <div className="w-20 h-24 rounded-lg overflow-hidden border-2 border-border shadow-md">
+          <div className="w-20 h-24 rounded-md overflow-hidden border">
             <img src={`/uploads/${sheet.imagePath}`} alt={sheet.title} className="w-full h-full object-cover" />
           </div>
         ) : (
-          <div className="w-20 h-24 bg-muted rounded-lg flex items-center justify-center text-3xl border-2 border-border">
-            📄
-          </div>
+          <div className="w-20 h-24 bg-muted rounded-md flex items-center justify-center text-3xl border">📄</div>
         )}
         <div className="flex-1">
-          <div className="font-semibold text-foreground line-clamp-2">{sheet.title}</div>
+          <div className="font-medium line-clamp-2">{sheet.title}</div>
           <div className="text-sm text-muted-foreground mt-1 truncate">{sheet.fileName}</div>
         </div>
       </div>
@@ -406,75 +415,83 @@ export default function WorshipEdit() {
       <div className="max-w-5xl mx-auto">
         {/* 헤더 */}
         <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <Button variant="outline" size="icon" className="shrink-0" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-6 h-6" />
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-11 shrink-0"
+            onClick={() => navigate(-1)}
+            title="뒤로"
+            aria-label="뒤로"
+          >
+            <ArrowLeft />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
               {isNew ? "새 예배 만들기" : "예배 편집"}
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground">예배 정보와 악보를 관리하세요</p>
           </div>
-          <Button onClick={handleSave} disabled={saving} className="shrink-0">
-            <Save className="w-5 h-5" />
-            <span className="hidden sm:inline">{saving ? "저장 중..." : "저장하기"}</span>
-            <span className="sm:hidden">{saving ? "저장 중" : "저장"}</span>
+          <Button onClick={handleSave} disabled={saving} className="h-11 shrink-0">
+            <Save />
+            <span className="hidden sm:inline">{saving ? "저장 중..." : "예배 정보 저장"}</span>
+            <span className="sm:hidden">{saving ? "저장 중" : "정보 저장"}</span>
           </Button>
         </div>
 
         {/* 예배 정보 */}
         <Card className="mb-6">
+          <CardHeader className="px-3 sm:px-6">
+            <CardTitle className="text-lg">예배 정보</CardTitle>
+          </CardHeader>
           <CardContent className="px-3 sm:px-6">
-            <h2 className="text-xl font-bold text-foreground mb-6">예배 정보</h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    예배 제목 *
-                  </div>
-                </label>
+                <Label htmlFor="worship-title" className="mb-2">
+                  <FileText className="size-4" />
+                  예배 제목 *
+                </Label>
                 <Input
+                  id="worship-title"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="예: 2024년 1월 첫째주 주일예배"
-                  className="text-lg"
+                  className="h-11"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    예배 날짜 *
-                  </div>
-                </label>
+                <Label htmlFor="worship-date" className="mb-2">
+                  <Calendar className="size-4" />
+                  예배 날짜 *
+                </Label>
                 <Input
+                  id="worship-date"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="text-lg appearance-none"
+                  className="h-11 appearance-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  <div className="flex items-center gap-2">
-                    <Tag className="w-4 h-4" />
-                    예배 유형 *
-                  </div>
-                </label>
+                <Label className="mb-2">
+                  <Tag className="size-4" />
+                  예배 유형 *
+                </Label>
                 {worshipTypes.length > 0 ? (
-                  <Select value={typeId} onValueChange={setTypeId}>
-                    <SelectTrigger className="w-full data-[size=default]:h-14 text-lg bg-background">
+                  <Select
+                    items={Object.fromEntries(worshipTypes.map((t) => [t.id, t.name]))}
+                    value={typeId}
+                    onValueChange={(v) => setTypeId(v ?? "")}
+                  >
+                    <SelectTrigger className="w-full data-[size=default]:h-11">
                       <SelectValue placeholder="예배 유형 선택" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
                         {worshipTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.id}>
+                          <SelectItem key={type.id} value={type.id} className="min-h-11">
                             {type.name}
                           </SelectItem>
                         ))}
@@ -482,19 +499,17 @@ export default function WorshipEdit() {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <div className="w-full px-5 py-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl text-yellow-800">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Tag className="w-5 h-5" />
-                      <span className="font-semibold">예배 유형이 없습니다</span>
-                    </div>
-                    <p className="text-sm mb-3">먼저 예배 유형을 생성해주세요.</p>
-                    <Button asChild className="bg-yellow-600 hover:bg-yellow-700">
-                      <Link to="/worship-type-settings">
-                        <Plus className="w-4 h-4" />
+                  <Alert>
+                    <Tag />
+                    <AlertTitle>예배 유형이 없습니다</AlertTitle>
+                    <AlertDescription>
+                      <p>먼저 예배 유형을 생성해주세요.</p>
+                      <Link to="/worship-type-settings" className={cn(buttonVariants(), "mt-2 h-11")}>
+                        <Plus />
                         예배 유형 관리
                       </Link>
-                    </Button>
-                  </div>
+                    </AlertDescription>
+                  </Alert>
                 )}
               </div>
             </div>
@@ -503,16 +518,12 @@ export default function WorshipEdit() {
 
         {/* 악보 업로드 섹션 */}
         <Card className="mb-6">
-          <CardContent className="px-3 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-foreground">악보 관리</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  드래그하여 순서를 변경하거나 제목을 수정할 수 있습니다
-                </p>
-              </div>
-              <Button onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
-                <Upload className="w-5 h-5" />
+          <CardHeader className="px-3 sm:px-6">
+            <CardTitle className="text-lg">악보 관리</CardTitle>
+            <CardDescription>드래그하여 순서를 변경하거나 제목을 수정할 수 있습니다</CardDescription>
+            <CardAction>
+              <Button className="h-11" onClick={() => fileInputRef.current?.click()}>
+                <Upload />
                 악보 추가
               </Button>
               <input
@@ -523,23 +534,23 @@ export default function WorshipEdit() {
                 onChange={handleFileUpload}
                 className="hidden"
               />
-            </div>
-
+            </CardAction>
+          </CardHeader>
+          <CardContent className="px-3 sm:px-6">
             {/* 업로드 안내 */}
-            <div className="mb-6 p-4 bg-accent border-2 border-border rounded-xl">
-              <div className="flex items-start gap-3">
-                <ImageIcon className="w-5 h-5 text-primary mt-0.5" />
-                <div className="flex-1 text-sm text-accent-foreground">
-                  <div className="font-semibold mb-1">악보 업로드 안내</div>
-                  <ul className="space-y-1 text-accent-foreground">
-                    <li>JPG, PNG, HEIC 이미지 파일을 지원합니다</li>
-                    <li>여러 파일을 한 번에 선택하여 업로드할 수 있습니다</li>
-                    <li>드래그하여 악보 순서를 자유롭게 변경하세요</li>
-                    <li>이미지 클릭 시 미리보기가 가능합니다</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+            <Alert className="mb-6">
+              <ImageIcon />
+              <AlertTitle>악보 업로드 안내</AlertTitle>
+              <AlertDescription>
+                <ul className="space-y-1">
+                  <li>악보 추가·삭제·순서 변경은 즉시 저장됩니다 (상단 "예배 정보 저장"과 무관)</li>
+                  <li>JPG, PNG, HEIC 이미지 파일을 지원합니다</li>
+                  <li>여러 파일을 한 번에 선택하여 업로드할 수 있습니다</li>
+                  <li>드래그하여 악보 순서를 자유롭게 변경하세요</li>
+                  <li>이미지 클릭 시 미리보기가 가능합니다</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
 
             {/* 악보 목록 */}
             {sheets.length > 0 ? (
@@ -573,17 +584,17 @@ export default function WorshipEdit() {
                 </DragOverlay>
               </DndContext>
             ) : (
-              <div className="text-center py-16 bg-muted rounded-xl border-2 border-dashed border-border">
-                <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Upload className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">아직 악보가 없습니다</h3>
-                <p className="text-muted-foreground mb-6">악보 추가 버튼을 눌러 이미지를 업로드하세요</p>
-                <Button onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="w-5 h-5" />
-                  악보 추가
-                </Button>
-              </div>
+              <EmptyState
+                icon={Upload}
+                title="아직 악보가 없습니다"
+                description="악보 추가 버튼을 눌러 이미지를 업로드하세요"
+                action={
+                  <Button className="h-11" onClick={() => fileInputRef.current?.click()}>
+                    <Upload />
+                    악보 추가
+                  </Button>
+                }
+              />
             )}
           </CardContent>
         </Card>

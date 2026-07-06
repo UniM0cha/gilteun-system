@@ -4,9 +4,12 @@ import { toast } from "sonner";
 import { ArrowLeft, Save, Trash2, User, Users } from "lucide-react";
 import { useProfiles, useAddProfile, useUpdateProfile, useDeleteProfile, useRoles } from "@/hooks/queries";
 import { PROFILE_COLORS } from "@/lib/colors";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function ProfileEdit() {
@@ -61,90 +64,95 @@ export default function ProfileEdit() {
     <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
-          <Button variant="outline" size="icon" asChild>
-            <Link to="/profile-setup">
-              <ArrowLeft className="w-6 h-6" />
-            </Link>
-          </Button>
+          <Link
+            to="/profile-setup"
+            title="프로필 목록으로"
+            aria-label="프로필 목록으로"
+            className={cn(buttonVariants({ variant: "outline", size: "icon" }), "size-11")}
+          >
+            <ArrowLeft />
+          </Link>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">{isNewProfile ? "새 프로필 추가" : "프로필 수정"}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{isNewProfile ? "새 프로필 추가" : "프로필 수정"}</h1>
             <p className="text-muted-foreground">프로필 정보를 입력하세요</p>
           </div>
         </div>
 
-        <Card className="rounded-3xl p-8">
-          <CardContent className="p-0">
+        <Card>
+          <CardContent>
             {/* 프로필 미리보기 */}
             <div className="flex items-center justify-center mb-8">
               <div className="relative">
-                <div className={`w-32 h-32 ${color} rounded-3xl flex items-center justify-center text-7xl shadow-xl`}>
+                <div className={`flex size-28 items-center justify-center rounded-xl text-6xl ${color}`}>
                   {getRoleById(roleId)?.icon}
                 </div>
-                <div className="absolute -bottom-2 -right-2 bg-card rounded-full p-2 shadow-lg">
-                  <User className="w-6 h-6 text-muted-foreground" />
+                <div className="absolute -bottom-2 -right-2 rounded-full border bg-card p-2 shadow-sm">
+                  <User className="size-5 text-muted-foreground" />
                 </div>
               </div>
             </div>
 
             {/* 이름 */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-foreground mb-2">이름 *</label>
+              <Label htmlFor="profile-name" className="mb-2">
+                이름 *
+              </Label>
               <Input
+                id="profile-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="이름을 입력하세요"
-                className="text-lg"
+                className="h-11"
               />
             </div>
 
             {/* 역할 선택 */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-foreground mb-3">역할 *</label>
+              <Label className="mb-2">역할 *</Label>
               {roles.length > 0 ? (
                 <div className="grid grid-cols-3 gap-3">
                   {roles.map((role) => (
                     <button
                       key={role.id}
                       onClick={() => setRoleId(role.id)}
-                      className={`flex items-center justify-center gap-2 py-4 rounded-xl font-semibold transition-all ${
+                      className={`flex min-h-11 items-center justify-center gap-2 rounded-md border py-3 text-sm font-medium transition-colors ${
                         roleId === role.id
-                          ? "bg-primary text-primary-foreground shadow-lg scale-105"
-                          : "bg-muted text-foreground hover:bg-secondary"
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "bg-background hover:bg-accent"
                       }`}
                     >
-                      <span className="text-2xl">{role.icon}</span>
+                      <span className="text-xl">{role.icon}</span>
                       <span>{role.name}</span>
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="w-full px-5 py-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl text-yellow-800">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Users className="w-5 h-5" />
-                    <span className="font-semibold">역할이 없습니다</span>
-                  </div>
-                  <p className="text-sm mb-3">먼저 역할을 생성해주세요.</p>
-                  <Button asChild size="sm" className="bg-yellow-600 hover:bg-yellow-700">
-                    <Link to="/role-management">
-                      <Users className="w-4 h-4" />
+                <Alert>
+                  <Users />
+                  <AlertTitle>역할이 없습니다</AlertTitle>
+                  <AlertDescription>
+                    <p>먼저 역할을 생성해주세요.</p>
+                    <Link to="/role-management" className={cn(buttonVariants(), "mt-2 h-11")}>
+                      <Users />
                       역할 관리
                     </Link>
-                  </Button>
-                </div>
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
 
             {/* 색상 선택 */}
             <div className="mb-8">
-              <label className="block text-sm font-semibold text-foreground mb-3">배경 색상</label>
+              <Label className="mb-2">배경 색상</Label>
               <div className="grid grid-cols-6 gap-3">
                 {PROFILE_COLORS.map((c) => (
                   <button
                     key={c}
                     onClick={() => setColor(c)}
-                    className={`aspect-square ${c} rounded-xl transition-all hover:scale-110 ${
-                      color === c ? "ring-4 ring-offset-4 ring-slate-400 scale-110" : ""
+                    aria-label={`색상 ${c}`}
+                    className={`aspect-square min-h-11 min-w-11 rounded-md transition-shadow ${c} ${
+                      color === c ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : ""
                     }`}
                   />
                 ))}
@@ -152,28 +160,34 @@ export default function ProfileEdit() {
             </div>
 
             {/* 액션 */}
-            <div className="flex gap-4">
-              <Button size="lg" className="flex-1" onClick={handleSave} disabled={roles.length === 0}>
-                <Save className="w-5 h-5" />
+            <div className="flex gap-3">
+              <Button size="lg" className="h-11 flex-1" onClick={handleSave} disabled={roles.length === 0}>
+                <Save />
                 저장하기
               </Button>
               {!isNewProfile && (
                 <ConfirmDialog
                   trigger={
-                    <Button variant="destructive" size="lg">
-                      <Trash2 className="w-5 h-5" />
+                    <Button
+                      variant="destructive"
+                      size="lg"
+                      className="h-11"
+                      title="프로필 삭제"
+                      aria-label={`${name} 프로필 삭제`}
+                    >
+                      <Trash2 />
                     </Button>
                   }
                   title="프로필 삭제"
-                  description="이 프로필을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                  description={`"${name}" 프로필을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
                   confirmLabel="삭제"
                   onConfirm={handleDelete}
                   destructive
                 />
               )}
-              <Button variant="secondary" size="lg" asChild>
-                <Link to="/profile-setup">취소</Link>
-              </Button>
+              <Link to="/profile-setup" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-11")}>
+                취소
+              </Link>
             </div>
           </CardContent>
         </Card>

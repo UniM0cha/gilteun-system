@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router";
-import { Plus, Calendar, Music, Edit, Trash2, Play, ArrowLeft, Filter, X } from "lucide-react";
+import { Plus, Calendar, Music, Edit, Trash2, Play, ArrowLeft, Filter, X, ChevronDown } from "lucide-react";
 import { useWorships, useWorshipYears, useWorshipTypes, useDeleteWorship } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { getColorOption } from "@/lib/colors";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function WorshipList() {
   const { data: worshipTypes = [] } = useWorshipTypes();
@@ -19,6 +22,7 @@ export default function WorshipList() {
   const navigate = useNavigate();
 
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("");
@@ -99,172 +103,203 @@ export default function WorshipList() {
       <div className="max-w-5xl mx-auto">
         {/* 헤더 */}
         <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <Button variant="outline" size="icon" className="shrink-0" asChild>
-            <Link to="/">
-              <ArrowLeft className="w-6 h-6" />
-            </Link>
-          </Button>
+          <Link
+            to="/"
+            title="홈으로"
+            aria-label="홈으로"
+            className={cn(buttonVariants({ variant: "outline", size: "icon" }), "size-11 shrink-0")}
+          >
+            <ArrowLeft />
+          </Link>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">예배 목록</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">예배 목록</h1>
             <p className="text-sm sm:text-base text-muted-foreground">예배를 선택하거나 새로운 예배를 만드세요</p>
           </div>
-          <Button className="shrink-0" asChild>
-            <Link to="/worship-edit/new">
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">새 예배 만들기</span>
-              <span className="sm:hidden">새 예배</span>
-            </Link>
-          </Button>
+          <Link to="/worship-edit/new" className={cn(buttonVariants(), "h-11 shrink-0")}>
+            <Plus />
+            <span className="hidden sm:inline">새 예배 만들기</span>
+            <span className="sm:hidden">새 예배</span>
+          </Link>
         </div>
 
         {/* 필터 섹션 */}
-        <Card className="mb-6 p-6">
-          <CardContent className="p-0">
-            <div className="flex items-center gap-4 mb-4">
-              <Filter className="w-5 h-5 text-muted-foreground" />
-              <h3 className="font-bold text-foreground">필터</h3>
-            </div>
-
+        <Card className="mb-6 gap-4">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Filter className="size-4 text-muted-foreground" />
+              필터
+            </CardTitle>
+            {/* 모바일: 유형·날짜 필터 접기/펼치기 (검색은 항상 노출) */}
+            <CardAction className="sm:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-muted-foreground"
+                onClick={() => setShowMobileFilters((v) => !v)}
+                aria-expanded={showMobileFilters}
+              >
+                {(selectedTypeId ? 1 : 0) + (selectedYear ? 1 : 0) > 0 && (
+                  <Badge variant="secondary" className="mr-1">
+                    {(selectedTypeId ? 1 : 0) + (selectedYear ? 1 : 0)}
+                  </Badge>
+                )}
+                {showMobileFilters ? "접기" : "유형·날짜"}
+                <ChevronDown className={`transition-transform ${showMobileFilters ? "rotate-180" : ""}`} />
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
             {/* 검색 */}
             <div className="relative mb-4">
               <Input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12"
+                className="h-11 pl-10"
                 placeholder="예배 이름 검색..."
               />
-              <Music className="absolute top-1/2 -translate-y-1/2 left-4 w-5 h-5 text-muted-foreground" />
+              <Music className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               {searchQuery && (
-                <button
-                  className="absolute top-1/2 -translate-y-1/2 right-2 min-h-11 min-w-11 flex items-center justify-center hover:bg-secondary rounded-full transition-colors"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-1/2 right-0 size-11 -translate-y-1/2 text-muted-foreground"
                   onClick={() => setSearchQuery("")}
+                  title="검색어 지우기"
+                  aria-label="검색어 지우기"
                 >
-                  <X className="w-5 h-5 text-muted-foreground" />
-                </button>
+                  <X />
+                </Button>
               )}
             </div>
 
-            {/* 예배 유형 필터 */}
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-foreground mb-2">예배 유형</label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={!selectedTypeId ? "default" : "secondary"}
-                  size="sm"
-                  onClick={() => setSelectedTypeId("")}
-                >
-                  전체
-                </Button>
-                {worshipTypes.map((type) => {
-                  const isSelected = selectedTypeId === type.id;
-                  const colorOption = getColorOption(type.color);
-                  return (
-                    <Button
-                      key={type.id}
-                      variant={isSelected ? "default" : "secondary"}
-                      size="sm"
-                      onClick={() => setSelectedTypeId(type.id)}
-                      className={
-                        isSelected
-                          ? `${colorOption?.bg || "bg-blue-500"} text-white shadow-md hover:opacity-90`
-                          : `${colorOption?.badge || "bg-blue-100 text-blue-700"} hover:shadow-md`
-                      }
-                    >
-                      {type.name}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 날짜 필터 */}
-            <div>
-              <label className="block text-sm font-semibold text-foreground mb-2">날짜</label>
-              <div className="flex items-center gap-3">
-                <Select
-                  value={selectedYear || "all"}
-                  onValueChange={(v) => {
-                    const year = v === "all" ? "" : v;
-                    setSelectedYear(year);
-                    if (!year) setSelectedMonth("");
-                  }}
-                >
-                  <SelectTrigger className="min-w-32 text-base bg-background">
-                    <SelectValue placeholder="전체 연도" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="all">전체 연도</SelectItem>
-                      {availableYears.map((year) => (
-                        <SelectItem key={year} value={String(year)}>
-                          {year}년
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={selectedMonth || "all"}
-                  onValueChange={(v) => setSelectedMonth(v === "all" ? "" : v)}
-                  disabled={!selectedYear}
-                >
-                  <SelectTrigger className="min-w-28 text-base bg-background">
-                    <SelectValue placeholder="전체 월" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="all">전체 월</SelectItem>
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                        <SelectItem key={month} value={String(month)}>
-                          {month}월
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                {(selectedYear || selectedMonth) && (
-                  <button
-                    onClick={() => {
-                      setSelectedYear("");
-                      setSelectedMonth("");
-                    }}
-                    className="min-h-11 min-w-11 flex items-center justify-center hover:bg-secondary rounded-full transition-colors"
-                    title="날짜 필터 초기화"
+            {/* 유형·날짜: 모바일에선 토글로 접힘, sm+에선 항상 노출 */}
+            <div className={`${showMobileFilters ? "block" : "hidden"} sm:block`}>
+              {/* 예배 유형 필터 */}
+              <div className="mb-4">
+                <Label className="mb-2">예배 유형</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={!selectedTypeId ? "default" : "outline"}
+                    className="h-11"
+                    onClick={() => setSelectedTypeId("")}
                   >
-                    <X className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                )}
+                    전체
+                  </Button>
+                  {worshipTypes.map((type) => {
+                    const isSelected = selectedTypeId === type.id;
+                    const colorOption = getColorOption(type.color);
+                    return (
+                      <Button
+                        key={type.id}
+                        variant={isSelected ? "default" : "outline"}
+                        onClick={() => setSelectedTypeId(type.id)}
+                        className={`h-11 ${isSelected ? `${colorOption?.bg || "bg-blue-500"} text-white hover:opacity-90` : ""}`}
+                      >
+                        {type.name}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 날짜 필터 */}
+              <div>
+                <Label className="mb-2">날짜</Label>
+                <div className="flex items-center gap-3">
+                  <Select
+                    items={{
+                      all: "전체 연도",
+                      ...Object.fromEntries(availableYears.map((y) => [String(y), `${y}년`])),
+                    }}
+                    value={selectedYear || "all"}
+                    onValueChange={(v) => {
+                      const year = v && v !== "all" ? v : "";
+                      setSelectedYear(year);
+                      if (!year) setSelectedMonth("");
+                    }}
+                  >
+                    <SelectTrigger className="data-[size=default]:h-11 min-w-32">
+                      <SelectValue placeholder="전체 연도" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="all" className="min-h-11">
+                          전체 연도
+                        </SelectItem>
+                        {availableYears.map((year) => (
+                          <SelectItem key={year} value={String(year)} className="min-h-11">
+                            {year}년
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    items={{
+                      all: "전체 월",
+                      ...Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), `${i + 1}월`])),
+                    }}
+                    value={selectedMonth || "all"}
+                    onValueChange={(v) => setSelectedMonth(v && v !== "all" ? v : "")}
+                    disabled={!selectedYear}
+                  >
+                    <SelectTrigger className="data-[size=default]:h-11 min-w-28">
+                      <SelectValue placeholder="전체 월" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="all" className="min-h-11">
+                          전체 월
+                        </SelectItem>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                          <SelectItem key={month} value={String(month)} className="min-h-11">
+                            {month}월
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {(selectedYear || selectedMonth) && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-11 text-muted-foreground"
+                      onClick={() => {
+                        setSelectedYear("");
+                        setSelectedMonth("");
+                      }}
+                      title="날짜 필터 초기화"
+                      aria-label="날짜 필터 초기화"
+                    >
+                      <X />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* 예배 목록 */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {worships.map((worship) => {
             const worshipType = worshipTypes.find((t) => t.id === worship.typeId);
             return (
-              <Card
-                key={worship.id}
-                className="p-4 sm:p-6 border-2 border-transparent hover:border-primary/40 transition-all hover:shadow-md"
-              >
-                <CardContent className="p-0">
+              <Card key={worship.id} className="py-4">
+                <CardContent className="px-4 sm:px-6">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="mb-3">
-                        <h3 className="text-lg sm:text-xl font-bold text-foreground">{worship.title}</h3>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                      <div className="mb-2">
+                        <h3 className="font-semibold text-lg">{worship.title}</h3>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Calendar className="w-4 h-4 shrink-0" />
+                            <Calendar className="size-4 shrink-0" />
                             {formatDate(worship.date)}
                           </div>
                           <div className="text-sm text-muted-foreground">악보 {worship.sheets?.length ?? 0}개</div>
                           {worshipType && (
-                            <Badge
-                              variant="secondary"
-                              className={`${getColorOption(worshipType.color)?.badge || "bg-blue-100 text-blue-700"}`}
-                            >
+                            <Badge className={`text-white ${getColorOption(worshipType.color)?.bg || "bg-blue-500"}`}>
                               {worshipType.name}
                             </Badge>
                           )}
@@ -276,31 +311,35 @@ export default function WorshipList() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <Button asChild>
-                        <Link to={`/worship/${worship.id}`}>
-                          <Play className="w-5 h-5" />
-                          시작
-                        </Link>
-                      </Button>
-                      <Button variant="secondary" size="icon" asChild>
-                        <Link to={`/worship-edit/${worship.id}`}>
-                          <Edit className="w-5 h-5" />
-                        </Link>
-                      </Button>
+                      <Link to={`/worship/${worship.id}`} className={cn(buttonVariants(), "h-11")}>
+                        <Play />
+                        시작
+                      </Link>
+                      <Link
+                        to={`/worship-edit/${worship.id}`}
+                        title="예배 편집"
+                        aria-label={`${worship.title} 편집`}
+                        className={cn(buttonVariants({ variant: "outline", size: "icon" }), "size-11")}
+                      >
+                        <Edit />
+                      </Link>
                       <ConfirmDialog
                         trigger={
                           <Button
-                            variant="destructive"
+                            variant="ghost"
                             size="icon"
+                            className="size-11"
                             onClick={(e) => {
                               e.stopPropagation();
                             }}
+                            title="예배 삭제"
+                            aria-label={`${worship.title} 삭제`}
                           >
-                            <Trash2 className="w-5 h-5" />
+                            <Trash2 />
                           </Button>
                         }
                         title="예배 삭제"
-                        description="이 예배를 삭제하시겠습니까?"
+                        description={`"${worship.title}" 예배를 삭제하시겠습니까?`}
                         confirmLabel="삭제"
                         onConfirm={() => handleDelete(worship.id)}
                         destructive
@@ -322,26 +361,18 @@ export default function WorshipList() {
 
         {/* 빈 상태 */}
         {!isLoading && worships.length === 0 && (
-          <Card className="p-16 text-center rounded-3xl">
-            <CardContent className="p-0">
-              <div className="w-24 h-24 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <Music className="w-12 h-12 text-muted-foreground" />
-              </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">
-                {hasActiveFilter ? "검색 결과가 없습니다" : "아직 예배가 없습니다"}
-              </h3>
-              <p className="text-muted-foreground mb-8">
-                {hasActiveFilter ? "다른 검색어나 필터를 시도해보세요" : "새 예배를 만들어 악보를 추가하세요"}
-              </p>
-              {!hasActiveFilter && (
-                <Button size="lg" asChild>
-                  <Link to="/worship-edit/new">
-                    <Plus className="w-5 h-5" />새 예배 만들기
-                  </Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Music}
+            title={hasActiveFilter ? "검색 결과가 없습니다" : "아직 예배가 없습니다"}
+            description={hasActiveFilter ? "다른 검색어나 필터를 시도해보세요" : "새 예배를 만들어 악보를 추가하세요"}
+            action={
+              !hasActiveFilter ? (
+                <Link to="/worship-edit/new" className={cn(buttonVariants(), "h-11")}>
+                  <Plus />새 예배 만들기
+                </Link>
+              ) : undefined
+            }
+          />
         )}
       </div>
     </div>

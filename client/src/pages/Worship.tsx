@@ -136,6 +136,15 @@ export default function Worship() {
     }
   }, [currentProfileId, navigate]);
 
+  // 뷰어 "무대" 다크 테마 — html에 .dark를 걸어 body-portal되는
+  // Popover/Dialog/sonner 토스트까지 다크 토큰을 적용한다 (subtree 래퍼로는 portal이 라이트로 샘)
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+    return () => {
+      document.documentElement.classList.remove("dark");
+    };
+  }, []);
+
   // worshipData 로드 시 첫 번째 시트 선택
   useEffect(() => {
     if (worshipData && worshipData.sheets.length > 0 && !currentSheetId) {
@@ -313,7 +322,7 @@ export default function Worship() {
   );
 
   return (
-    <div className="h-dvh flex flex-col bg-viewer-bg">
+    <div className="h-dvh flex flex-col bg-background">
       <WorshipHeader
         worshipTitle={worshipData?.title}
         worshipId={id}
@@ -327,9 +336,9 @@ export default function Worship() {
 
       {/* 컴팩트 모드 또는 모바일(헤더 칩 숨김): 연결 끊김 시 플로팅 인디케이터 */}
       {(isCompact || isMobile) && !isConnected && (
-        <div className="absolute top-3 right-3 z-50 flex items-center gap-2 px-3 py-1.5 bg-red-600/20 border border-red-500/30 rounded-lg backdrop-blur-sm">
-          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-xs font-medium text-red-400">연결 끊김</span>
+        <div className="absolute top-3 right-3 z-50 flex items-center gap-2 px-3 py-1.5 bg-destructive/15 border border-destructive/30 rounded-lg backdrop-blur-sm">
+          <div className="size-2 rounded-full bg-destructive animate-pulse" />
+          <span className="text-xs font-medium text-destructive">연결 끊김</span>
         </div>
       )}
 
@@ -357,7 +366,7 @@ export default function Worship() {
 
         {/* 중앙 악보 뷰어 */}
         <main
-          className="flex-1 flex flex-col bg-viewer-bg"
+          className="flex-1 flex flex-col bg-background"
           style={isDrawMode ? { touchAction: "none", overscrollBehaviorX: "none" } : undefined}
         >
           <DrawingToolbar
@@ -400,7 +409,7 @@ export default function Worship() {
               style={{ x: pageX, containerType: "size" }}
             >
               <div
-                className="relative bg-white rounded-2xl shadow-2xl overflow-hidden"
+                className="relative bg-white rounded-lg shadow-lg overflow-hidden"
                 ref={sheetContainerRef}
                 style={{
                   ...SHEET_CARD_SIZE_STYLE,
@@ -450,7 +459,7 @@ export default function Worship() {
                 aria-hidden="true"
               >
                 {/* 메인 카드와 동일 좌표계 유지 위해 동일 sizing 상수 사용 */}
-                <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden" style={SHEET_CARD_SIZE_STYLE}>
+                <div className="relative bg-white rounded-lg shadow-lg overflow-hidden" style={SHEET_CARD_SIZE_STYLE}>
                   {/* 읽기 전용 SheetCanvas — 미리 받아둔 stroke를 메인과 동일 좌표계로 렌더 */}
                   <SheetCanvas
                     sheetId={previewTargetSheet.id}

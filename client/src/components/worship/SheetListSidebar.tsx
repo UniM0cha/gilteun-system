@@ -3,7 +3,8 @@ import { Link } from "react-router";
 import { motion } from "motion/react";
 import { FileMusic, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/EmptyState";
 import type { Sheet, PresenceUser } from "@/types";
 import { panelTransition, panelContentTransition } from "./panelMotion";
 
@@ -44,10 +45,8 @@ function SheetListSidebar({
       }
       transition={reducedMotion ? { duration: 0 } : panelTransition}
       className={cn(
-        "bg-viewer-panel overflow-hidden",
-        isMobile
-          ? "absolute inset-y-0 left-0 z-40 w-64 border-r border-viewer-border shadow-2xl"
-          : cn("shrink-0", show && "border-r border-viewer-border"),
+        "bg-card overflow-hidden",
+        isMobile ? "absolute inset-y-0 left-0 z-40 w-64 border-r shadow-lg" : cn("shrink-0", show && "border-r"),
       )}
       style={{ pointerEvents: show ? "auto" : "none" }}
     >
@@ -60,7 +59,7 @@ function SheetListSidebar({
         transition={reducedMotion ? { duration: 0 } : panelContentTransition}
         className="w-64 h-full overflow-y-auto p-4 box-border"
       >
-        <h2 className="text-lg font-bold text-viewer-foreground mb-4">악보 목록</h2>
+        <h2 className="text-lg font-semibold mb-4">악보 목록</h2>
 
         {sheets.length > 0 ? (
           <div className="space-y-2">
@@ -70,10 +69,10 @@ function SheetListSidebar({
                 <button
                   key={sheet.id}
                   onClick={() => onSelectPage(index)}
-                  className={`w-full text-left p-4 rounded-xl cursor-pointer transition-colors ${
+                  className={`w-full text-left p-4 rounded-md cursor-pointer transition-colors ${
                     currentSheetId === sheet.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-white/5 text-viewer-muted hover:bg-white/10"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -90,7 +89,7 @@ function SheetListSidebar({
                           </span>
                         ))}
                         {usersOnSheet.length > 3 && (
-                          <span className="text-xs text-viewer-muted ml-1">+{usersOnSheet.length - 3}</span>
+                          <span className="text-xs text-muted-foreground ml-1">+{usersOnSheet.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -100,16 +99,17 @@ function SheetListSidebar({
             })}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white/5 rounded-xl">
-            <FileMusic className="w-12 h-12 text-viewer-muted mx-auto mb-3" />
-            <p className="text-viewer-muted text-sm mb-4">악보가 없습니다</p>
-            <Button size="sm" asChild>
-              <Link to={`/worship-edit/${worshipId}`}>
-                <Edit className="w-4 h-4" />
+          <EmptyState
+            icon={FileMusic}
+            title="악보가 없습니다"
+            description="편집 페이지에서 악보를 추가하세요"
+            action={
+              <Link to={`/worship-edit/${worshipId}`} className={cn(buttonVariants(), "h-11")}>
+                <Edit />
                 편집 페이지에서 추가
               </Link>
-            </Button>
-          </div>
+            }
+          />
         )}
       </motion.div>
     </motion.aside>

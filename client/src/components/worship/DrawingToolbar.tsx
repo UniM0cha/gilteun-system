@@ -12,7 +12,6 @@ import {
   Megaphone,
   Palette,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { EraserType } from "@/components/SheetCanvas";
@@ -113,7 +112,7 @@ function DrawingToolbar({
     >
       <div className="overflow-hidden">
         <div
-          className="bg-viewer-panel border-b border-viewer-border px-3 sm:px-6 py-3 flex items-center justify-between gap-2 overflow-x-auto"
+          className="bg-card border-b px-3 sm:px-6 py-3 flex items-center gap-2"
           style={{
             opacity: isCompact ? 0 : 1,
             transform: isCompact ? "translateY(-100%)" : "translateY(0)",
@@ -121,31 +120,25 @@ function DrawingToolbar({
           }}
           inert={isCompact}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
             <Button
-              variant="ghost"
-              size="sm"
+              variant={isDrawMode ? "default" : "secondary"}
+              className="h-11"
               onClick={() => {
                 const next = !isDrawMode;
                 setIsDrawMode(next);
                 if (next) setIsCompact(false);
               }}
-              className={cn(
-                "px-5 py-2.5 rounded-xl",
-                isDrawMode
-                  ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-                  : "bg-white/5 text-viewer-muted hover:bg-white/10",
-              )}
             >
               {isDrawMode ? (
                 <>
-                  <Pencil className="w-5 h-5" />
-                  그리기 모드
+                  <Eye />
+                  그리기 종료
                 </>
               ) : (
                 <>
-                  <Eye className="w-5 h-5" />
-                  보기 모드
+                  <Pencil />
+                  그리기 시작
                 </>
               )}
             </Button>
@@ -153,62 +146,43 @@ function DrawingToolbar({
             {isDrawMode && (
               <>
                 <Popover open={toolPopoverOpen} onOpenChange={setToolPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="bg-white/5 text-viewer-muted hover:bg-white/10 px-4 py-2.5 rounded-xl"
-                    >
-                      <Palette className="w-5 h-5" />
-                      <span className="text-sm">도구</span>
-                    </Button>
+                  <PopoverTrigger render={<Button variant="secondary" className="h-11" />}>
+                    <Palette />
+                    도구
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 bg-viewer-panel border-viewer-border p-4" align="start">
+                  <PopoverContent className="w-80 p-4" align="start">
                     <div className="space-y-4">
                       {/* 펜 / 형광펜 토글 */}
                       <div>
-                        <div className="text-xs font-semibold text-viewer-muted mb-2">도구</div>
+                        <div className="text-xs font-medium text-muted-foreground mb-2">도구</div>
                         <div className="flex items-center gap-2">
                           <Button
-                            variant="ghost"
-                            size="sm"
+                            variant={isPenActive ? "secondary" : "ghost"}
+                            className="h-11 flex-1"
                             onClick={() => {
                               setIsHighlighter(false);
                               setEraserType("none");
                             }}
-                            className={cn(
-                              "px-3 py-2.5 flex-1",
-                              isPenActive
-                                ? "bg-white/15 text-viewer-foreground hover:bg-white/20"
-                                : "bg-white/5 text-viewer-muted hover:bg-white/10",
-                            )}
                           >
-                            <Pencil className="w-5 h-5" />
-                            <span className="text-sm">펜</span>
+                            <Pencil />펜
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="sm"
+                            variant={isHighlighterActive ? "secondary" : "ghost"}
+                            className="h-11 flex-1"
                             onClick={() => {
                               setIsHighlighter(true);
                               setEraserType("none");
                             }}
-                            className={cn(
-                              "px-3 py-2.5 flex-1",
-                              isHighlighterActive
-                                ? "bg-white/15 text-viewer-foreground hover:bg-white/20"
-                                : "bg-white/5 text-viewer-muted hover:bg-white/10",
-                            )}
                           >
-                            <Highlighter className="w-5 h-5" />
-                            <span className="text-sm">형광펜</span>
+                            <Highlighter />
+                            형광펜
                           </Button>
                         </div>
                       </div>
 
                       {/* 색상 팔레트 (도구별) */}
                       <div>
-                        <div className="text-xs font-semibold text-viewer-muted mb-2">색상</div>
+                        <div className="text-xs font-medium text-muted-foreground mb-2">색상</div>
                         <div className="flex items-center gap-2">
                           {isHighlighter
                             ? highlighterColors.map((hl) => (
@@ -218,9 +192,10 @@ function DrawingToolbar({
                                     setHighlighterColor(hl.value);
                                     setEraserType("none");
                                   }}
-                                  className={`w-11 h-11 rounded-lg ${hl.color} transition-transform hover:scale-110 ${
+                                  aria-label={`형광펜 색상 ${hl.value}`}
+                                  className={`size-11 rounded-md transition-shadow ${hl.color} ${
                                     highlighterColor === hl.value && isHighlighterActive
-                                      ? "ring-4 scale-110 ring-blue-500"
+                                      ? "ring-2 ring-ring ring-offset-2 ring-offset-popover"
                                       : ""
                                   }`}
                                 />
@@ -232,9 +207,10 @@ function DrawingToolbar({
                                     setSelectedColor(pen.value);
                                     setEraserType("none");
                                   }}
-                                  className={`w-11 h-11 rounded-lg ${pen.color} transition-transform hover:scale-110 ${
+                                  aria-label={`펜 색상 ${pen.value}`}
+                                  className={`size-11 rounded-md transition-shadow ${pen.color} ${
                                     selectedColor === pen.value && isPenActive
-                                      ? `ring-4 scale-110 ${pen.value === "#ffffff" ? "ring-blue-400" : "ring-white"}`
+                                      ? "ring-2 ring-ring ring-offset-2 ring-offset-popover"
                                       : ""
                                   }`}
                                 />
@@ -244,71 +220,70 @@ function DrawingToolbar({
 
                       {/* 굵기 (도구별) */}
                       <div>
-                        <div className="text-xs font-semibold text-viewer-muted mb-2">
+                        <div className="text-xs font-medium text-muted-foreground mb-2">
                           {isHighlighter ? "형광펜 굵기" : "펜 굵기"}
                         </div>
-                        <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 w-fit">
+                        <div className="flex items-center gap-2 bg-muted rounded-md px-2 py-1 w-fit">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="min-h-11 min-w-11 hover:bg-white/10 text-viewer-muted rounded"
+                            className="size-11"
                             onClick={() =>
                               isHighlighter
                                 ? setHighlighterWidth((p) => Math.max(p - 2, 8))
                                 : setPenWidth((p) => Math.max(p - 1, 1))
                             }
+                            title="굵기 줄이기"
+                            aria-label="굵기 줄이기"
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus />
                           </Button>
-                          <div className="text-viewer-foreground font-semibold min-w-7.5 text-center">
+                          <div className="font-medium min-w-7.5 text-center">
                             {isHighlighter ? highlighterWidth : penWidth}
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="min-h-11 min-w-11 hover:bg-white/10 text-viewer-muted rounded"
+                            className="size-11"
                             onClick={() =>
                               isHighlighter
                                 ? setHighlighterWidth((p) => Math.min(p + 2, 40))
                                 : setPenWidth((p) => Math.min(p + 1, 20))
                             }
+                            title="굵기 늘리기"
+                            aria-label="굵기 늘리기"
                           >
-                            <PlusIcon className="w-4 h-4" />
+                            <PlusIcon />
                           </Button>
                         </div>
                       </div>
 
                       {/* 지우개 */}
                       <div>
-                        <div className="text-xs font-semibold text-viewer-muted mb-2">지우개</div>
+                        <div className="text-xs font-medium text-muted-foreground mb-2">지우개</div>
                         <div className="flex items-center gap-2">
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEraserType((p) => (p === "area" ? "none" : "area"))}
-                            className={cn(
-                              "px-3 py-2.5 flex-1",
-                              eraserType === "area"
-                                ? "bg-white/15 text-viewer-foreground hover:bg-white/20"
-                                : "bg-white/5 text-viewer-muted hover:bg-white/10",
-                            )}
+                            variant={eraserType === "area" ? "secondary" : "ghost"}
+                            className="h-11 flex-1"
+                            onClick={() => {
+                              const next = eraserType === "area" ? "none" : "area";
+                              setEraserType(next);
+                              if (next !== "none") setToolPopoverOpen(false);
+                            }}
                           >
-                            <Eraser className="w-5 h-5" />
-                            <span className="text-sm">영역</span>
+                            <Eraser />
+                            영역
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEraserType((p) => (p === "stroke" ? "none" : "stroke"))}
-                            className={cn(
-                              "px-3 py-2.5 flex-1",
-                              eraserType === "stroke"
-                                ? "bg-white/15 text-viewer-foreground hover:bg-white/20"
-                                : "bg-white/5 text-viewer-muted hover:bg-white/10",
-                            )}
+                            variant={eraserType === "stroke" ? "secondary" : "ghost"}
+                            className="h-11 flex-1"
+                            onClick={() => {
+                              const next = eraserType === "stroke" ? "none" : "stroke";
+                              setEraserType(next);
+                              if (next !== "none") setToolPopoverOpen(false);
+                            }}
                           >
-                            <Trash className="w-5 h-5" />
-                            <span className="text-sm">획</span>
+                            <Trash />획
                           </Button>
                         </div>
                       </div>
@@ -316,26 +291,28 @@ function DrawingToolbar({
                       {/* 지우개 크기 (영역 선택 시) */}
                       {eraserType === "area" && (
                         <div>
-                          <div className="text-xs font-semibold text-viewer-muted mb-2">지우개 크기</div>
-                          <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2 w-fit">
+                          <div className="text-xs font-medium text-muted-foreground mb-2">지우개 크기</div>
+                          <div className="flex items-center gap-2 bg-muted rounded-md px-2 py-1 w-fit">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="min-h-11 min-w-11 hover:bg-white/15 text-viewer-foreground rounded"
+                              className="size-11"
                               onClick={() => setEraserWidth((p) => Math.max(p - 2, 5))}
+                              title="지우개 크기 줄이기"
+                              aria-label="지우개 크기 줄이기"
                             >
-                              <Minus className="w-4 h-4" />
+                              <Minus />
                             </Button>
-                            <div className="text-viewer-foreground font-semibold min-w-7.5 text-center">
-                              {eraserWidth}
-                            </div>
+                            <div className="font-medium min-w-7.5 text-center">{eraserWidth}</div>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="min-h-11 min-w-11 hover:bg-white/15 text-viewer-foreground rounded"
+                              className="size-11"
                               onClick={() => setEraserWidth((p) => Math.min(p + 2, 50))}
+                              title="지우개 크기 늘리기"
+                              aria-label="지우개 크기 늘리기"
                             >
-                              <PlusIcon className="w-4 h-4" />
+                              <PlusIcon />
                             </Button>
                           </div>
                         </div>
@@ -343,25 +320,15 @@ function DrawingToolbar({
 
                       {/* 실행취소/다시실행 */}
                       <div>
-                        <div className="text-xs font-semibold text-viewer-muted mb-2">실행취소</div>
+                        <div className="text-xs font-medium text-muted-foreground mb-2">실행취소</div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="bg-white/5 hover:bg-white/10 text-viewer-muted flex-1"
-                            onClick={() => undo()}
-                          >
-                            <Undo className="w-5 h-5" />
-                            <span className="text-sm">되돌리기</span>
+                          <Button variant="secondary" className="h-11 flex-1" onClick={() => undo()}>
+                            <Undo />
+                            되돌리기
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="bg-white/5 hover:bg-white/10 text-viewer-muted flex-1"
-                            onClick={() => redo()}
-                          >
-                            <Redo className="w-5 h-5" />
-                            <span className="text-sm">다시실행</span>
+                          <Button variant="secondary" className="h-11 flex-1" onClick={() => redo()}>
+                            <Redo />
+                            다시실행
                           </Button>
                         </div>
                       </div>
@@ -369,48 +336,78 @@ function DrawingToolbar({
                   </PopoverContent>
                 </Popover>
 
+                {/* 현재 도구·색·굵기 상시 표시 (팝오버를 안 열어도 상태를 알 수 있게) */}
+                {(() => {
+                  const isEraser = eraserType !== "none";
+                  const curColor = isHighlighter ? highlighterColor : selectedColor;
+                  const curWidth = isEraser ? eraserWidth : isHighlighter ? highlighterWidth : penWidth;
+                  const ToolIcon = isEraser
+                    ? eraserType === "stroke"
+                      ? Trash
+                      : Eraser
+                    : isHighlighter
+                      ? Highlighter
+                      : Pencil;
+                  const label = isEraser
+                    ? eraserType === "stroke"
+                      ? "획 지우개"
+                      : "영역 지우개"
+                    : isHighlighter
+                      ? "형광펜"
+                      : "펜";
+                  return (
+                    <div
+                      className="flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border bg-muted/40 px-3 text-muted-foreground"
+                      aria-label={`현재 도구: ${label}, 굵기 ${curWidth}`}
+                    >
+                      <ToolIcon className="size-4" />
+                      <span className="hidden text-sm sm:inline">{label}</span>
+                      {!isEraser && (
+                        <span
+                          className="size-4 shrink-0 rounded-full border border-border"
+                          style={{ backgroundColor: curColor }}
+                        />
+                      )}
+                      <span className="text-sm font-medium tabular-nums text-foreground">{curWidth}</span>
+                    </div>
+                  );
+                })()}
+
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="icon"
-                  className="bg-white/5 hover:bg-white/10 text-viewer-muted min-h-11 min-w-11"
+                  className="size-11"
                   onClick={() => undo()}
+                  title="되돌리기"
+                  aria-label="되돌리기"
                 >
-                  <Undo className="w-5 h-5" />
+                  <Undo />
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="icon"
-                  className="bg-white/5 hover:bg-white/10 text-viewer-muted min-h-11 min-w-11"
+                  className="size-11"
                   onClick={() => redo()}
+                  title="다시실행"
+                  aria-label="다시실행"
                 >
-                  <Redo className="w-5 h-5" />
+                  <Redo />
                 </Button>
               </>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             {hasSheet && (
-              <Button
-                size="sm"
-                className="bg-amber-600 text-white hover:bg-amber-700 px-4 py-2.5 rounded-xl"
-                onClick={onSpotlightCall}
-                title="현재 페이지를 다른 사용자에게 호출"
-              >
-                <Megaphone className="w-5 h-5" />
-                <span className="text-sm">호출</span>
+              <Button className="h-11" onClick={onSpotlightCall} title="현재 페이지를 다른 사용자에게 호출">
+                <Megaphone />
+                호출
               </Button>
             )}
             <Button
-              variant="ghost"
-              size="sm"
+              variant={showCommandPanel ? "default" : "secondary"}
+              className="h-11"
               onClick={onToggleCommandPanel}
-              className={cn(
-                "px-5 py-2.5 rounded-xl",
-                showCommandPanel
-                  ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-                  : "bg-white/5 text-viewer-muted hover:bg-white/10",
-              )}
             >
               명령 패널
             </Button>

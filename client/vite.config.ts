@@ -50,8 +50,8 @@ export default defineConfig({
       manifest: {
         name: "길튼 시스템",
         short_name: "길튼 시스템",
-        theme_color: "#1e293b",
-        background_color: "#f8fafc",
+        theme_color: "#ffffff",
+        background_color: "#ffffff",
         display: "standalone",
         icons: [
           {

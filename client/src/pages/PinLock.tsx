@@ -20,13 +20,13 @@ export default function PinLock() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-8">
-      <Card className="rounded-3xl w-full max-w-sm">
-        <CardContent className="p-8">
+      <Card className="w-full max-w-sm">
+        <CardContent>
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-muted-foreground" />
+            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
+              <Lock className="size-6 text-muted-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">길튼 시스템</h1>
+            <h1 className="text-2xl font-bold tracking-tight mb-1">길튼 시스템</h1>
             <p className="text-muted-foreground">PIN을 입력해주세요</p>
           </div>
 
@@ -37,14 +37,10 @@ export default function PinLock() {
               placeholder="PIN 입력"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              className="text-center text-2xl tracking-widest h-14 rounded-xl"
+              className="h-11 text-center text-xl tracking-widest"
               autoFocus
             />
-            <Button
-              type="submit"
-              className="w-full h-12 rounded-xl text-lg font-semibold"
-              disabled={!pin || verifyPin.isPending}
-            >
+            <Button type="submit" size="lg" className="h-11 w-full" disabled={!pin || verifyPin.isPending}>
               {verifyPin.isPending ? "확인 중..." : "입장"}
             </Button>
           </form>

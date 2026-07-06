@@ -5,49 +5,39 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* 길튼 브랜드 팔레트 — 로고(로고 원본.png)에서 추출한 코발트 네이비/하늘색을
-     파스텔 톤으로 확장. 모든 색은 토큰을 거치게 하여 테마를 한 곳에서 관리한다. */
-  --background: #eff3f8;
-  --foreground: #15293b;
-  --card: #ffffff;
-  --card-foreground: #15293b;
-  --popover: #ffffff;
-  --popover-foreground: #15293b;
-  --primary: #005090; /* 로고 코발트 네이비 — 단일 브랜드 액션색 */
-  --primary-foreground: #f4f9fd;
-  --secondary: #e7ecf1;
-  --secondary-foreground: #3e5163;
-  --muted: #eaeef3;
-  --muted-foreground: #586775;
-  --accent: #e2eaf3; /* 하늘색 소프트 틴트 */
-  --accent-foreground: #1e4e7e;
-  --destructive: #9a342b;
-  --destructive-foreground: #ffffff;
-  --border: #e1e8ef;
-  --input: #e1e8ef;
-  --ring: #2e6fa8; /* 로고 블루 계열 — 포커스 링 (AA 대비 확보) */
-  --radius: 0.875rem; /* 14px — 친근하되 과하지 않게 */
-  --chart-1: #005090;
-  --chart-2: #70a0c8;
-  --chart-3: #5e9aa0;
-  --chart-4: #7e8ac0;
-  --chart-5: #8a9aa8;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #15293b;
-  --sidebar-primary: #005090;
-  --sidebar-primary-foreground: #f4f9fd;
-  --sidebar-accent: #e2eaf3;
-  --sidebar-accent-foreground: #1e4e7e;
-  --sidebar-border: #e1e8ef;
-  --sidebar-ring: #70a0c8;
-
-  /* 예배 뷰어 "무대" 크롬 — 앱 테마와 무관하게 항상 어두운 네이비.
-     로고 잉크 네이비에서 파생. 차가운 slate 대신 따뜻한 깊은 네이비. */
-  --viewer-bg: #16222e;
-  --viewer-panel: #1e2e3d;
-  --viewer-border: #2a3b4c;
-  --viewer-foreground: #e6edf3;
-  --viewer-muted: #aab8c6;
+  /* stock shadcn 기본 테마 (new-york / neutral) — 라이트 */
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.5 0.134 242.749);
+  --primary-foreground: oklch(0.977 0.013 236.62);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.828 0.111 230.318);
+  --chart-2: oklch(0.685 0.169 237.323);
+  --chart-3: oklch(0.588 0.158 241.966);
+  --chart-4: oklch(0.5 0.134 242.749);
+  --chart-5: oklch(0.443 0.11 240.79);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.588 0.158 241.966);
+  --sidebar-primary-foreground: oklch(0.977 0.013 236.62);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 
   /* 모션 토큰 — 헤더/툴바 콜랩스 CSS 트랜지션용 (좌우 패널은 motion/react 상수 사용) */
   --ease-out: cubic-bezier(0.33, 1, 0.68, 1); /* 깔끔한 감속(오버슈트 없음) */
@@ -70,35 +60,29 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-viewer-bg: var(--viewer-bg);
-  --color-viewer-panel: var(--viewer-panel);
-  --color-viewer-border: var(--viewer-border);
-  --color-viewer-foreground: var(--viewer-foreground);
-  --color-viewer-muted: var(--viewer-muted);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 @layer base {
@@ -169,9 +153,9 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
+  --primary: oklch(0.443 0.11 240.79);
+  --primary-foreground: oklch(0.977 0.013 236.62);
+  --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
@@ -181,15 +165,15 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --chart-1: oklch(0.828 0.111 230.318);
+  --chart-2: oklch(0.685 0.169 237.323);
+  --chart-3: oklch(0.588 0.158 241.966);
+  --chart-4: oklch(0.5 0.134 242.749);
+  --chart-5: oklch(0.443 0.11 240.79);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.685 0.169 237.323);
+  --sidebar-primary-foreground: oklch(0.293 0.066 243.157);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);

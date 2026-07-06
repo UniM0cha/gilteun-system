@@ -3,9 +3,11 @@ import { Plus, UserCircle, Settings, Tag, Users, LogOut } from "lucide-react";
 import { useProfiles, useRoles } from "@/hooks/queries";
 import { useAuthStatus, useLogout } from "@/hooks/queries/useAuth";
 import { useAppStore } from "@/store/appStore";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/EmptyState";
 
 const quickLinks = [
   { to: "/profile-setup", icon: UserCircle, label: "프로필 관리" },
@@ -33,96 +35,92 @@ export default function Home() {
     <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
-        <div className="relative text-center mb-12">
+        <div className="relative text-center mb-10">
           {authStatus?.required && (
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-0 right-0 text-muted-foreground hover:text-foreground"
+              className="absolute top-0 right-0 size-11 text-muted-foreground"
               onClick={() => logout.mutate()}
               disabled={logout.isPending}
+              title="로그아웃"
+              aria-label="로그아웃"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut />
             </Button>
           )}
-          <img src="/pwa-192x192.png" alt="길튼 시스템" className="mx-auto w-24 h-24 rounded-3xl mb-6 shadow-sm" />
-          <h1 className="text-3xl sm:text-5xl font-bold text-foreground mb-3 tracking-tight">길튼 시스템</h1>
-          <p className="text-base sm:text-xl text-muted-foreground">예배 찬양 지원 시스템</p>
+          <img src="/pwa-192x192.png" alt="길튼 시스템" className="mx-auto w-20 h-20 rounded-xl mb-4 border" />
+          <h1 className="text-3xl font-bold tracking-tight mb-1">길튼 시스템</h1>
+          <p className="text-muted-foreground">예배 찬양 지원 시스템</p>
         </div>
 
         {/* 프로필 선택 */}
-        <Card className="rounded-2xl mb-6">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-foreground">프로필 선택</h2>
-              <Button asChild>
-                <Link to="/profile-setup/new">
-                  <Plus className="w-5 h-5" />
-                  <span className="font-semibold">새 프로필</span>
-                </Link>
-              </Button>
-            </div>
-
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">프로필 선택</CardTitle>
+            <CardAction>
+              <Link to="/profile-setup/new" className={cn(buttonVariants(), "h-11")}>
+                <Plus />새 프로필
+              </Link>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
             {profiles.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {profiles.map((profile) => {
                   const role = getRoleById(profile.roleId);
                   return (
                     <button
                       key={profile.id}
                       onClick={() => handleProfileSelect(profile.id)}
-                      className="group relative bg-card rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border-2 border-border hover:border-primary/40 active:scale-95 text-left"
+                      className="flex items-center gap-4 rounded-lg border bg-card p-4 text-left shadow-xs transition-colors hover:bg-accent"
                     >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`w-16 h-16 ${profile.color} rounded-2xl flex items-center justify-center text-3xl shadow-md group-hover:scale-110 transition-transform`}
-                        >
-                          {role?.icon}
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-foreground mb-1">{profile.name}</h3>
-                          <Badge className="bg-accent text-accent-foreground px-3 py-1 text-sm font-semibold">
-                            {role?.name}
-                          </Badge>
-                        </div>
+                      <div
+                        className={`flex size-12 shrink-0 items-center justify-center rounded-lg text-2xl ${profile.color}`}
+                      >
+                        {role?.icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold truncate">{profile.name}</h3>
+                        <Badge variant="secondary" className="mt-1">
+                          {role?.name}
+                        </Badge>
                       </div>
                     </button>
                   );
                 })}
               </div>
             ) : (
-              <div className="text-center py-12 bg-muted rounded-2xl border-2 border-dashed border-border">
-                <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <UserCircle className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">프로필이 없습니다</h3>
-                <p className="text-muted-foreground mb-6">먼저 프로필을 생성해주세요</p>
-                <Button asChild>
-                  <Link to="/profile-setup/new">
-                    <Plus className="w-5 h-5" />
+              <EmptyState
+                icon={UserCircle}
+                title="프로필이 없습니다"
+                description="먼저 프로필을 생성해주세요"
+                action={
+                  <Link to="/profile-setup/new" className={cn(buttonVariants(), "h-11")}>
+                    <Plus />
                     프로필 만들기
                   </Link>
-                </Button>
-              </div>
+                }
+              />
             )}
           </CardContent>
         </Card>
 
-        {/* 빠른 설정 */}
-        <div className="grid grid-cols-2 gap-4">
-          {quickLinks.map(({ to, icon: Icon, label }) => (
-            <Button
-              key={to}
-              asChild
-              variant="ghost"
-              className="w-full p-6 h-auto rounded-2xl bg-card shadow-sm border border-border hover:bg-accent"
-            >
-              <Link to={to}>
-                <Icon className="w-6 h-6 text-primary" />
-                <span className="text-lg font-semibold text-foreground">{label}</span>
+        {/* 관리 — 프로필 선택보다 낮은 보조 영역으로 분리 (경계는 유지) */}
+        <div className="mt-10 border-t pt-5">
+          <p className="mb-3 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">관리</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {quickLinks.map(({ to, icon: Icon, label }) => (
+              <Link
+                key={to}
+                to={to}
+                className={cn(buttonVariants({ variant: "outline" }), "h-auto justify-start gap-2 px-3 py-2.5")}
+              >
+                <Icon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate text-sm">{label}</span>
               </Link>
-            </Button>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

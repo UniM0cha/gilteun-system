@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Edit, Trash2, Save, X, Tag } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, Save, Tag } from "lucide-react";
 import { useWorshipTypes, useAddWorshipType, useUpdateWorshipType, useDeleteWorshipType } from "@/hooks/queries";
 import { COLOR_OPTIONS, getColorOption } from "@/lib/colors";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function WorshipTypeSettings() {
   const { data: worshipTypes = [] } = useWorshipTypes();
@@ -15,20 +20,20 @@ export default function WorshipTypeSettings() {
   const updateMutation = useUpdateWorshipType();
   const deleteMutation = useDeleteWorshipType();
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "", color: "blue" });
 
   const handleEdit = (type: { id: string; name: string; color: string }) => {
     setEditingTypeId(type.id);
     setFormData({ name: type.name, color: type.color });
-    setIsEditing(true);
+    setDialogOpen(true);
   };
 
   const handleAdd = () => {
     setEditingTypeId(null);
     setFormData({ name: "", color: "blue" });
-    setIsEditing(true);
+    setDialogOpen(true);
   };
 
   const handleSave = async () => {
@@ -41,13 +46,7 @@ export default function WorshipTypeSettings() {
     } else {
       await addMutation.mutateAsync({ name: formData.name.trim(), color: formData.color });
     }
-    setIsEditing(false);
-    setEditingTypeId(null);
-    setFormData({ name: "", color: "blue" });
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
+    setDialogOpen(false);
     setEditingTypeId(null);
     setFormData({ name: "", color: "blue" });
   };
@@ -60,109 +59,116 @@ export default function WorshipTypeSettings() {
     <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
-          <Button variant="outline" size="icon" asChild>
-            <Link to="/">
-              <ArrowLeft className="w-6 h-6" />
-            </Link>
-          </Button>
+          <Link
+            to="/"
+            title="홈으로"
+            aria-label="홈으로"
+            className={cn(buttonVariants({ variant: "outline", size: "icon" }), "size-11")}
+          >
+            <ArrowLeft />
+          </Link>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">예배 유형 관리</h1>
+            <h1 className="text-3xl font-bold tracking-tight">예배 유형 관리</h1>
             <p className="text-muted-foreground">예배 유형을 추가하고 관리하세요</p>
           </div>
-          {!isEditing && (
-            <Button onClick={handleAdd}>
-              <Plus className="w-5 h-5" />새 유형 추가
-            </Button>
-          )}
+          <Button className="h-11" onClick={handleAdd}>
+            <Plus />새 유형 추가
+          </Button>
         </div>
 
-        {/* 편집 폼 */}
-        {isEditing && (
-          <Card className="mb-6 border-2 border-primary/40">
-            <CardContent>
-              <h2 className="text-xl font-bold text-foreground mb-6">
-                {editingTypeId ? "예배 유형 수정" : "새 예배 유형 추가"}
-              </h2>
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">예배 유형 이름 *</label>
-                  <Input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="예: 주일 1부 예배"
-                    className="text-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">색상 선택</label>
-                  <div className="grid grid-cols-5 md:grid-cols-10 gap-3">
-                    {COLOR_OPTIONS.map((c) => (
-                      <button
-                        key={c.name}
-                        onClick={() => setFormData({ ...formData, color: c.name })}
-                        className={`w-12 h-12 rounded-xl transition-all ${c.bg} ${
-                          formData.color === c.name
-                            ? "ring-4 ring-offset-2 ring-slate-400 scale-110"
-                            : "hover:scale-105"
-                        }`}
-                        title={c.name}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">미리보기</label>
-                  <span
-                    className={`inline-block px-4 py-2 rounded-full font-semibold text-white ${getColorOption(formData.color)?.bg || "bg-blue-500"}`}
-                  >
-                    {formData.name || "예배 유형 이름"}
-                  </span>
-                </div>
-                <div className="flex gap-3">
-                  <Button onClick={handleSave}>
-                    <Save className="w-5 h-5" />
-                    저장하기
-                  </Button>
-                  <Button variant="secondary" onClick={handleCancel}>
-                    <X className="w-5 h-5" />
-                    취소
-                  </Button>
+        {/* 추가/수정 다이얼로그 */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{editingTypeId ? "예배 유형 수정" : "새 예배 유형 추가"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div>
+                <Label htmlFor="type-name" className="mb-2">
+                  예배 유형 이름 *
+                </Label>
+                <Input
+                  id="type-name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="예: 주일 1부 예배"
+                  className="h-11"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <Label className="mb-2">색상 선택</Label>
+                <div className="grid grid-cols-5 gap-3">
+                  {COLOR_OPTIONS.map((c) => (
+                    <button
+                      key={c.name}
+                      onClick={() => setFormData({ ...formData, color: c.name })}
+                      aria-label={`색상 ${c.name}`}
+                      className={`size-11 rounded-md transition-shadow ${c.bg} ${
+                        formData.color === c.name ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : ""
+                      }`}
+                      title={c.name}
+                    />
+                  ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div>
+                <Label className="mb-2">미리보기</Label>
+                <Badge className={`text-white ${getColorOption(formData.color)?.bg || "bg-blue-500"}`}>
+                  {formData.name || "예배 유형 이름"}
+                </Badge>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" className="h-11" />}>취소</DialogClose>
+              <Button className="h-11" onClick={handleSave} disabled={!formData.name.trim()}>
+                <Save />
+                저장하기
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* 유형 목록 */}
         <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">현재 예배 유형 ({worshipTypes.length}개)</CardTitle>
+          </CardHeader>
           <CardContent>
-            <h2 className="text-xl font-bold text-foreground mb-6">현재 예배 유형 ({worshipTypes.length}개)</h2>
             {worshipTypes.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {worshipTypes.map((type) => (
-                  <div
-                    key={type.id}
-                    className="bg-muted rounded-xl p-5 border-2 border-border hover:border-primary/40 transition-all"
-                  >
+                  <div key={type.id} className="rounded-lg border p-4">
                     <div className="flex items-center justify-between">
-                      <span
-                        className={`px-4 py-2 rounded-full font-semibold text-white ${getColorOption(type.color)?.bg || "bg-blue-500"}`}
-                      >
+                      <Badge className={`text-white ${getColorOption(type.color)?.bg || "bg-blue-500"}`}>
                         {type.name}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(type)}>
-                          <Edit className="w-5 h-5" />
+                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-11"
+                          onClick={() => handleEdit(type)}
+                          title="예배 유형 수정"
+                          aria-label={`${type.name} 예배 유형 수정`}
+                        >
+                          <Edit />
                         </Button>
                         <ConfirmDialog
                           trigger={
-                            <Button variant="destructive" size="icon">
-                              <Trash2 className="w-5 h-5" />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-11"
+                              title="예배 유형 삭제"
+                              aria-label={`${type.name} 예배 유형 삭제`}
+                            >
+                              <Trash2 />
                             </Button>
                           }
                           title="예배 유형 삭제"
-                          description="이 예배 유형을 삭제하시겠습니까?"
+                          description={`"${type.name}" 예배 유형을 삭제하시겠습니까?`}
                           confirmLabel="삭제"
                           onConfirm={() => handleDelete(type.id)}
                           destructive
@@ -173,16 +179,16 @@ export default function WorshipTypeSettings() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-16 bg-muted rounded-xl border-2 border-dashed border-border">
-                <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Tag className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">아직 예배 유형이 없습니다</h3>
-                <p className="text-muted-foreground mb-6">새 유형 추가 버튼을 눌러 예배 유형을 만드세요</p>
-                <Button onClick={handleAdd}>
-                  <Plus className="w-5 h-5" />새 유형 추가
-                </Button>
-              </div>
+              <EmptyState
+                icon={Tag}
+                title="아직 예배 유형이 없습니다"
+                description="새 유형 추가 버튼을 눌러 예배 유형을 만드세요"
+                action={
+                  <Button className="h-11" onClick={handleAdd}>
+                    <Plus />새 유형 추가
+                  </Button>
+                }
+              />
             )}
           </CardContent>
         </Card>

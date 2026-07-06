@@ -10,12 +10,12 @@ interface CommandToastProps {
 export default function CommandToast({ emoji, label, senderName, senderRoleIcon, onDismiss }: CommandToastProps) {
   return (
     <div
-      className="bg-card rounded-2xl shadow-2xl p-6 flex items-center gap-4 min-w-87.5 border-4 border-primary cursor-pointer"
+      className="bg-card text-card-foreground rounded-lg shadow-lg p-6 flex items-center gap-4 min-w-87.5 border cursor-pointer"
       onClick={onDismiss}
     >
       <div className="text-6xl">{emoji}</div>
       <div className="flex-1">
-        <div className="text-2xl font-bold text-foreground">{label}</div>
+        <div className="text-2xl font-semibold text-foreground">{label}</div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
           <span className="text-lg">{senderRoleIcon}</span>
           <span className="font-semibold">{senderName}</span>

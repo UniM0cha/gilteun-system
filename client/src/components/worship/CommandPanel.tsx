@@ -31,10 +31,8 @@ function CommandPanel({ show, isMobile, width, reducedMotion, commands, onSendCo
       }
       transition={reducedMotion ? { duration: 0 } : panelTransition}
       className={cn(
-        "bg-viewer-panel overflow-hidden",
-        isMobile
-          ? "absolute inset-y-0 right-0 z-40 w-72 border-l border-viewer-border shadow-2xl"
-          : cn("shrink-0", show && "border-l border-viewer-border"),
+        "bg-card overflow-hidden",
+        isMobile ? "absolute inset-y-0 right-0 z-40 w-72 border-l shadow-lg" : cn("shrink-0", show && "border-l"),
       )}
       style={{ pointerEvents: show ? "auto" : "none" }}
     >
@@ -44,16 +42,16 @@ function CommandPanel({ show, isMobile, width, reducedMotion, commands, onSendCo
         className="h-full overflow-y-auto p-4 box-border"
         style={{ width: drawerWidth }}
       >
-        <h2 className="text-lg font-bold text-viewer-foreground mb-4">명령 전송</h2>
+        <h2 className="text-lg font-semibold mb-4">명령 전송</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {commands.map((command) => (
             <button
               key={command.id}
               onClick={() => onSendCommand(command)}
-              className="flex flex-col items-center gap-2 p-6 bg-white/5 hover:bg-white/10 rounded-2xl transition-all active:scale-95 group"
+              className="flex flex-col items-center gap-2 rounded-lg border bg-muted p-5 transition-colors hover:bg-accent"
             >
-              <span className="text-5xl group-hover:scale-110 transition-transform">{command.emoji}</span>
-              <span className="text-sm font-semibold text-viewer-muted text-center">{command.label}</span>
+              <span className="text-5xl">{command.emoji}</span>
+              <span className="text-sm font-medium text-muted-foreground text-center">{command.label}</span>
             </button>
           ))}
         </div>
