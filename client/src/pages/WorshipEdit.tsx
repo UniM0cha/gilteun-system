@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef, ChangeEvent } from "react";
-import { Link, useParams, useNavigate } from "react-router";
+import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
+import { Link, Navigate, useParams, useNavigate } from "react-router";
+import { useForm, Controller } from "react-hook-form";
+import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -230,13 +232,21 @@ function SheetDragPreview({ sheet }: { sheet: Sheet }) {
   );
 }
 
+type WorshipFormValues = {
+  title: string;
+  date: string;
+  typeId: string;
+};
+
 export default function WorshipEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = id === "new";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: worshipData } = useWorship(isNew ? undefined : id);
+  const { data: worshipData, error: worshipError } = useWorship(isNew ? undefined : id);
+  // 404는 리소스가 삭제된 것 — persisted 캐시가 남아 있어도 편집을 계속하면 안 됨
+  const worshipNotFound = isAxiosError(worshipError) && worshipError.response?.status === 404;
   const { data: worshipTypes = [] } = useWorshipTypes();
   const addWorshipMutation = useAddWorship();
   const updateWorshipMutation = useUpdateWorship();
@@ -245,9 +255,6 @@ export default function WorshipEdit() {
   const deleteSheetMutation = useDeleteSheet();
   const reorderSheetsMutation = useReorderSheets();
 
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [typeId, setTypeId] = useState("");
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -255,23 +262,30 @@ export default function WorshipEdit() {
   const [saving, setSaving] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // 기존 예배 데이터 로드
+  // 수정 모드면 기존 예배, 신규 모드면 유형 로드 후 첫 유형이 초기값
+  const formValues = useMemo<WorshipFormValues | undefined>(() => {
+    if (worshipData) {
+      return { title: worshipData.title, date: worshipData.date, typeId: worshipData.typeId };
+    }
+    if (isNew && worshipTypes.length > 0) {
+      return { title: "", date: "", typeId: worshipTypes[0].id };
+    }
+    return undefined;
+  }, [worshipData, isNew, worshipTypes]);
+
+  const { register, handleSubmit, control, getValues } = useForm<WorshipFormValues>({
+    defaultValues: { title: "", date: "", typeId: "" },
+    values: formValues,
+    resetOptions: { keepDirtyValues: true },
+  });
+
+  // 기존 예배의 악보 목록 로드 (악보 리스트는 서버 상태와 동기화 유지가 의도된 동작)
   useEffect(() => {
     if (worshipData) {
-      setTitle(worshipData.title);
-      setDate(worshipData.date);
-      setTypeId(worshipData.typeId);
       setSheets(worshipData.sheets || []);
       setWorshipId(worshipData.id);
     }
   }, [worshipData]);
-
-  // 새 예배일 때 기본 유형 설정
-  useEffect(() => {
-    if (isNew && worshipTypes.length > 0 && !typeId) {
-      setTypeId(worshipTypes[0].id);
-    }
-  }, [isNew, worshipTypes, typeId]);
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -289,12 +303,17 @@ export default function WorshipEdit() {
     // 새 예배인데 아직 저장 안 됐으면 먼저 예배 생성
     let currentWorshipId = worshipId;
     if (!currentWorshipId) {
+      const { title, date, typeId } = getValues();
       if (!title.trim()) {
         toast.error("악보를 추가하려면 먼저 예배 제목을 입력해주세요.");
         return;
       }
       if (!date) {
         toast.error("악보를 추가하려면 먼저 예배 날짜를 선택해주세요.");
+        return;
+      }
+      if (!typeId) {
+        toast.error("악보를 추가하려면 먼저 예배 유형을 선택해주세요.");
         return;
       }
       const worship = await addWorshipMutation.mutateAsync({ title: title.trim(), date, typeId });
@@ -374,32 +393,41 @@ export default function WorshipEdit() {
     }
   };
 
-  const handleSave = async () => {
-    if (!title.trim()) {
-      toast.error("예배 제목을 입력해주세요.");
-      return;
-    }
-    if (!date) {
-      toast.error("예배 날짜를 선택해주세요.");
-      return;
-    }
-    if (!typeId) {
-      toast.error("예배 유형을 선택해주세요.");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      if (worshipId) {
-        await updateWorshipMutation.mutateAsync({ id: worshipId, title: title.trim(), date, typeId });
-      } else {
-        await addWorshipMutation.mutateAsync({ title: title.trim(), date, typeId });
+  const handleSave = handleSubmit(
+    async (data) => {
+      // 유형 셀렉트는 worshipTypes가 비면 마운트되지 않아 rules 검증이 등록되지 않으므로 여기서 직접 검증
+      if (!data.typeId) {
+        toast.error("예배 유형을 선택해주세요.");
+        return;
       }
-      navigate(-1);
-    } finally {
-      setSaving(false);
+      setSaving(true);
+      try {
+        const payload = { title: data.title.trim(), date: data.date, typeId: data.typeId };
+        if (worshipId) {
+          await updateWorshipMutation.mutateAsync({ id: worshipId, ...payload });
+        } else {
+          await addWorshipMutation.mutateAsync(payload);
+        }
+        navigate(-1);
+      } finally {
+        setSaving(false);
+      }
+    },
+    (errors) => {
+      if (errors.title) toast.error("예배 제목을 입력해주세요.");
+      else if (errors.date) toast.error("예배 날짜를 선택해주세요.");
+    },
+  );
+
+  // 수정 모드 가드 — 하이드레이션 전 입력이 keepDirtyValues로 살아남아 서버값과 섞이는 것 방지
+  if (!isNew) {
+    // 삭제된 예배는 캐시된 데이터가 있어도 나간다; 일시적 오류(500/오프라인)는 캐시로 편집 유지
+    if (worshipNotFound) return <Navigate to="/worship-list" replace />;
+    if (!worshipData) {
+      if (worshipError) return <Navigate to="/worship-list" replace />;
+      return <div className="min-h-screen bg-background" />;
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
@@ -437,8 +465,7 @@ export default function WorshipEdit() {
                 </label>
                 <Input
                   type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  {...register("title", { validate: (v) => v.trim().length > 0 })}
                   placeholder="예: 2024년 1월 첫째주 주일예배"
                   className="text-lg"
                 />
@@ -451,12 +478,7 @@ export default function WorshipEdit() {
                     예배 날짜 *
                   </div>
                 </label>
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="text-lg appearance-none"
-                />
+                <Input type="date" {...register("date", { required: true })} className="text-lg appearance-none" />
               </div>
 
               <div>
@@ -467,20 +489,26 @@ export default function WorshipEdit() {
                   </div>
                 </label>
                 {worshipTypes.length > 0 ? (
-                  <Select value={typeId} onValueChange={setTypeId}>
-                    <SelectTrigger className="w-full data-[size=default]:h-14 text-lg bg-background">
-                      <SelectValue placeholder="예배 유형 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {worshipTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.id}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    control={control}
+                    name="typeId"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className="w-full data-[size=default]:h-14 text-lg bg-background">
+                          <SelectValue placeholder="예배 유형 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {worshipTypes.map((type) => (
+                              <SelectItem key={type.id} value={type.id}>
+                                {type.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 ) : (
                   <div className="w-full px-5 py-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl text-yellow-800">
                     <div className="flex items-center gap-2 mb-2">

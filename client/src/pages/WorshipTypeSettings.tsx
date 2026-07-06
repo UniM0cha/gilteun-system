@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Edit, Trash2, Save, X, Tag } from "lucide-react";
 import { useWorshipTypes, useAddWorshipType, useUpdateWorshipType, useDeleteWorshipType } from "@/hooks/queries";
@@ -9,6 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
+type WorshipTypeFormValues = {
+  name: string;
+  color: string;
+};
+
 export default function WorshipTypeSettings() {
   const { data: worshipTypes = [] } = useWorshipTypes();
   const addMutation = useAddWorshipType();
@@ -17,39 +23,47 @@ export default function WorshipTypeSettings() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: "", color: "blue" });
+
+  const { register, handleSubmit, reset, watch, setValue } = useForm<WorshipTypeFormValues>({
+    defaultValues: { name: "", color: "blue" },
+  });
+
+  const name = watch("name");
+  const color = watch("color");
 
   const handleEdit = (type: { id: string; name: string; color: string }) => {
     setEditingTypeId(type.id);
-    setFormData({ name: type.name, color: type.color });
+    // keepDefaultValues 없이 reset(values)하면 defaultValues가 교체돼 이후 빈 reset()이 이 값으로 복원됨
+    reset({ name: type.name, color: type.color }, { keepDefaultValues: true });
     setIsEditing(true);
   };
 
   const handleAdd = () => {
     setEditingTypeId(null);
-    setFormData({ name: "", color: "blue" });
+    reset();
     setIsEditing(true);
   };
 
-  const handleSave = async () => {
-    if (!formData.name.trim()) {
+  const handleSave = handleSubmit(
+    async (data) => {
+      if (editingTypeId) {
+        await updateMutation.mutateAsync({ id: editingTypeId, name: data.name.trim(), color: data.color });
+      } else {
+        await addMutation.mutateAsync({ name: data.name.trim(), color: data.color });
+      }
+      setIsEditing(false);
+      setEditingTypeId(null);
+      reset();
+    },
+    () => {
       toast.error("예배 유형 이름을 입력해주세요.");
-      return;
-    }
-    if (editingTypeId) {
-      await updateMutation.mutateAsync({ id: editingTypeId, name: formData.name.trim(), color: formData.color });
-    } else {
-      await addMutation.mutateAsync({ name: formData.name.trim(), color: formData.color });
-    }
-    setIsEditing(false);
-    setEditingTypeId(null);
-    setFormData({ name: "", color: "blue" });
-  };
+    },
+  );
 
   const handleCancel = () => {
     setIsEditing(false);
     setEditingTypeId(null);
-    setFormData({ name: "", color: "blue" });
+    reset();
   };
 
   const handleDelete = async (id: string) => {
@@ -88,8 +102,7 @@ export default function WorshipTypeSettings() {
                   <label className="block text-sm font-semibold text-foreground mb-2">예배 유형 이름 *</label>
                   <Input
                     type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    {...register("name", { validate: (v) => v.trim().length > 0 })}
                     placeholder="예: 주일 1부 예배"
                     className="text-lg"
                   />
@@ -100,11 +113,9 @@ export default function WorshipTypeSettings() {
                     {COLOR_OPTIONS.map((c) => (
                       <button
                         key={c.name}
-                        onClick={() => setFormData({ ...formData, color: c.name })}
+                        onClick={() => setValue("color", c.name, { shouldDirty: true })}
                         className={`w-12 h-12 rounded-xl transition-all ${c.bg} ${
-                          formData.color === c.name
-                            ? "ring-4 ring-offset-2 ring-slate-400 scale-110"
-                            : "hover:scale-105"
+                          color === c.name ? "ring-4 ring-offset-2 ring-slate-400 scale-110" : "hover:scale-105"
                         }`}
                         title={c.name}
                       />
@@ -114,9 +125,9 @@ export default function WorshipTypeSettings() {
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-2">미리보기</label>
                   <span
-                    className={`inline-block px-4 py-2 rounded-full font-semibold text-white ${getColorOption(formData.color)?.bg || "bg-blue-500"}`}
+                    className={`inline-block px-4 py-2 rounded-full font-semibold text-white ${getColorOption(color)?.bg || "bg-blue-500"}`}
                   >
-                    {formData.name || "예배 유형 이름"}
+                    {name || "예배 유형 이름"}
                   </span>
                 </div>
                 <div className="flex gap-3">

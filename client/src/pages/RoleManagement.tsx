@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Edit, Trash2, Check, X, AlertCircle, Users } from "lucide-react";
 import { useRoles, useAddRole, useUpdateRole, useDeleteRole } from "@/hooks/queries";
@@ -8,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+
+type RoleFormValues = {
+  name: string;
+  icon: string;
+};
 
 export default function RoleManagement() {
   const { data: roles = [] } = useRoles();
@@ -18,31 +24,42 @@ export default function RoleManagement() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: "", icon: "" });
+
+  const { register, handleSubmit, reset } = useForm<RoleFormValues>({
+    defaultValues: { name: "", icon: "" },
+  });
 
   const isRoleInUse = (roleId: string) => profiles.some((p) => p.roleId === roleId);
 
-  const handleAdd = async () => {
-    if (!formData.name.trim() || !formData.icon.trim()) return;
-    await addRoleMutation.mutateAsync({ name: formData.name, icon: formData.icon });
-    setFormData({ name: "", icon: "" });
-    setIsAdding(false);
+  const handleStartAdd = () => {
+    // 이미 추가 폼이 열려 있으면(역할 0개일 때 빈 상태 CTA가 함께 노출됨) 입력을 지우지 않는다
+    if (!isAdding) reset();
+    setIsAdding(true);
   };
+
+  const handleAdd = handleSubmit(async (data) => {
+    await addRoleMutation.mutateAsync({ name: data.name, icon: data.icon });
+    reset();
+    setIsAdding(false);
+  });
 
   const handleEdit = (id: string) => {
     const role = roles.find((r) => r.id === id);
     if (role) {
+      // 추가 폼이 열린 채 편집 진입 시 같은 필드명이 이중 등록되므로 추가 폼을 닫는다
+      setIsAdding(false);
       setEditingId(id);
-      setFormData({ name: role.name, icon: role.icon });
+      // keepDefaultValues 없이 reset(values)하면 defaultValues가 교체돼 이후 빈 reset()이 이 값으로 복원됨
+      reset({ name: role.name, icon: role.icon }, { keepDefaultValues: true });
     }
   };
 
-  const handleUpdate = async () => {
-    if (!editingId || !formData.name.trim() || !formData.icon.trim()) return;
-    await updateRoleMutation.mutateAsync({ id: editingId, name: formData.name, icon: formData.icon });
+  const handleUpdate = handleSubmit(async (data) => {
+    if (!editingId) return;
+    await updateRoleMutation.mutateAsync({ id: editingId, name: data.name, icon: data.icon });
     setEditingId(null);
-    setFormData({ name: "", icon: "" });
-  };
+    reset();
+  });
 
   const handleDelete = async (id: string) => {
     if (isRoleInUse(id)) {
@@ -55,7 +72,7 @@ export default function RoleManagement() {
   const handleCancel = () => {
     setIsAdding(false);
     setEditingId(null);
-    setFormData({ name: "", icon: "" });
+    reset();
   };
 
   return (
@@ -72,7 +89,7 @@ export default function RoleManagement() {
             <p className="text-muted-foreground">팀원의 역할을 추가하고 관리하세요</p>
           </div>
           {!isAdding && !editingId && (
-            <Button onClick={() => setIsAdding(true)}>
+            <Button onClick={handleStartAdd}>
               <Plus className="w-5 h-5" />새 역할 추가
             </Button>
           )}
@@ -88,8 +105,7 @@ export default function RoleManagement() {
                   <label className="block text-sm font-semibold text-foreground mb-2">역할 이름</label>
                   <Input
                     type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    {...register("name", { validate: (v) => v.trim().length > 0 })}
                     placeholder="예: 기타, 드럼, 보컬..."
                   />
                 </div>
@@ -97,8 +113,7 @@ export default function RoleManagement() {
                   <label className="block text-sm font-semibold text-foreground mb-2">이모지 아이콘</label>
                   <Input
                     type="text"
-                    value={formData.icon}
-                    onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                    {...register("icon", { validate: (v) => v.trim().length > 0 })}
                     className="text-2xl text-center"
                     placeholder="🎸"
                     maxLength={2}
@@ -136,18 +151,13 @@ export default function RoleManagement() {
                         <div className="grid grid-cols-2 gap-4 mb-4">
                           <div>
                             <label className="block text-sm font-semibold text-foreground mb-2">역할 이름</label>
-                            <Input
-                              type="text"
-                              value={formData.name}
-                              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            />
+                            <Input type="text" {...register("name", { validate: (v) => v.trim().length > 0 })} />
                           </div>
                           <div>
                             <label className="block text-sm font-semibold text-foreground mb-2">이모지 아이콘</label>
                             <Input
                               type="text"
-                              value={formData.icon}
-                              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                              {...register("icon", { validate: (v) => v.trim().length > 0 })}
                               className="text-2xl text-center"
                               maxLength={2}
                             />
@@ -220,7 +230,7 @@ export default function RoleManagement() {
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">아직 역할이 없습니다</h3>
             <p className="text-muted-foreground mb-6">새 역할 추가 버튼을 눌러 역할을 만드세요</p>
-            <Button onClick={() => setIsAdding(true)}>
+            <Button onClick={handleStartAdd}>
               <Plus className="w-5 h-5" />새 역할 추가
             </Button>
           </div>
