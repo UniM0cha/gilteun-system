@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router";
-import { Plus, UserCircle, Settings, Tag, Users, LogOut } from "lucide-react";
+import { Plus, UserCircle, Settings, Tag, Users, LogOut, MonitorSmartphone } from "lucide-react";
 import { useProfiles, useRoles } from "@/hooks/queries";
 import { useAuthStatus, useLogout } from "@/hooks/queries/useAuth";
 import { useAppStore } from "@/store/appStore";
@@ -12,6 +12,7 @@ const quickLinks = [
   { to: "/role-management", icon: Users, label: "역할 관리" },
   { to: "/command-setup", icon: Settings, label: "명령 설정" },
   { to: "/worship-type-settings", icon: Tag, label: "예배 유형 관리" },
+  { to: "/device-settings", icon: MonitorSmartphone, label: "기기 설정" },
 ];
 
 export default function Home() {
@@ -115,7 +116,7 @@ export default function Home() {
               key={to}
               asChild
               variant="ghost"
-              className="w-full p-6 h-auto rounded-2xl bg-card shadow-sm border border-border hover:bg-accent"
+              className="w-full p-6 h-auto rounded-2xl bg-card shadow-sm border border-border hover:bg-accent last:odd:col-span-2"
             >
               <Link to={to}>
                 <Icon className="w-6 h-6 text-primary" />

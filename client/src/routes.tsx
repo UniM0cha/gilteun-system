@@ -9,6 +9,7 @@ import ProfileEdit from "./pages/ProfileEdit";
 import RoleManagement from "./pages/RoleManagement";
 import CommandSetup from "./pages/CommandSetup";
 import WorshipTypeSettings from "./pages/WorshipTypeSettings";
+import DeviceSettings from "./pages/DeviceSettings";
 
 // :id가 바뀌면 폼을 리마운트해 이전 리소스의 dirty 값이 keepDirtyValues로 이월되는 것을 차단
 function KeyedWorshipEdit() {
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
       { path: "role-management", element: <RoleManagement /> },
       { path: "command-setup", element: <CommandSetup /> },
       { path: "worship-type-settings", element: <WorshipTypeSettings /> },
+      { path: "device-settings", element: <DeviceSettings /> },
     ],
   },
 ]);
