@@ -21,7 +21,9 @@ export function useCommandsSync(enabled: boolean) {
       qc.invalidateQueries({ queryKey: queryKeys.commands.all });
     };
 
-    // 서버 브로드캐스트 수신 + 재연결 시 끊긴 동안 놓친 변경 재검증
+    // 서버 브로드캐스트 수신 + 재연결 시 끊긴 동안 놓친 변경 재검증.
+    // connect 무효화는 refetchOnReconnect와 중복이 아님 — 후자는 브라우저 online 이벤트
+    // 기준이라 서버 재시작처럼 소켓만 끊겼다 붙는 재연결은 잡지 못한다.
     socket.on("commands:updated", invalidate);
     socket.on("connect", invalidate);
 

@@ -254,7 +254,7 @@ export default function WorshipEdit() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: worshipData, error: worshipError } = useWorship(isNew ? undefined : id);
-  // 404는 리소스가 삭제된 것 — persisted 캐시가 남아 있어도 편집을 계속하면 안 됨
+  // 404는 리소스가 삭제된 것 — 메모리 캐시에 이전 데이터가 남아 있어도 편집을 계속하면 안 됨
   const worshipNotFound = isAxiosError(worshipError) && worshipError.response?.status === 404;
   const { data: worshipTypes = [] } = useWorshipTypes();
   const addWorshipMutation = useAddWorship();

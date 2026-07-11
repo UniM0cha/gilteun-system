@@ -24,6 +24,8 @@ export const queryKeys = {
     all: ["commands"] as const,
   },
   drawings: {
+    // bySheet의 prefix — 예배 이탈 시 프리페치 잔여분까지 한 번에 정리하는 용도
+    all: ["drawings"] as const,
     bySheet: (sheetId: string) => ["drawings", sheetId] as const,
   },
 } as const;

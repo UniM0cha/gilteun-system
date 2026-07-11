@@ -1,45 +1,18 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { get, set, del } from "idb-keyval";
+import { isAxiosError } from "axios";
 
+// 캐시 신선도는 라이브러리 기본값 사용: staleTime 0, gcTime 5분, refetchOnWindowFocus true
+// — 실시간 협업 앱 특성상 "항상 최신"이 우선이라 커스텀을 두지 않는다.
+// retry만 예외: 4xx는 재시도해도 결과가 같고, 특히 401 재시도는 PIN 인증 직후
+// 이전 시도의 늦은 401 응답이 인터셉터를 타고 인증 상태를 되돌리는 레이스를 만든다.
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 2,
-      retry: 1,
-      refetchOnWindowFocus: false,
-      gcTime: 1000 * 60 * 60 * 24, // 24시간 (persist와 호환되도록 충분히 길게)
-    },
-    mutations: {
-      retry: 0,
+      retry: (failureCount, error) => {
+        const status = isAxiosError(error) ? (error.response?.status ?? 0) : 0;
+        if (status >= 400 && status < 500) return false;
+        return failureCount < 3; // 네트워크/5xx는 라이브러리 기본 횟수 유지
+      },
     },
   },
-});
-
-// IndexedDB persister (Safari 프라이빗 모드 등에서 실패해도 앱 정상 작동)
-export const asyncStoragePersister = createAsyncStoragePersister({
-  storage: {
-    getItem: async (key) => {
-      try {
-        return (await get(key)) ?? null;
-      } catch {
-        return null;
-      }
-    },
-    setItem: async (key, value) => {
-      try {
-        await set(key, value);
-      } catch {
-        /* Safari 프라이빗 모드 등 */
-      }
-    },
-    removeItem: async (key) => {
-      try {
-        await del(key);
-      } catch {
-        /* IndexedDB 미지원 환경 무시 */
-      }
-    },
-  },
-  key: "gilteun-query-cache",
 });

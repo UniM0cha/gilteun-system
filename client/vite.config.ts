@@ -13,40 +13,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
-      workbox: {
-        // 앱 셸: JS, CSS, HTML 자동 프리캐시
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        // 런타임 캐싱
-        runtimeCaching: [
-          {
-            // 악보 이미지 (파일명이 nanoid라 immutable → CacheFirst 안전)
-            urlPattern: /\/uploads\/sheets\/.+/,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "sheet-images",
-              expiration: {
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30일
-              },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // API 응답 (온라인이면 최신 데이터, 오프라인이면 캐시)
-            urlPattern: /\/api\/.+/,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-cache",
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7일
-              },
-              cacheableResponse: { statuses: [0, 200] },
-              networkTimeoutSeconds: 3,
-            },
-          },
-        ],
-      },
+      // 오프라인 캐시 제거: 자기파괴 SW를 배포해 기존 설치 기기의 SW를 unregister하고
+      // 모든 Cache Storage를 삭제한다. 홈 화면 설치는 manifest만으로 계속 동작.
+      // 실시간 협업 앱이라 오프라인 지원이 무의미하고, 캐싱은 브라우저 HTTP 캐시
+      // (/uploads 1y immutable 등 서버 헤더)에 일임한다.
+      selfDestroying: true,
       manifest: {
         name: "길튼 시스템",
         short_name: "길튼 시스템",

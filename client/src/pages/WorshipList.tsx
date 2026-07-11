@@ -51,11 +51,6 @@ export default function WorshipList() {
     }
   }, [currentProfileId, navigate]);
 
-  // Persistent Storage 요청 (캐시 자동 삭제 방지)
-  useEffect(() => {
-    navigator.storage?.persist?.();
-  }, []);
-
   // 필터 변경 시 스크롤 최상단 리셋 (queryKey 변경으로 page 1부터 재조회됨)
   useEffect(() => {
     window.scrollTo({ top: 0 });

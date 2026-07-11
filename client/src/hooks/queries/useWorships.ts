@@ -79,9 +79,9 @@ export function useUpdateWorship() {
     mutationFn: async ({ id, ...data }: { id: string; title?: string; date?: string; typeId?: string }) => {
       await api.put(`/api/worships/${id}`, data);
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
+      // all(['worships'])은 detail(['worships', id])의 prefix라 detail까지 함께 무효화됨
       qc.invalidateQueries({ queryKey: queryKeys.worships.all });
-      qc.invalidateQueries({ queryKey: queryKeys.worships.detail(variables.id) });
       toast.success("예배가 수정되었습니다");
     },
   });
@@ -112,8 +112,10 @@ export function useAddSheet() {
       const { data } = await api.post<Sheet>(`/api/worships/${worshipId}/sheets`, formData);
       return data;
     },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: queryKeys.worships.detail(variables.worshipId) });
+    onSuccess: () => {
+      // 목록의 '악보 N개' 카운트도 영향받으므로 useDeleteSheet와 대칭으로 all 무효화
+      // (all이 detail의 prefix라 detail도 함께 커버됨)
+      qc.invalidateQueries({ queryKey: queryKeys.worships.all });
     },
   });
 }
