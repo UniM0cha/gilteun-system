@@ -7,6 +7,13 @@
 - `develop` 브랜치에서 개발 → `main`에 머지/push 시 Railway 자동 배포
 - 평소 작업은 `develop`에서 진행할 것
 
+## 배포 환경 (Railway)
+
+- **production**: `main` 푸시 시 자동 배포 → https://gilteun-system.up.railway.app
+- **staging**: `develop` 푸시 시 자동 배포 → https://gilteun-staging.up.railway.app
+- 두 환경은 볼륨(DB·업로드)이 분리되어 있음 — staging 데이터는 테스트용, production과 무관
+- PIN은 두 환경 동일 (환경 변수 `AUTH_PIN`으로 복제됨)
+
 ## 품질 체크
 
 - 작업 완료 후 반드시 `npm run check` 실행 (타입체크 + ESLint)
