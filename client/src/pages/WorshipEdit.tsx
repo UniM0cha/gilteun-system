@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, ChangeEvent } from "react";
 import { Link, Navigate, useParams, useNavigate } from "react-router";
 import { useForm, Controller } from "react-hook-form";
 import { isAxiosError } from "axios";
@@ -43,7 +43,7 @@ import {
   useDeleteSheet,
   useReorderSheets,
 } from "@/hooks/queries";
-import type { Sheet } from "@/types";
+import type { Sheet, WorshipType } from "@/types";
 import { cn } from "@/lib/utils";
 import { formatKoreanDate } from "@/lib/date";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -248,6 +248,15 @@ type WorshipFormValues = {
   typeId: string;
 };
 
+// 날짜·유형에서 파생되는 기본 제목 — 날짜가 없으면 제목도 만들지 않는다.
+// 유형을 못 찾으면(아직 로딩 전이거나 빈 typeId) 날짜만으로 만든다.
+function buildAutoTitle(date: string, typeId: string, types: WorshipType[]): string {
+  const dateLabel = formatKoreanDate(date);
+  if (!dateLabel) return "";
+  const typeName = types.find((t) => t.id === typeId)?.name;
+  return typeName ? `${dateLabel} ${typeName}` : dateLabel;
+}
+
 export default function WorshipEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -291,25 +300,32 @@ export default function WorshipEdit() {
 
   const dateField = register("date", { required: true });
 
-  // 날짜·유형에서 파생되는 기본 제목 — 날짜가 없으면 제목도 만들지 않는다
-  const buildAutoTitle = (date: string, typeId: string) => {
-    const dateLabel = formatKoreanDate(date);
-    if (!dateLabel) return "";
-    const typeName = worshipTypes.find((t) => t.id === typeId)?.name;
-    return typeName ? `${dateLabel} ${typeName}` : dateLabel;
-  };
-
   // 제목이 비었거나 직전 날짜·유형에서 자동 생성된 값 그대로일 때만 갱신 —
   // 사용자가 직접 쓴 제목("주일예배 3부")은 날짜를 바꿔도 건드리지 않는다
-  const syncAutoTitle = (prev: { date: string; typeId: string }, next: { date: string; typeId: string }) => {
-    const currentTitle = getValues("title");
-    if (currentTitle.trim() !== "" && currentTitle !== buildAutoTitle(prev.date, prev.typeId)) return;
-    const nextTitle = buildAutoTitle(next.date, next.typeId);
-    if (!nextTitle) return;
-    // shouldDirty 필수 — values + keepDirtyValues 조합이라 dirty가 아니면
-    // worshipTypes가 늦게 도착해 formValues가 갱신될 때 빈 값으로 되돌아간다
-    setValue("title", nextTitle, { shouldDirty: true, shouldValidate: true });
-  };
+  const syncAutoTitle = useCallback(
+    (prev: { date: string; typeId: string }, next: { date: string; typeId: string }) => {
+      const currentTitle = getValues("title");
+      if (currentTitle.trim() !== "" && currentTitle !== buildAutoTitle(prev.date, prev.typeId, worshipTypes)) return;
+      const nextTitle = buildAutoTitle(next.date, next.typeId, worshipTypes);
+      if (!nextTitle) return;
+      // shouldDirty 필수 — values + keepDirtyValues 조합이라 dirty가 아니면
+      // worshipTypes가 늦게 도착해 formValues가 갱신될 때 빈 값으로 되돌아간다
+      setValue("title", nextTitle, { shouldDirty: true, shouldValidate: true });
+    },
+    [worshipTypes, getValues, setValue],
+  );
+
+  // worshipTypes가 늦게 도착하면 typeId는 values 리셋으로 조용히 채워진다 — Select의
+  // onValueChange를 거치지 않으므로 syncAutoTitle이 불리지 않는다. 그 사이 사용자가
+  // 날짜를 골랐다면 제목이 유형명 없이("2026년 7월 2일") 굳고, 이후 날짜를 바꿔도
+  // 직전 자동 제목과 불일치해 "직접 쓴 제목"으로 오인돼 영영 갱신이 멈춘다.
+  // 유형이 도착한 시점에 한 번 맞춰준다 — prev.typeId를 ""로 두는 게 곧 "유형을 몰랐을 때"다.
+  useEffect(() => {
+    if (!isNew || worshipTypes.length === 0) return;
+    const { date, typeId } = getValues();
+    if (!date || !typeId) return;
+    syncAutoTitle({ date, typeId: "" }, { date, typeId });
+  }, [isNew, worshipTypes, syncAutoTitle, getValues]);
 
   // 기존 예배의 악보 목록 로드 (악보 리스트는 서버 상태와 동기화 유지가 의도된 동작)
   useEffect(() => {
