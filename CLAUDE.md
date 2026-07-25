@@ -5,7 +5,12 @@
 - **커밋 작성자는 항상 `Jeongyun Lee <solst_ice@naver.com>`** — 저장소 기존 커밋과 같은 신원이어야 GitHub 귀속이 이어짐
   - 원격/컨테이너 환경은 git 기본값이 `Claude <noreply@anthropic.com>`로 잡혀 있는 경우가 있음. **커밋 전에 `git config user.email`을 확인할 것**
   - `git config user.name "Jeongyun Lee" && git config user.email "solst_ice@naver.com"`
-  - 이미 잘못된 신원으로 푸시했다면 `git commit --amend --author="Jeongyun Lee <solst_ice@naver.com>"` 후 force push (`--reset-author`는 작성 시각까지 지우므로 쓰지 말 것)
+  - 이미 잘못된 신원으로 푸시했다면 아래로 되돌린 뒤 `git push --force-with-lease` (`--force`는 남의 푸시를 덮어쓸 수 있음)
+    - **커밋 1개**: `git commit --amend --author="Jeongyun Lee <solst_ice@naver.com>"`
+    - **여러 개**: `--amend`는 맨 위 커밋 하나만 고친다. 아래처럼 일괄 처리할 것 (`-i` 없이 동작하고, 지정한 커밋 **다음**부터 고쳐진다)
+      - `git rebase <마지막_정상_커밋> --exec 'git commit --amend --no-edit --author="Jeongyun Lee <solst_ice@naver.com>"'`
+    - **스택 PR**이면 위 브랜치를 고친 뒤 아래 브랜치를 `git rebase --onto <새_헤드> <옛_헤드>`로 옮겨야 함
+    - `--reset-author`는 원래 작성 시각까지 지우므로 쓰지 말 것
 - 커밋 메시지에 `Co-Authored-By` 태그 절대 붙이지 않기
 - PR 본문/설명에 `🤖 Generated with Claude Code` 등 Claude Code 생성 표기·서명 붙이지 않기
   - PR 생성 API가 본문 끝에 서명을 자동으로 붙이는 경우가 있음 — 생성 후 본문을 확인하고 붙어 있으면 제거할 것
