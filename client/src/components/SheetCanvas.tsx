@@ -38,6 +38,13 @@ interface SheetCanvasProps {
   eraserWidth: number;
   paths: DrawingPath[];
   remoteInProgress: RemoteInProgressPath[];
+  // 펜으로만 그리기(팜 리젝션) — touch 포인터로는 획을 시작하지 않는다. pen/mouse는 계속 그린다.
+  penOnly: boolean;
+  // 스타일러스 최초 감지 알림. 반환값 = "이 호출로 펜 전용이 켜졌는가".
+  // 자동 감지가 켜지는 프레임에는 penOnly prop이 아직 이전 값이라 반환값으로 판단해야
+  // "팜이 먼저 닿고 곧바로 펜이 닿는" 첫 획부터 팜 리젝션이 적용된다.
+  onPenDetected?: () => boolean;
+  onDrawCancel?: (data: { pathId: string }) => void;
   onDrawStart?: (data: {
     pathId: string;
     color: string;
@@ -65,6 +72,9 @@ function SheetCanvas({
   eraserWidth,
   paths,
   remoteInProgress,
+  penOnly,
+  onPenDetected,
+  onDrawCancel,
   onDrawStart,
   onDrawMove,
   onPathAdd,
@@ -82,6 +92,10 @@ function SheetCanvas({
 
   const lastMoveTimeRef = useRef(0);
   const redrawCanvasRef = useRef<() => void>(() => {});
+  // 이 마운트에서 스타일러스를 이미 봤는지 — onPenDetected 중복 호출 방지
+  const penSeenRef = useRef(false);
+  // effect에서 cancelDrawing을 호출하기 위한 미러 (직접 호출하면 exhaustive-deps 경고)
+  const cancelDrawingRef = useRef<() => void>(() => {});
   const rafIdRef = useRef(0);
   const erasedPathIdsRef = useRef<Set<string>>(new Set());
   const activePointersRef = useRef<Set<number>>(new Set());
@@ -99,6 +113,9 @@ function SheetCanvas({
   // 1) 진행 중인 그리기 상태를 취소 — 펜을 누른 채 페이지가 바뀌어도 이전 획이 새 시트에 저장되지 않도록
   // 2) 이전 시트의 캔버스 픽셀을 페인트 전에 동기적으로 제거 — 잔상 방지(useLayoutEffect)
   useLayoutEffect(() => {
+    // 진행 중이던 획을 피어에게도 취소 통보한 뒤 리셋 — 아래 수동 리셋과 겹치지만
+    // cancelDrawing이 취소 emit·배치 종료를 한 경로로 처리하므로 재사용한다.
+    cancelDrawingRef.current();
     isDrawingRef.current = false;
     drawingPointerIdRef.current = null;
     currentPathRef.current = [];
@@ -337,20 +354,54 @@ function SheetCanvas({
     if (eraserType === "stroke") {
       onBatchEnd?.();
       erasedPathIdsRef.current = new Set();
+    } else if (currentPathIdRef.current) {
+      // 이미 drawing:start/move를 보낸 획 — 취소를 알리지 않으면 피어의 remoteInProgress에
+      // 영원히 남아 지워지지 않는 잔상이 된다. (영역 지우개도 drawing:start를 보내므로 포함)
+      onDrawCancel?.({ pathId: currentPathIdRef.current });
     }
 
     isDrawingRef.current = false;
     drawingPointerIdRef.current = null;
     currentPathRef.current = [];
+    // 같은 id로 두 번 취소되지 않도록 비운다 — 이후 읽는 곳은 전부 isDrawingRef 가드 뒤에 있다.
+    currentPathIdRef.current = "";
     requestRedraw();
   };
+  cancelDrawingRef.current = cancelDrawing;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!isDrawMode) return;
 
+    // 스타일러스 최초 감지 → 부모가 펜 전용 모드를 자동으로 켠다(기기당 1회).
+    // 켜진 프레임에는 penOnly prop이 아직 이전 값이므로 반환값으로 판단해야
+    // 그 즉시 아래 팜 리젝션이 적용된다.
+    let penOnlyNow = penOnly;
+    if (e.pointerType === "pen" && !penSeenRef.current) {
+      penSeenRef.current = true;
+      if (onPenDetected?.()) penOnlyNow = true;
+    }
+
+    // 펜 전용: 손가락/손바닥은 그리기에 관여하지 않는다.
+    // activePointersRef에 넣지 않는 것이 핵심 — 넣으면 팜을 얹은 채 펜으로 그릴 때
+    // 아래 2포인터 핸드오프가 발동해 획이 끊긴다.
+    // stopPropagation 이전에 반환하므로 터치는 지금처럼 부모로 흘러가 핀치줌이 그대로 동작한다.
+    if (penOnlyNow && e.pointerType === "touch") return;
+
+    // 펜이 닿으면 손가락/팜이 점유하던 상태를 회수한다(펜 우선).
+    // 1) 진행 중이던 손가락 획을 취소 — 피어에게도 drawing:cancel이 나간다.
+    // 2) 카운터를 비워 팜이 남긴 pointerId 때문에 펜의 첫 획이 핸드오프로 삼켜지는 것을 막는다.
+    //    팜이 캔버스 밖에서 눌려 획을 시작하지 못한 경우에도 id는 남아 있으므로 clear가 필요하다.
+    //    남은 id의 pointerup은 없는 키를 delete하는 no-op이라 안전하다.
+    //    (이 Set이 향후 touch 외 포인터도 추적하게 되면 필터링 delete로 바꿔야 한다)
+    if (penOnlyNow && e.pointerType === "pen") {
+      cancelDrawing();
+      activePointersRef.current.clear();
+    }
+
     activePointersRef.current.add(e.pointerId);
 
     // 2+ 포인터 → 그리기 취소, 부모 핀치줌으로 위임
+    // (펜 전용에서는 터치가 카운트되지 않아 팜을 얹어도 발동하지 않는다)
     if (activePointersRef.current.size >= 2) {
       cancelDrawing();
       return;

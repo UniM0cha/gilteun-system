@@ -11,6 +11,7 @@ import {
   Trash,
   Megaphone,
   Palette,
+  PenTool,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -27,6 +28,7 @@ export interface DrawingToolState {
   eraserType: EraserType;
   eraserWidth: number;
   toolPopoverOpen: boolean;
+  penOnly: boolean;
 }
 
 export interface DrawingToolActions {
@@ -39,6 +41,7 @@ export interface DrawingToolActions {
   setEraserType: Dispatch<SetStateAction<EraserType>>;
   setEraserWidth: Dispatch<SetStateAction<number>>;
   setToolPopoverOpen: (v: boolean) => void;
+  setPenOnly: (v: boolean) => void;
   undo: () => void;
   redo: () => void;
   setIsCompact: (v: boolean) => void;
@@ -85,6 +88,7 @@ function DrawingToolbar({
     eraserType,
     eraserWidth,
     toolPopoverOpen,
+    penOnly,
   } = tool;
   const {
     setIsDrawMode,
@@ -96,6 +100,7 @@ function DrawingToolbar({
     setEraserType,
     setEraserWidth,
     setToolPopoverOpen,
+    setPenOnly,
     undo,
     redo,
     setIsCompact,
@@ -342,6 +347,24 @@ function DrawingToolbar({
                             다시실행
                           </Button>
                         </div>
+                      </div>
+
+                      {/* 펜으로만 그리기(팜 리젝션) — 기기 설정에 저장되어 다음에도 유지된다.
+                          펜슬 없는 기기에서 켜면 그리기가 불가능해지므로 이 토글은 항상 노출해야 한다(탈출구). */}
+                      <div>
+                        <div className="text-xs font-medium text-muted-foreground mb-2">입력</div>
+                        <Button
+                          variant={penOnly ? "secondary" : "ghost"}
+                          className="h-11 w-full justify-between"
+                          aria-pressed={penOnly}
+                          onClick={() => setPenOnly(!penOnly)}
+                        >
+                          <span className="flex items-center gap-2">
+                            <PenTool />
+                            펜으로만 그리기
+                          </span>
+                          <span className="text-xs text-muted-foreground">{penOnly ? "켜짐" : "꺼짐"}</span>
+                        </Button>
                       </div>
                     </div>
                   </PopoverContent>
