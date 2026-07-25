@@ -2,8 +2,13 @@
 
 ## Git
 
+- **커밋 작성자는 항상 `Jeongyun Lee <solst_ice@naver.com>`** — 저장소 기존 커밋과 같은 신원이어야 GitHub 귀속이 이어짐
+  - 원격/컨테이너 환경은 git 기본값이 `Claude <noreply@anthropic.com>`로 잡혀 있는 경우가 있음. **커밋 전에 `git config user.email`을 확인할 것**
+  - `git config user.name "Jeongyun Lee" && git config user.email "solst_ice@naver.com"`
+  - 이미 잘못된 신원으로 푸시했다면 `git commit --amend --author="Jeongyun Lee <solst_ice@naver.com>"` 후 force push (`--reset-author`는 작성 시각까지 지우므로 쓰지 말 것)
 - 커밋 메시지에 `Co-Authored-By` 태그 절대 붙이지 않기
 - PR 본문/설명에 `🤖 Generated with Claude Code` 등 Claude Code 생성 표기·서명 붙이지 않기
+  - PR 생성 API가 본문 끝에 서명을 자동으로 붙이는 경우가 있음 — 생성 후 본문을 확인하고 붙어 있으면 제거할 것
 - `develop` 브랜치에서 개발 → `main`에 머지/push 시 Railway 자동 배포
 - 평소 작업은 `develop`에서 진행할 것
 
