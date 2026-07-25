@@ -13,7 +13,7 @@ import {
   Palette,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import type { EraserType } from "@/components/SheetCanvas";
 import type { PanelSide } from "@/store/deviceSettingsStore";
 
@@ -162,6 +162,9 @@ function DrawingToolbar({
                     도구
                   </PopoverTrigger>
                   <PopoverContent className="w-80 p-4" align="start">
+                    {/* 팝오버(role=dialog) 접근성 이름. 내부 섹션 라벨("도구"·"색상"…)과 중복 노출되지
+                        않도록 sr-only로 둔다. */}
+                    <PopoverTitle className="sr-only">그리기 도구</PopoverTitle>
                     <div className="space-y-4">
                       {/* 펜 / 형광펜 토글 */}
                       <div>
