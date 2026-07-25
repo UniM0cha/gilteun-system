@@ -1,17 +1,5 @@
 import { memo, type Dispatch, type SetStateAction } from "react";
-import {
-  Pencil,
-  Highlighter,
-  Eye,
-  Eraser,
-  Undo,
-  Redo,
-  Minus,
-  Plus as PlusIcon,
-  Trash,
-  Megaphone,
-  Palette,
-} from "lucide-react";
+import { Pencil, Highlighter, Eye, Eraser, Undo, Redo, Minus, Plus as PlusIcon, Trash, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { EraserType } from "@/components/SheetCanvas";
@@ -102,8 +90,21 @@ function DrawingToolbar({
   } = actions;
 
   // 그리기 도구가 펜/형광펜인지(지우개가 아닐 때만 색·굵기 활성 표시)
-  const isPenActive = !isHighlighter && eraserType === "none";
-  const isHighlighterActive = isHighlighter && eraserType === "none";
+  const isEraser = eraserType !== "none";
+  const isPenActive = !isHighlighter && !isEraser;
+  const isHighlighterActive = isHighlighter && !isEraser;
+
+  // 팔레트 트리거에 현재 도구·색·굵기를 그대로 표시 (팝오버를 안 열어도 상태를 알 수 있게)
+  const activeColor = isHighlighter ? highlighterColor : selectedColor;
+  const activeWidth = isEraser ? eraserWidth : isHighlighter ? highlighterWidth : penWidth;
+  const ActiveToolIcon = isEraser ? (eraserType === "stroke" ? Trash : Eraser) : isHighlighter ? Highlighter : Pencil;
+  const activeToolLabel = isEraser
+    ? eraserType === "stroke"
+      ? "획 지우개"
+      : "영역 지우개"
+    : isHighlighter
+      ? "형광펜"
+      : "펜";
 
   // 명령 패널 토글은 패널이 나타나는 가장자리와 같은 쪽에 배치 (기기 설정으로 좌/우 스왑)
   const commandPanelButton = (
@@ -157,9 +158,20 @@ function DrawingToolbar({
             {isDrawMode && (
               <>
                 <Popover open={toolPopoverOpen} onOpenChange={setToolPopoverOpen}>
-                  <PopoverTrigger render={<Button variant="secondary" className="h-11" />}>
-                    <Palette />
-                    도구
+                  <PopoverTrigger
+                    render={<Button variant="secondary" className="h-11" />}
+                    title="도구 설정"
+                    aria-label={`도구 설정 열기 (현재 ${activeToolLabel}, 굵기 ${activeWidth})`}
+                  >
+                    <ActiveToolIcon className="size-4" />
+                    <span className="text-sm">{activeToolLabel}</span>
+                    {!isEraser && (
+                      <span
+                        className="size-4 shrink-0 rounded-full border border-border"
+                        style={{ backgroundColor: activeColor }}
+                      />
+                    )}
+                    <span className="text-sm font-medium tabular-nums">{activeWidth}</span>
                   </PopoverTrigger>
                   <PopoverContent className="w-80 p-4" align="start">
                     <div className="space-y-4">
@@ -346,43 +358,6 @@ function DrawingToolbar({
                     </div>
                   </PopoverContent>
                 </Popover>
-
-                {/* 현재 도구·색·굵기 상시 표시 (팝오버를 안 열어도 상태를 알 수 있게) */}
-                {(() => {
-                  const isEraser = eraserType !== "none";
-                  const curColor = isHighlighter ? highlighterColor : selectedColor;
-                  const curWidth = isEraser ? eraserWidth : isHighlighter ? highlighterWidth : penWidth;
-                  const ToolIcon = isEraser
-                    ? eraserType === "stroke"
-                      ? Trash
-                      : Eraser
-                    : isHighlighter
-                      ? Highlighter
-                      : Pencil;
-                  const label = isEraser
-                    ? eraserType === "stroke"
-                      ? "획 지우개"
-                      : "영역 지우개"
-                    : isHighlighter
-                      ? "형광펜"
-                      : "펜";
-                  return (
-                    <div
-                      className="flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border bg-muted/40 px-3 text-muted-foreground"
-                      aria-label={`현재 도구: ${label}, 굵기 ${curWidth}`}
-                    >
-                      <ToolIcon className="size-4" />
-                      <span className="hidden text-sm sm:inline">{label}</span>
-                      {!isEraser && (
-                        <span
-                          className="size-4 shrink-0 rounded-full border border-border"
-                          style={{ backgroundColor: curColor }}
-                        />
-                      )}
-                      <span className="text-sm font-medium tabular-nums text-foreground">{curWidth}</span>
-                    </div>
-                  );
-                })()}
 
                 <Button
                   variant="secondary"
