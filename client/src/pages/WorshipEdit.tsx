@@ -45,6 +45,7 @@ import {
 } from "@/hooks/queries";
 import type { Sheet } from "@/types";
 import { cn } from "@/lib/utils";
+import { formatKoreanDate } from "@/lib/date";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -282,11 +283,33 @@ export default function WorshipEdit() {
     return undefined;
   }, [worshipData, isNew, worshipTypes]);
 
-  const { register, handleSubmit, control, getValues } = useForm<WorshipFormValues>({
+  const { register, handleSubmit, control, getValues, setValue } = useForm<WorshipFormValues>({
     defaultValues: { title: "", date: "", typeId: "" },
     values: formValues,
     resetOptions: { keepDirtyValues: true },
   });
+
+  const dateField = register("date", { required: true });
+
+  // 날짜·유형에서 파생되는 기본 제목 — 날짜가 없으면 제목도 만들지 않는다
+  const buildAutoTitle = (date: string, typeId: string) => {
+    const dateLabel = formatKoreanDate(date);
+    if (!dateLabel) return "";
+    const typeName = worshipTypes.find((t) => t.id === typeId)?.name;
+    return typeName ? `${dateLabel} ${typeName}` : dateLabel;
+  };
+
+  // 제목이 비었거나 직전 날짜·유형에서 자동 생성된 값 그대로일 때만 갱신 —
+  // 사용자가 직접 쓴 제목("주일예배 3부")은 날짜를 바꿔도 건드리지 않는다
+  const syncAutoTitle = (prev: { date: string; typeId: string }, next: { date: string; typeId: string }) => {
+    const currentTitle = getValues("title");
+    if (currentTitle.trim() !== "" && currentTitle !== buildAutoTitle(prev.date, prev.typeId)) return;
+    const nextTitle = buildAutoTitle(next.date, next.typeId);
+    if (!nextTitle) return;
+    // shouldDirty 필수 — values + keepDirtyValues 조합이라 dirty가 아니면
+    // worshipTypes가 늦게 도착해 formValues가 갱신될 때 빈 값으로 되돌아간다
+    setValue("title", nextTitle, { shouldDirty: true, shouldValidate: true });
+  };
 
   // 기존 예배의 악보 목록 로드 (악보 리스트는 서버 상태와 동기화 유지가 의도된 동작)
   useEffect(() => {
@@ -313,12 +336,13 @@ export default function WorshipEdit() {
     let currentWorshipId = worshipId;
     if (!currentWorshipId) {
       const { title, date, typeId } = getValues();
-      if (!title.trim()) {
-        toast.error("악보를 추가하려면 먼저 예배 제목을 입력해주세요.");
-        return;
-      }
+      // 제목은 날짜에서 자동으로 채워지므로 날짜를 먼저 지적해야 실제 원인과 맞는다
       if (!date) {
         toast.error("악보를 추가하려면 먼저 예배 날짜를 선택해주세요.");
+        return;
+      }
+      if (!title.trim()) {
+        toast.error("악보를 추가하려면 먼저 예배 제목을 입력해주세요.");
         return;
       }
       if (!typeId) {
@@ -482,7 +506,7 @@ export default function WorshipEdit() {
                   id="worship-title"
                   type="text"
                   {...register("title", { validate: (v) => v.trim().length > 0 })}
-                  placeholder="예: 2024년 1월 첫째주 주일예배"
+                  placeholder="날짜를 선택하면 자동으로 채워집니다"
                   className="h-11"
                 />
               </div>
@@ -495,7 +519,13 @@ export default function WorshipEdit() {
                 <Input
                   id="worship-date"
                   type="date"
-                  {...register("date", { required: true })}
+                  {...dateField}
+                  onChange={(e) => {
+                    // 이전 값은 RHF가 내부 store를 갱신하기 전에 잡아둔다
+                    const { date: prevDate, typeId } = getValues();
+                    void dateField.onChange(e);
+                    syncAutoTitle({ date: prevDate, typeId }, { date: e.target.value, typeId });
+                  }}
                   className="h-11 appearance-none"
                 />
               </div>
@@ -513,7 +543,14 @@ export default function WorshipEdit() {
                       <Select
                         items={Object.fromEntries(worshipTypes.map((t) => [t.id, t.name]))}
                         value={field.value}
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          const { date, typeId: prevTypeId } = getValues();
+                          field.onChange(value);
+                          // base-ui는 해제 시 null을 보낼 수 있다 — 그 경우 제목은 그대로 둔다
+                          if (typeof value === "string") {
+                            syncAutoTitle({ date, typeId: prevTypeId }, { date, typeId: value });
+                          }
+                        }}
                       >
                         <SelectTrigger className="w-full data-[size=default]:h-11">
                           <SelectValue placeholder="예배 유형 선택" />

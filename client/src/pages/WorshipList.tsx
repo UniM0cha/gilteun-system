@@ -5,6 +5,7 @@ import { useWorships, useWorshipYears, useWorshipTypes, useDeleteWorship } from 
 import { useAppStore } from "@/store/appStore";
 import { getColorOption } from "@/lib/colors";
 import { cn } from "@/lib/utils";
+import { formatKoreanDate } from "@/lib/date";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,15 +73,6 @@ export default function WorshipList() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
 
   const formatLastEdited = (dateString: string) => {
     const date = new Date(dateString);
@@ -290,7 +282,7 @@ export default function WorshipList() {
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <Calendar className="size-4 shrink-0" />
-                            {formatDate(worship.date)}
+                            {formatKoreanDate(worship.date) || worship.date}
                           </div>
                           <div className="text-sm text-muted-foreground">악보 {worship.sheets?.length ?? 0}개</div>
                           {worshipType && (
