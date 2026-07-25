@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { db } from ".";
 import { worshipTypes, roles, profiles, commands, worships, sheets, drawingPaths } from "./schema.js";
 import { setupDatabase } from "./setup.js";
+import { nowIso } from "../lib/date.js";
 
 async function seed() {
   console.log("Seeding database...\n");
@@ -79,7 +80,7 @@ async function seed() {
   const juil2buType = worshipTypeData.find((t) => t.name === "주일 2부 예배")!;
   const suyoType = worshipTypeData.find((t) => t.name === "수요예배")!;
 
-  const now = new Date().toISOString();
+  const now = nowIso();
   const worshipData = [
     {
       id: nanoid(),
