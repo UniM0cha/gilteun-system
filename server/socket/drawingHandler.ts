@@ -48,6 +48,13 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
     socket.to(`sheet:${data.sheetId}`).emit("drawing:moved", data);
   });
 
+  // 진행 중 획 취소 → 피어의 진행 중 렌더만 정리 (DB 저장 전 단계라 지울 row가 없음)
+  // 이 이벤트가 없으면 drawing:end로 확정되지 않고 버려진 획이 피어의 remoteInProgress에 영원히 남는다.
+  // 수신측은 기존 drawing:cancelled 핸들러를 그대로 재사용한다.
+  socket.on("drawing:cancel", (data: { sheetId: string; pathId: string }) => {
+    socket.to(`sheet:${data.sheetId}`).emit("drawing:cancelled", { sheetId: data.sheetId, pathId: data.pathId });
+  });
+
   // 드로잉 완료 → DB 저장 + 브로드캐스트
   socket.on(
     "drawing:end",

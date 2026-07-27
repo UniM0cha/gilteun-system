@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { useWorship, useCommands, useSheetDrawings, useAdjacentDrawingsPreload } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
-import { useDeviceSettingsStore, type PanelSide } from "@/store/deviceSettingsStore";
+import { useDeviceSettingsStore, selectPenOnlyActive, type PanelSide } from "@/store/deviceSettingsStore";
 import { useWorshipSocket } from "@/hooks/useWorshipSocket";
 import { useWorshipRoom } from "@/hooks/useWorshipRoom";
 import { useWorshipPresence } from "@/hooks/useWorshipPresence";
@@ -123,6 +123,7 @@ export default function Worship() {
     remoteInProgress,
     emitDrawStart,
     emitDrawMove,
+    emitDrawCancel,
     addPath,
     deletePath,
     startBatch,
@@ -232,6 +233,10 @@ export default function Worship() {
   // 기기 설정: 명령 패널 좌/우 위치 — 악보 목록은 항상 반대편
   const commandPanelSide = useDeviceSettingsStore((s) => s.commandPanelSide);
   const sidebarSide: PanelSide = commandPanelSide === "left" ? "right" : "left";
+  // 기기 설정: 펜으로만 그리기(팜 리젝션) — 스타일러스가 처음 감지되면 자동으로 켜진다
+  const penOnly = useDeviceSettingsStore(selectPenOnlyActive);
+  const setPenOnly = useDeviceSettingsStore((s) => s.setPenOnly);
+  const notePenDetected = useDeviceSettingsStore((s) => s.notePenDetected);
 
   const {
     x: pageX,
@@ -281,6 +286,20 @@ export default function Worship() {
     toast.success("현재 페이지를 호출했습니다");
   }, [id, currentProfileId, currentSheet, socket]);
 
+  // 스타일러스 최초 감지 → 펜으로만 그리기 자동 활성화. 안내는 실제로 켜진 그 1회만
+  // (1회 보장은 영속되는 penDetected에서 나오므로 별도 플래그가 필요 없다).
+  // 반환값은 SheetCanvas가 "지금 이 프레임부터 팜 리젝션 적용"을 판단하는 데 쓴다.
+  const handlePenDetected = useCallback(() => {
+    if (!notePenDetected()) return false;
+    toast.info("펜이 감지되어 펜으로만 그리기를 켰습니다", {
+      // 안내 경로는 기기 설정으로 잡는다 — 그리기 도구 팝오버는 그리기 모드에 들어가야
+      // 열 수 있고 툴바 구성도 바뀔 수 있는 반면, 기기 설정은 홈에서 바로 닿는다
+      description: "손바닥이 닿아도 그려지지 않습니다. 홈 > 기기 설정에서 끌 수 있습니다",
+      duration: 6000,
+    });
+    return true;
+  }, [notePenDetected]);
+
   // 모바일에선 한 쪽 드로어만 — 하나를 열면 다른 하나를 닫는다.
   const handleToggleSidebar = useCallback(() => {
     setShowSidebar((s) => {
@@ -312,6 +331,7 @@ export default function Worship() {
       eraserType,
       eraserWidth,
       toolPopoverOpen,
+      penOnly,
     }),
     [
       isDrawMode,
@@ -323,6 +343,7 @@ export default function Worship() {
       eraserType,
       eraserWidth,
       toolPopoverOpen,
+      penOnly,
     ],
   );
 
@@ -337,11 +358,12 @@ export default function Worship() {
       setEraserType,
       setEraserWidth,
       setToolPopoverOpen,
+      setPenOnly,
       undo: drawingUndo,
       redo: drawingRedo,
       setIsCompact,
     }),
-    [drawingUndo, drawingRedo],
+    [drawingUndo, drawingRedo, setPenOnly],
   );
 
   // 좌/우 패널 — 기기 설정(commandPanelSide)에 따라 실제 JSX 순서를 바꿔 렌더한다.
@@ -479,6 +501,9 @@ export default function Worship() {
                     eraserWidth={eraserWidth}
                     paths={drawingPaths}
                     remoteInProgress={remoteInProgress}
+                    penOnly={penOnly}
+                    onPenDetected={handlePenDetected}
+                    onDrawCancel={emitDrawCancel}
                     onDrawStart={emitDrawStart}
                     onDrawMove={emitDrawMove}
                     onPathAdd={addPath}
@@ -518,6 +543,7 @@ export default function Worship() {
                     eraserWidth={eraserWidth}
                     paths={previewDrawings ?? EMPTY_PATHS}
                     remoteInProgress={EMPTY_REMOTE}
+                    penOnly={false}
                     profileId={currentProfileId || ""}
                   />
                 </div>

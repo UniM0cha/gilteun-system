@@ -1,5 +1,17 @@
 import { memo, type Dispatch, type SetStateAction } from "react";
-import { Pencil, Highlighter, Eye, Eraser, Undo, Redo, Minus, Plus as PlusIcon, Trash, Megaphone } from "lucide-react";
+import {
+  Pencil,
+  Highlighter,
+  Eye,
+  Eraser,
+  Undo,
+  Redo,
+  Minus,
+  Plus as PlusIcon,
+  Trash,
+  Megaphone,
+  PenTool,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import type { EraserType } from "@/components/SheetCanvas";
@@ -15,6 +27,7 @@ export interface DrawingToolState {
   eraserType: EraserType;
   eraserWidth: number;
   toolPopoverOpen: boolean;
+  penOnly: boolean;
 }
 
 export interface DrawingToolActions {
@@ -27,6 +40,7 @@ export interface DrawingToolActions {
   setEraserType: Dispatch<SetStateAction<EraserType>>;
   setEraserWidth: Dispatch<SetStateAction<number>>;
   setToolPopoverOpen: (v: boolean) => void;
+  setPenOnly: (v: boolean) => void;
   undo: () => void;
   redo: () => void;
   setIsCompact: (v: boolean) => void;
@@ -73,6 +87,7 @@ function DrawingToolbar({
     eraserType,
     eraserWidth,
     toolPopoverOpen,
+    penOnly,
   } = tool;
   const {
     setIsDrawMode,
@@ -84,6 +99,7 @@ function DrawingToolbar({
     setEraserType,
     setEraserWidth,
     setToolPopoverOpen,
+    setPenOnly,
     undo,
     redo,
     setIsCompact,
@@ -361,6 +377,26 @@ function DrawingToolbar({
                             다시실행
                           </Button>
                         </div>
+                      </div>
+
+                      {/* 펜으로만 그리기(팜 리젝션) — 기기 설정에 저장되어 다음에도 유지된다.
+                          펜슬 없는 기기에서 켜면 그리기가 불가능해지므로 이 토글은 항상 노출한다.
+                          다만 여기는 그리기 모드에 들어가야 닿으므로, 자동 활성화 안내가 가리키는
+                          주 해제 경로는 기기 설정 페이지다(DeviceSettings.tsx). */}
+                      <div>
+                        <div className="text-xs font-medium text-muted-foreground mb-2">입력</div>
+                        <Button
+                          variant={penOnly ? "secondary" : "ghost"}
+                          className="h-11 w-full justify-between"
+                          aria-pressed={penOnly}
+                          onClick={() => setPenOnly(!penOnly)}
+                        >
+                          <span className="flex items-center gap-2">
+                            <PenTool />
+                            펜으로만 그리기
+                          </span>
+                          <span className="text-xs text-muted-foreground">{penOnly ? "켜짐" : "꺼짐"}</span>
+                        </Button>
                       </div>
                     </div>
                   </PopoverContent>

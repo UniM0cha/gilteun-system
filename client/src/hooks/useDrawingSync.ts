@@ -309,6 +309,19 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     [sheetId, socket],
   );
 
+  // 진행 중 획 취소 전송 — 로컬에서 버린 획을 피어의 remoteInProgress에서도 치운다.
+  // sheetId prop이 아니라 currentSheetIdRef(소켓이 실제로 join한 방)를 쓴다: 시트 전환 도중
+  // 취소가 나갈 때 prop은 이미 새 시트지만 room 입장/퇴장 effect는 아직 실행 전이라,
+  // 취소를 받아야 할 피어는 여전히 "이전 시트" 방에 있다. 의도된 divergence이므로 되돌리지 말 것.
+  const emitDrawCancel = useCallback(
+    (data: { pathId: string }) => {
+      const sheetRoomId = currentSheetIdRef.current;
+      if (!sheetRoomId) return;
+      socket.emit("drawing:cancel", { sheetId: sheetRoomId, pathId: data.pathId });
+    },
+    [socket],
+  );
+
   // 획 추가 (옵티미스틱 + 서버 동기화)
   const addPath = useCallback(
     (path: DrawingPath) => {
@@ -470,6 +483,7 @@ export function useDrawingSync({ sheetId, profileId, enabled }: UseDrawingSyncOp
     remoteInProgress: visibleRemoteInProgress,
     emitDrawStart,
     emitDrawMove,
+    emitDrawCancel,
     addPath,
     deletePath,
     clearMyPaths,
