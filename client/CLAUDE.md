@@ -40,6 +40,12 @@
 
 - `components.json`의 `style`은 `base-nova`(base-ui 기반) — `ui/`는 **레지스트리 stock 그대로** 둔다.
   추가·갱신은 `npx shadcn add <컴포넌트> --overwrite`로만 하고 파일을 손으로 고치지 않는다
+- ⚠️ **`shadcn add`는 컴포넌트를 하나씩 실행할 것.** 여러 개를 한 명령에 넘기면 `"use client"`가
+  일부 파일에만 남는다. 레지스트리 원본에는 항상 `"use client"`가 있고 `rsc: false`인 이 프로젝트에선
+  CLI가 지워야 하는데, 그 판정에 쓰는 정규식이 모듈 전역 + `g` 플래그라(`transform-rsc.ts`)
+  `test()`가 호출될 때마다 `lastIndex` 때문에 true/false를 번갈아 반환한다. 결국 홀수 번째 파일만
+  지워지고 짝수 번째는 남는다. 한 컴포넌트씩 실행하면 매번 새 프로세스라 항상 지워진다
+  - `for c in dialog select; do npx shadcn@latest add $c --overwrite --yes; done`
 - 커스터마이즈는 **호출부 className**에서 한다. stock 클래스를 이겨야 하므로 주의할 점:
   - 반응형 분기까지 같이 덮어써야 한다 — `max-w-5xl`만 주면 stock의 `sm:max-w-sm`이 이긴다
     (`max-w-5xl sm:max-w-5xl`처럼 써야 함. `DialogContent`/`AlertDialogContent` 공통)
