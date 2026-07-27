@@ -46,6 +46,8 @@
   - `ring-1`은 `border-none`으로 지워지지 않는다 — 테두리를 없애려면 `ring-0`
   - 44px 터치 타겟은 stock 기본(`h-8`/`size-8`)보다 크므로 호출부에서 `h-11`·`size-11`,
     `SelectTrigger`는 `data-[size=default]:h-11`로 지정한다
+  - `PopoverContent`는 stock이 `flex flex-col gap-2.5`다 — `p-0`으로 자식을 맞붙여
+    구분선(`border-b`)을 만드는 곳은 `gap-0`도 함께 줘야 한다. 패딩만 지우면 10px 빈틈이 남는다
 - ⚠️ 과거 회귀: Radix→base-ui 이주(`e9cf3e2`) 때 new-york 클래스를 그대로 들고 와서
   다이얼로그 백드롭(150ms)과 팝업(`duration-200`)의 exit 길이가 어긋났다. base-ui는
   **팝업 애니메이션 완료 시점에 백드롭까지 함께 unmount**하고 `tw-animate-css`의
