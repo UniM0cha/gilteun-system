@@ -384,7 +384,8 @@ function SheetCanvas({
     // 펜 전용: 손가락/손바닥은 그리기에 관여하지 않는다.
     // activePointersRef에 넣지 않는 것이 핵심 — 넣으면 팜을 얹은 채 펜으로 그릴 때
     // 아래 2포인터 핸드오프가 발동해 획이 끊긴다.
-    // stopPropagation 이전에 반환하므로 터치는 지금처럼 부모로 흘러가 핀치줌이 그대로 동작한다.
+    // 핀치줌은 이 반환에 영향받지 않는다 — useSheetZoomPan은 TouchEvent(e.touches)로 동작하고,
+    // 캔버스의 native touchstart 리스너가 2점 이상일 때는 stopPropagation을 걸지 않아 부모까지 간다.
     if (penOnlyNow && e.pointerType === "touch") return;
 
     // 펜이 닿으면 손가락/팜이 점유하던 상태를 회수한다(펜 우선).
@@ -392,7 +393,8 @@ function SheetCanvas({
     // 2) 카운터를 비워 팜이 남긴 pointerId 때문에 펜의 첫 획이 핸드오프로 삼켜지는 것을 막는다.
     //    팜이 캔버스 밖에서 눌려 획을 시작하지 못한 경우에도 id는 남아 있으므로 clear가 필요하다.
     //    남은 id의 pointerup은 없는 키를 delete하는 no-op이라 안전하다.
-    //    (이 Set이 향후 touch 외 포인터도 추적하게 되면 필터링 delete로 바꿔야 한다)
+    //    이 Set은 지금도 mouse·pen을 담고 있고 펜 전용이 꺼져 있으면 touch까지 담는다.
+    //    펜 우선 정책상 그것들도 함께 비우는 게 의도다(펜이 닿는 순간 이전 점유는 무효).
     if (penOnlyNow && e.pointerType === "pen") {
       cancelDrawing();
       activePointersRef.current.clear();
