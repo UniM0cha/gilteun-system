@@ -9,6 +9,7 @@ import sharp from "sharp";
 import { db } from "../db";
 import { sheets, drawingPaths } from "../db/schema.js";
 import { config } from "../config.js";
+import { nowIso } from "../lib/date.js";
 
 const router = Router();
 
@@ -84,7 +85,7 @@ router.post("/worships/:worshipId/sheets", upload.single("image"), async (req, r
 
     const id = nanoid();
     const imagePath = `sheets/${finalFilename}`;
-    const now = new Date().toISOString();
+    const now = nowIso();
 
     db.insert(sheets)
       .values({

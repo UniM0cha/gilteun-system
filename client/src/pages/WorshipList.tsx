@@ -5,7 +5,7 @@ import { useWorships, useWorshipYears, useWorshipTypes, useDeleteWorship } from 
 import { useAppStore } from "@/store/appStore";
 import { getColorOption } from "@/lib/colors";
 import { cn } from "@/lib/utils";
-import { formatKoreanDate } from "@/lib/date";
+import { formatKoreanDate, formatKoreanDateShort } from "@/lib/date";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,11 +73,6 @@ export default function WorshipList() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  const formatLastEdited = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("ko-KR");
-  };
 
   const handleDelete = async (id: string) => {
     await deleteWorshipMutation.mutateAsync(id);
@@ -293,7 +288,7 @@ export default function WorshipList() {
                         </div>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        마지막 수정: {formatLastEdited(worship.updatedAt)}
+                        마지막 수정: {formatKoreanDateShort(worship.updatedAt)}
                       </div>
                     </div>
 

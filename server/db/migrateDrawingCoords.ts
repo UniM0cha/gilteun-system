@@ -22,6 +22,7 @@ import { db, sqlite } from ".";
 import { drawingPaths, sheets } from "./schema.js";
 import { config } from "../config.js";
 import { convertPathToCardBasis, type Point } from "./drawingCoordConvert.js";
+import { nowIso } from "../lib/date.js";
 
 const FLAG_KEY = "drawing_coords_card_basis";
 
@@ -109,9 +110,7 @@ export async function runDrawingCoordMigration(): Promise<MigrationResult> {
       update.run(JSON.stringify(result.points), result.width, row.id);
       converted++;
     }
-    sqlite
-      .prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)")
-      .run(FLAG_KEY, new Date().toISOString());
+    sqlite.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)").run(FLAG_KEY, nowIso());
   });
   runAll();
 

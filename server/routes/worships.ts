@@ -7,6 +7,7 @@ import path from "path";
 import { db } from "../db";
 import { worships, sheets, drawingPaths } from "../db/schema.js";
 import { config } from "../config.js";
+import { nowIso } from "../lib/date.js";
 
 const router = Router();
 
@@ -103,7 +104,7 @@ router.post("/", (req, res) => {
       return;
     }
     const id = nanoid();
-    const now = new Date().toISOString();
+    const now = nowIso();
     db.insert(worships).values({ id, title, date, typeId, createdAt: now, updatedAt: now }).run();
     const created = db.select().from(worships).where(eq(worships.id, id)).get();
     res.status(201).json({ ...created, sheets: [] });
@@ -143,7 +144,7 @@ router.put("/:id", (req, res) => {
       res.status(404).json({ error: "Worship not found" });
       return;
     }
-    const now = new Date().toISOString();
+    const now = nowIso();
     db.update(worships)
       .set({
         title: title ?? existing.title,
