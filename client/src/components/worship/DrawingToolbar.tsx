@@ -95,8 +95,12 @@ function DrawingToolbar({
   const isHighlighterActive = isHighlighter && !isEraser;
 
   // 팔레트 트리거에 현재 도구·색·굵기를 그대로 표시 (팝오버를 안 열어도 상태를 알 수 있게)
+  // 획 지우개는 굵기 개념이 없어 null로 둔다 — 삭제 판정은 SheetCanvas가 고정 threshold(20)와
+  // 대상 획의 굵기로만 하고(findPathAtPoint), 팔레트의 "지우개 크기"도 영역 지우개 전용이라
+  // 사용자가 바꿀 수도 없는 숫자를 트리거에 띄우게 된다.
   const activeColor = isHighlighter ? highlighterColor : selectedColor;
-  const activeWidth = isEraser ? eraserWidth : isHighlighter ? highlighterWidth : penWidth;
+  const activeWidth =
+    eraserType === "stroke" ? null : isEraser ? eraserWidth : isHighlighter ? highlighterWidth : penWidth;
   const ActiveToolIcon = isEraser ? (eraserType === "stroke" ? Trash : Eraser) : isHighlighter ? Highlighter : Pencil;
   const activeToolLabel = isEraser
     ? eraserType === "stroke"
@@ -161,17 +165,17 @@ function DrawingToolbar({
                   <PopoverTrigger
                     render={<Button variant="secondary" className="h-11" />}
                     title="도구 설정"
-                    aria-label={`도구 설정 열기 (현재 ${activeToolLabel}, 굵기 ${activeWidth})`}
+                    aria-label={`도구 설정 (현재 ${activeToolLabel}${activeWidth === null ? "" : `, 굵기 ${activeWidth}`})`}
                   >
-                    <ActiveToolIcon className="size-4" />
-                    <span className="text-sm">{activeToolLabel}</span>
+                    <ActiveToolIcon />
+                    <span>{activeToolLabel}</span>
                     {!isEraser && (
                       <span
                         className="size-4 shrink-0 rounded-full border border-border"
                         style={{ backgroundColor: activeColor }}
                       />
                     )}
-                    <span className="text-sm font-medium tabular-nums">{activeWidth}</span>
+                    {activeWidth !== null && <span className="tabular-nums">{activeWidth}</span>}
                   </PopoverTrigger>
                   <PopoverContent className="w-80 p-4" align="start">
                     <div className="space-y-4">
