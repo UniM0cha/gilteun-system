@@ -9,7 +9,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ReactElement } from "react";
+import { ReactElement, useState } from "react";
 
 interface ConfirmDialogProps {
   trigger: ReactElement;
@@ -30,8 +30,11 @@ export function ConfirmDialog({
   onConfirm,
   destructive = false,
 }: ConfirmDialogProps) {
+  // stock shadcn(base-ui)의 AlertDialogAction은 Close가 아닌 순수 Button이라 확인 시 닫히지 않는다.
+  // open을 직접 들고 확인 핸들러에서 닫아 "확인 → 자동 닫힘" 동작을 유지한다.
+  const [open, setOpen] = useState(false);
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger render={trigger} />
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -40,7 +43,14 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel className="h-11">{cancelLabel}</AlertDialogCancel>
-          <AlertDialogAction className="h-11" variant={destructive ? "destructive" : "default"} onClick={onConfirm}>
+          <AlertDialogAction
+            className="h-11"
+            variant={destructive ? "destructive" : "default"}
+            onClick={() => {
+              onConfirm();
+              setOpen(false);
+            }}
+          >
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

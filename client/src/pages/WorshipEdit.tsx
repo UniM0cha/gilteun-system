@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, ChangeEvent } from "react";
 import { Link, Navigate, useParams, useNavigate } from "react-router";
 import { useForm, Controller } from "react-hook-form";
 import { isAxiosError } from "axios";
@@ -43,8 +43,9 @@ import {
   useDeleteSheet,
   useReorderSheets,
 } from "@/hooks/queries";
-import type { Sheet } from "@/types";
+import type { Sheet, WorshipType } from "@/types";
 import { cn } from "@/lib/utils";
+import { formatKoreanDate } from "@/lib/date";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -116,7 +117,12 @@ function SortableSheetItem({
                   <Eye className="size-4 text-white" />
                 </div>
               </DialogTrigger>
-              <DialogContent className="max-w-5xl bg-transparent border-none shadow-none p-0" showCloseButton={false}>
+              {/* stock DialogContent는 sm:max-w-sm·bg-popover·ring-1·p-4가 기본이므로,
+                  악보 원본을 크게 보여주는 이 미리보기는 sm 분기까지 함께 덮어써야 한다. */}
+              <DialogContent
+                className="max-w-5xl bg-transparent p-0 shadow-none ring-0 sm:max-w-5xl"
+                showCloseButton={false}
+              >
                 <DialogTitle className="sr-only">{sheet.title} 미리보기</DialogTitle>
                 <DialogClose className="sr-only">닫기</DialogClose>
                 <div className="relative flex flex-col items-center">
@@ -247,6 +253,15 @@ type WorshipFormValues = {
   typeId: string;
 };
 
+// 날짜·유형에서 파생되는 기본 제목 — 날짜가 없으면 제목도 만들지 않는다.
+// 유형을 못 찾으면(아직 로딩 전이거나 빈 typeId) 날짜만으로 만든다.
+function buildAutoTitle(date: string, typeId: string, types: WorshipType[]): string {
+  const dateLabel = formatKoreanDate(date);
+  if (!dateLabel) return "";
+  const typeName = types.find((t) => t.id === typeId)?.name;
+  return typeName ? `${dateLabel} ${typeName}` : dateLabel;
+}
+
 export default function WorshipEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -282,11 +297,47 @@ export default function WorshipEdit() {
     return undefined;
   }, [worshipData, isNew, worshipTypes]);
 
-  const { register, handleSubmit, control, getValues } = useForm<WorshipFormValues>({
+  const { register, handleSubmit, control, getValues, setValue } = useForm<WorshipFormValues>({
     defaultValues: { title: "", date: "", typeId: "" },
     values: formValues,
     resetOptions: { keepDirtyValues: true },
   });
+
+  const dateField = register("date", { required: true });
+
+  // 제목이 비었거나 직전 날짜·유형에서 자동 생성된 값 그대로일 때만 갱신 —
+  // 사용자가 직접 쓴 제목("주일예배 3부")은 날짜를 바꿔도 건드리지 않는다
+  const syncAutoTitle = useCallback(
+    (prev: { date: string; typeId: string }, next: { date: string; typeId: string }) => {
+      const currentTitle = getValues("title");
+      if (currentTitle.trim() !== "" && currentTitle !== buildAutoTitle(prev.date, prev.typeId, worshipTypes)) return;
+      const nextTitle = buildAutoTitle(next.date, next.typeId, worshipTypes);
+      // 날짜를 비우면 제목도 함께 비운다. 그냥 두면 form이 date="" / title="옛 날짜 제목"인
+      // 불일치 상태가 되고, 다음에 날짜를 고를 때 buildAutoTitle(prev)가 ""라 현재 제목이
+      // "직접 쓴 제목"으로 오인돼 이후 갱신이 영영 멈춘다.
+      // 여기는 위 가드를 통과한 지점(= 제목이 비었거나 자동 생성값)이라 사용자가 쓴 제목은 지워지지 않는다
+      if (!nextTitle) {
+        if (getValues("title") !== "") setValue("title", "", { shouldDirty: true });
+        return;
+      }
+      // shouldDirty 필수 — values + keepDirtyValues 조합이라 dirty가 아니면
+      // worshipTypes가 늦게 도착해 formValues가 갱신될 때 빈 값으로 되돌아간다
+      setValue("title", nextTitle, { shouldDirty: true, shouldValidate: true });
+    },
+    [worshipTypes, getValues, setValue],
+  );
+
+  // worshipTypes가 늦게 도착하면 typeId는 values 리셋으로 조용히 채워진다 — Select의
+  // onValueChange를 거치지 않으므로 syncAutoTitle이 불리지 않는다. 그 사이 사용자가
+  // 날짜를 골랐다면 제목이 유형명 없이("2026년 7월 2일") 굳고, 이후 날짜를 바꿔도
+  // 직전 자동 제목과 불일치해 "직접 쓴 제목"으로 오인돼 영영 갱신이 멈춘다.
+  // 유형이 도착한 시점에 한 번 맞춰준다 — prev.typeId를 ""로 두는 게 곧 "유형을 몰랐을 때"다.
+  useEffect(() => {
+    if (!isNew || worshipTypes.length === 0) return;
+    const { date, typeId } = getValues();
+    if (!date || !typeId) return;
+    syncAutoTitle({ date, typeId: "" }, { date, typeId });
+  }, [isNew, worshipTypes, syncAutoTitle, getValues]);
 
   // 기존 예배의 악보 목록 로드 (악보 리스트는 서버 상태와 동기화 유지가 의도된 동작)
   useEffect(() => {
@@ -313,12 +364,13 @@ export default function WorshipEdit() {
     let currentWorshipId = worshipId;
     if (!currentWorshipId) {
       const { title, date, typeId } = getValues();
-      if (!title.trim()) {
-        toast.error("악보를 추가하려면 먼저 예배 제목을 입력해주세요.");
-        return;
-      }
+      // 제목은 날짜에서 자동으로 채워지므로 날짜를 먼저 지적해야 실제 원인과 맞는다
       if (!date) {
         toast.error("악보를 추가하려면 먼저 예배 날짜를 선택해주세요.");
+        return;
+      }
+      if (!title.trim()) {
+        toast.error("악보를 추가하려면 먼저 예배 제목을 입력해주세요.");
         return;
       }
       if (!typeId) {
@@ -423,8 +475,10 @@ export default function WorshipEdit() {
       }
     },
     (errors) => {
-      if (errors.title) toast.error("예배 제목을 입력해주세요.");
-      else if (errors.date) toast.error("예배 날짜를 선택해주세요.");
+      // 업로드 가드와 같은 순서 — 제목은 날짜에서 자동으로 채워지므로 날짜를 먼저 지적해야
+      // 실제 원인과 맞고, RHF가 포커스를 옮기는 필드(mount 순서상 date가 먼저)와도 일치한다
+      if (errors.date) toast.error("예배 날짜를 선택해주세요.");
+      else if (errors.title) toast.error("예배 제목을 입력해주세요.");
     },
   );
 
@@ -482,7 +536,7 @@ export default function WorshipEdit() {
                   id="worship-title"
                   type="text"
                   {...register("title", { validate: (v) => v.trim().length > 0 })}
-                  placeholder="예: 2024년 1월 첫째주 주일예배"
+                  placeholder="날짜를 선택하면 자동으로 채워집니다"
                   className="h-11"
                 />
               </div>
@@ -495,7 +549,13 @@ export default function WorshipEdit() {
                 <Input
                   id="worship-date"
                   type="date"
-                  {...register("date", { required: true })}
+                  {...dateField}
+                  onChange={(e) => {
+                    // 이전 값은 RHF가 내부 store를 갱신하기 전에 잡아둔다
+                    const { date: prevDate, typeId } = getValues();
+                    void dateField.onChange(e);
+                    syncAutoTitle({ date: prevDate, typeId }, { date: e.target.value, typeId });
+                  }}
                   className="h-11 appearance-none"
                 />
               </div>
@@ -513,7 +573,14 @@ export default function WorshipEdit() {
                       <Select
                         items={Object.fromEntries(worshipTypes.map((t) => [t.id, t.name]))}
                         value={field.value}
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          const { date, typeId: prevTypeId } = getValues();
+                          field.onChange(value);
+                          // base-ui는 해제 시 null을 보낼 수 있다 — 그 경우 제목은 그대로 둔다
+                          if (typeof value === "string") {
+                            syncAutoTitle({ date, typeId: prevTypeId }, { date, typeId: value });
+                          }
+                        }}
                       >
                         <SelectTrigger className="w-full data-[size=default]:h-11">
                           <SelectValue placeholder="예배 유형 선택" />

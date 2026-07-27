@@ -22,7 +22,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -34,6 +34,10 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
+            PR 브랜치는 이미 현재 작업 디렉토리에 체크아웃되어 있습니다.
+            변경 내용은 `gh pr diff` 또는 `git diff origin/develop...HEAD`로 확인하고,
+            지적하려는 파일은 diff만 보지 말고 Read로 전체 맥락까지 읽어주세요.
+
             이 풀 리퀘스트를 코드 리뷰해 주세요. 리뷰는 한국어로 작성합니다.
             다음을 중점적으로 봐주세요:
             - 버그·로직 오류, 엣지 케이스, 경쟁 상태
@@ -41,13 +45,17 @@ jobs:
             - 성능 문제 및 불필요한 리렌더
             - 테스트 누락
             - 저장소 루트의 CLAUDE.md / client/CLAUDE.md 규칙 위반(특히 좌표 정규화·DPR, 프로필 가드, 화이트보드 드로잉 원칙)
-            확실한 문제는 `mcp__github_inline_comment__create_inline_comment` 로 해당 코드 줄에
-            **인라인 코멘트**를 남기고, 전반 요약은 PR 상단 코멘트로 남겨주세요.
+            확실한 문제는 `mcp__github_inline_comment__create_inline_comment` 를 `confirmed: true` 로
+            호출해 해당 코드 줄에 **인라인 코멘트**를 남기고, 전반 요약은 PR 코멘트로 남겨주세요.
             사소한 스타일 지적은 피하고, 우선순위(P1/P2/P3)를 함께 표기하세요.
-          # 인라인 코멘트 도구는 자동 리뷰 경로에서 기본 비활성이라 명시 허용해야 한다.
+
+            의존성 설치나 빌드·테스트 실행은 하지 마세요. 정적 분석만으로 리뷰합니다.
+          # --allowedTools 는 기본 도구(Read/Grep/Glob 등)를 대체하지 않고 추가한다.
+          # read-only git 명령이 기본 허용에 없어 리뷰어가 git diff 를 시도하다 권한 거부로
+          # 턴을 낭비했다(#30 에서 5회). 명시 허용해 그 낭비를 막는다.
           claude_args: |
-            --max-turns 15
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --max-turns 40
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status)"
           track_progress: true
 
   # PR 코멘트에 "@claude" 멘션이 있으면 수동 트리거(재리뷰·질문·수정 요청)
@@ -58,11 +66,13 @@ jobs:
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: "--max-turns 15"
+          claude_args: |
+            --max-turns 40
+            --allowedTools "Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status)"

@@ -35,3 +35,32 @@
 
 - `src/components/ui/`는 shadcn/ui 자동생성 파일이므로 린트 제외 대상
 - 이 디렉토리의 린트 에러는 무시하되, 직접 수정하지 말 것
+
+## shadcn ui/ 는 base-nova stock 유지
+
+- `components.json`의 `style`은 `base-nova`(base-ui 기반) — `ui/`는 **레지스트리 stock 그대로** 둔다.
+  추가·갱신은 `npx shadcn add <컴포넌트> --overwrite`로만 하고 파일을 손으로 고치지 않는다
+- ⚠️ **`shadcn add`는 컴포넌트를 하나씩 실행할 것.** 여러 개를 한 명령에 넘기면 `"use client"`가
+  일부 파일에만 남는다. 레지스트리 원본에는 항상 `"use client"`가 있고 `rsc: false`인 이 프로젝트에선
+  CLI가 지워야 하는데, 그 판정에 쓰는 정규식이 모듈 전역 + `g` 플래그라(`transform-rsc.ts`)
+  `test()`가 호출될 때마다 `lastIndex` 때문에 true/false를 번갈아 반환한다. 결국 홀수 번째 파일만
+  지워지고 짝수 번째는 남는다. 한 컴포넌트씩 실행하면 매번 새 프로세스라 항상 지워진다
+  - `for c in dialog select; do npx shadcn@latest add $c --overwrite --yes; done`
+- 커스터마이즈는 **호출부 className**에서 한다. stock 클래스를 이겨야 하므로 주의할 점:
+  - 반응형 분기까지 같이 덮어써야 한다 — `max-w-5xl`만 주면 stock의 `sm:max-w-sm`이 이긴다
+    (`max-w-5xl sm:max-w-5xl`처럼 써야 함. `DialogContent`/`AlertDialogContent` 공통)
+  - `ring-1`은 `border-none`으로 지워지지 않는다 — 테두리를 없애려면 `ring-0`
+  - 44px 터치 타겟은 stock 기본(`h-8`/`size-8`)보다 크므로 호출부에서 `h-11`·`size-11`,
+    `SelectTrigger`는 `data-[size=default]:h-11`로 지정한다
+  - `PopoverContent`는 stock이 `flex flex-col gap-2.5`다 — `p-0`으로 자식을 맞붙여
+    구분선(`border-b`)을 만드는 곳은 `gap-0`도 함께 줘야 한다. 패딩만 지우면 10px 빈틈이 남는다
+- ⚠️ 과거 회귀: Radix→base-ui 이주(`e9cf3e2`) 때 new-york 클래스를 그대로 들고 와서
+  다이얼로그 백드롭(150ms)과 팝업(`duration-200`)의 exit 길이가 어긋났다. base-ui는
+  **팝업 애니메이션 완료 시점에 백드롭까지 함께 unmount**하고 `tw-animate-css`의
+  `animate-out`은 `fill-mode: none`이라, 백드롭이 페이드 후 opacity 1로 되돌아온 채
+  ~50ms 남아 "닫을 때 배경 한 번 깜박임"으로 나타났다. stock은 양쪽 모두 `duration-100`이라
+  이 갭이 없다 — **애니메이션 duration을 한쪽에만 주지 말 것**
+- stock `AlertDialogAction`은 `Close`가 아닌 순수 `Button`이라 확인 시 자동으로 닫히지 않는다.
+  `ConfirmDialog`가 `open`을 직접 들고 닫아주므로, 확인 다이얼로그는 이 컴포넌트를 쓸 것
+- `Popover`는 `role="dialog"`다 — `PopoverTitle`을 넣어 접근성 이름을 붙일 것
+  (시각적 제목이 어색한 곳은 `className="sr-only"`)

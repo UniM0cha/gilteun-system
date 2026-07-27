@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db";
 import { drawingPaths } from "../db/schema.js";
+import { nowIso } from "../lib/date.js";
 
 export function setupDrawingHandler(io: Server, socket: Socket): void {
   // Sheet Room 입장 → 기존 드로잉 전송
@@ -69,7 +70,7 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
     }) => {
       try {
         const id = data.pathId || nanoid();
-        const now = new Date().toISOString();
+        const now = nowIso();
         // 동일 id 재전송(재연결 flush 등)은 onConflictDoNothing으로 throw 없이 통과.
         // 진짜 저장 실패(FK 위반 등)는 throw되어 브로드캐스트도 함께 중단 —
         // DB에 없는 획이 타인 화면에 남는 것 방지
