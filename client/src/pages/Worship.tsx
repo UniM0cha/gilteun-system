@@ -292,7 +292,9 @@ export default function Worship() {
   const handlePenDetected = useCallback(() => {
     if (!notePenDetected()) return false;
     toast.info("펜이 감지되어 펜으로만 그리기를 켰습니다", {
-      description: "손바닥이 닿아도 그려지지 않습니다. 도구 > 입력에서 끌 수 있습니다",
+      // 안내 경로는 기기 설정으로 잡는다 — 그리기 도구 팝오버는 그리기 모드에 들어가야
+      // 열 수 있고 툴바 구성도 바뀔 수 있는 반면, 기기 설정은 홈에서 바로 닿는다
+      description: "손바닥이 닿아도 그려지지 않습니다. 홈 > 기기 설정에서 끌 수 있습니다",
       duration: 6000,
     });
     return true;

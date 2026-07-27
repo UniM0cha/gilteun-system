@@ -350,7 +350,9 @@ function DrawingToolbar({
                       </div>
 
                       {/* 펜으로만 그리기(팜 리젝션) — 기기 설정에 저장되어 다음에도 유지된다.
-                          펜슬 없는 기기에서 켜면 그리기가 불가능해지므로 이 토글은 항상 노출해야 한다(탈출구). */}
+                          펜슬 없는 기기에서 켜면 그리기가 불가능해지므로 이 토글은 항상 노출한다.
+                          다만 여기는 그리기 모드에 들어가야 닿으므로, 자동 활성화 안내가 가리키는
+                          주 해제 경로는 기기 설정 페이지다(DeviceSettings.tsx). */}
                       <div>
                         <div className="text-xs font-medium text-muted-foreground mb-2">입력</div>
                         <Button
