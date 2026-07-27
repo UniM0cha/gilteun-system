@@ -307,7 +307,14 @@ export default function WorshipEdit() {
       const currentTitle = getValues("title");
       if (currentTitle.trim() !== "" && currentTitle !== buildAutoTitle(prev.date, prev.typeId, worshipTypes)) return;
       const nextTitle = buildAutoTitle(next.date, next.typeId, worshipTypes);
-      if (!nextTitle) return;
+      // 날짜를 비우면 제목도 함께 비운다. 그냥 두면 form이 date="" / title="옛 날짜 제목"인
+      // 불일치 상태가 되고, 다음에 날짜를 고를 때 buildAutoTitle(prev)가 ""라 현재 제목이
+      // "직접 쓴 제목"으로 오인돼 이후 갱신이 영영 멈춘다.
+      // 여기는 위 가드를 통과한 지점(= 제목이 비었거나 자동 생성값)이라 사용자가 쓴 제목은 지워지지 않는다
+      if (!nextTitle) {
+        if (getValues("title") !== "") setValue("title", "", { shouldDirty: true });
+        return;
+      }
       // shouldDirty 필수 — values + keepDirtyValues 조합이라 dirty가 아니면
       // worshipTypes가 늦게 도착해 formValues가 갱신될 때 빈 값으로 되돌아간다
       setValue("title", nextTitle, { shouldDirty: true, shouldValidate: true });
@@ -463,8 +470,10 @@ export default function WorshipEdit() {
       }
     },
     (errors) => {
-      if (errors.title) toast.error("예배 제목을 입력해주세요.");
-      else if (errors.date) toast.error("예배 날짜를 선택해주세요.");
+      // 업로드 가드와 같은 순서 — 제목은 날짜에서 자동으로 채워지므로 날짜를 먼저 지적해야
+      // 실제 원인과 맞고, RHF가 포커스를 옮기는 필드(mount 순서상 date가 먼저)와도 일치한다
+      if (errors.date) toast.error("예배 날짜를 선택해주세요.");
+      else if (errors.title) toast.error("예배 제목을 입력해주세요.");
     },
   );
 
