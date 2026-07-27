@@ -116,7 +116,12 @@ function SortableSheetItem({
                   <Eye className="size-4 text-white" />
                 </div>
               </DialogTrigger>
-              <DialogContent className="max-w-5xl bg-transparent border-none shadow-none p-0" showCloseButton={false}>
+              {/* stock DialogContent는 sm:max-w-sm·bg-popover·ring-1·p-4가 기본이므로,
+                  악보 원본을 크게 보여주는 이 미리보기는 sm 분기까지 함께 덮어써야 한다. */}
+              <DialogContent
+                className="max-w-5xl bg-transparent p-0 shadow-none ring-0 sm:max-w-5xl"
+                showCloseButton={false}
+              >
                 <DialogTitle className="sr-only">{sheet.title} 미리보기</DialogTitle>
                 <DialogClose className="sr-only">닫기</DialogClose>
                 <div className="relative flex flex-col items-center">

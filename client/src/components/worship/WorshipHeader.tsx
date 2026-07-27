@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { ArrowLeft, Menu, Edit, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import type { PresenceUser } from "@/types";
 import type { PanelSide } from "@/store/deviceSettingsStore";
 
@@ -111,9 +111,13 @@ function WorshipHeader({
                 <span className="hidden sm:inline">{presenceUsers.length}명 접속</span>
                 <span className="sm:hidden">{presenceUsers.length}</span>
               </PopoverTrigger>
-              <PopoverContent className="w-64 p-0" align="end">
+              {/* stock PopoverContent는 flex flex-col gap-2.5라, p-0으로 자식을 맞붙이려면 gap-0도 함께 지정해야 한다 */}
+              <PopoverContent className="w-64 gap-0 p-0" align="end">
                 <div className="p-3 border-b">
-                  <h3 className="text-sm font-semibold">접속 중인 사용자</h3>
+                  {/* PopoverTitle로 렌더해 팝오버(role=dialog)에 접근성 이름을 연결한다 */}
+                  <PopoverTitle className="text-sm font-semibold" render={<h3 />}>
+                    접속 중인 사용자
+                  </PopoverTitle>
                 </div>
                 <div className="p-2 max-h-60 overflow-y-auto">
                   {presenceUsers.map((user) => (
