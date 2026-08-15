@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey } from "drizzle-orm/sqlite-core";
 
 // 예배 유형 (주일 1부, 2부, 3부, 수요, 청년, 특별 등)
 export const worshipTypes = sqliteTable("worship_types", {
@@ -30,7 +30,23 @@ export const commands = sqliteTable("commands", {
   emoji: text("emoji").notNull(),
   label: text("label").notNull(),
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  order: integer("order").notNull().default(0),
 });
+
+// 프로필별 명령 순서. 행이 하나도 없으면 commands.order(전체 기본 순서)를 상속한다.
+export const profileCommandOrders = sqliteTable(
+  "profile_command_orders",
+  {
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    commandId: text("command_id")
+      .notNull()
+      .references(() => commands.id, { onDelete: "cascade" }),
+    order: integer("order").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.profileId, table.commandId] })],
+);
 
 // 예배
 export const worships = sqliteTable("worships", {

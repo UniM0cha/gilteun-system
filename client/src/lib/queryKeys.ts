@@ -22,6 +22,8 @@ export const queryKeys = {
   },
   commands: {
     all: ["commands"] as const,
+    list: (profileId?: string) => ["commands", "list", profileId ?? "default"] as const,
+    profileOrder: (profileId: string) => ["commands", "order", profileId] as const,
   },
   drawings: {
     // bySheet의 prefix — 예배 이탈 시 프리페치 잔여분까지 한 번에 정리하는 용도

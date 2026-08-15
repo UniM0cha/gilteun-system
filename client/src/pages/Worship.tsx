@@ -55,8 +55,8 @@ export default function Worship() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: worshipData } = useWorship(id);
-  const { data: commands = [] } = useCommands();
   const currentProfileId = useAppStore((s) => s.currentProfileId);
+  const { data: commands = [] } = useCommands(currentProfileId ?? undefined);
 
   const [currentSheetId, setCurrentSheetId] = useState<string | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(false);

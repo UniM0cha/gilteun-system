@@ -59,7 +59,9 @@ async function seed() {
     { id: nanoid(), emoji: "🔉", label: "볼륨 다운", isDefault: true },
     { id: nanoid(), emoji: "👍", label: "좋음", isDefault: true },
   ];
-  db.insert(commands).values(commandData).run();
+  db.insert(commands)
+    .values(commandData.map((command, order) => ({ ...command, order })))
+    .run();
   console.log(`Inserted ${commandData.length} commands.`);
 
   // 4. Profiles (3) - using role IDs from above

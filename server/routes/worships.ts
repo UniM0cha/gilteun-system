@@ -7,7 +7,7 @@ import path from "path";
 import { db } from "../db";
 import { worships, sheets, drawingPaths } from "../db/schema.js";
 import { config } from "../config.js";
-import { nowIso } from "../lib/date.js";
+import { isValidDateString, nowIso } from "../lib/date.js";
 
 const router = Router();
 
@@ -103,6 +103,10 @@ router.post("/", (req, res) => {
       res.status(400).json({ error: "title, date, and typeId are required" });
       return;
     }
+    if (!isValidDateString(date)) {
+      res.status(400).json({ error: "date must be a valid YYYY-MM-DD date" });
+      return;
+    }
     const id = nanoid();
     const now = nowIso();
     db.insert(worships).values({ id, title, date, typeId, createdAt: now, updatedAt: now }).run();
@@ -142,6 +146,10 @@ router.put("/:id", (req, res) => {
     const existing = db.select().from(worships).where(eq(worships.id, id)).get();
     if (!existing) {
       res.status(404).json({ error: "Worship not found" });
+      return;
+    }
+    if (date !== undefined && !isValidDateString(date)) {
+      res.status(400).json({ error: "date must be a valid YYYY-MM-DD date" });
       return;
     }
     const now = nowIso();

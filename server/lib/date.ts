@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, isMatch } from "date-fns";
 import { TZDate } from "@date-fns/tz";
 
 /**
@@ -12,4 +12,9 @@ import { TZDate } from "@date-fns/tz";
  */
 export function nowIso(): string {
   return format(new TZDate(Date.now(), "UTC"), "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+}
+
+/** 정확히 제로패딩된 YYYY-MM-DD이며 실제 달력에 존재하는 날짜인지 검증한다. */
+export function isValidDateString(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && isMatch(value, "yyyy-MM-dd");
 }

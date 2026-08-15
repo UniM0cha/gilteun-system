@@ -22,7 +22,14 @@ export function setupDatabase(): void {
       id TEXT PRIMARY KEY,
       emoji TEXT NOT NULL,
       label TEXT NOT NULL,
-      is_default INTEGER NOT NULL DEFAULT 0
+      is_default INTEGER NOT NULL DEFAULT 0,
+      "order" INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS profile_command_orders (
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      command_id TEXT NOT NULL REFERENCES commands(id) ON DELETE CASCADE,
+      "order" INTEGER NOT NULL,
+      PRIMARY KEY (profile_id, command_id)
     );
     CREATE TABLE IF NOT EXISTS worships (
       id TEXT PRIMARY KEY,
@@ -60,5 +67,16 @@ export function setupDatabase(): void {
   const drawingCols = sqlite.prepare(`PRAGMA table_info(drawing_paths)`).all() as { name: string }[];
   if (!drawingCols.some((c) => c.name === "is_highlighter")) {
     sqlite.exec(`ALTER TABLE drawing_paths ADD COLUMN is_highlighter INTEGER NOT NULL DEFAULT 0`);
+  }
+
+  // 기존 commands는 암묵적인 rowid 순서로 노출돼 왔다. order 컬럼을 처음 추가할 때 그 순서를 보존한다.
+  const commandCols = sqlite.prepare(`PRAGMA table_info(commands)`).all() as { name: string }[];
+  if (!commandCols.some((c) => c.name === "order")) {
+    sqlite.exec(`ALTER TABLE commands ADD COLUMN "order" INTEGER NOT NULL DEFAULT 0`);
+    const existingCommands = sqlite.prepare(`SELECT id FROM commands ORDER BY rowid`).all() as { id: string }[];
+    const updateOrder = sqlite.prepare(`UPDATE commands SET "order" = ? WHERE id = ?`);
+    sqlite.transaction(() => {
+      existingCommands.forEach((command, index) => updateOrder.run(index, command.id));
+    })();
   }
 }

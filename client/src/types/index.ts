@@ -50,6 +50,12 @@ export interface Command {
   emoji: string;
   label: string;
   isDefault: boolean;
+  order: number;
+}
+
+export interface ProfileCommandOrder {
+  usesDefault: boolean;
+  orderedIds: string[];
 }
 
 export interface PresenceUser {
