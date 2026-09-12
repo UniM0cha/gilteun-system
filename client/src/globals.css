@@ -4,6 +4,18 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.test-environment-label {
+  position: fixed;
+  left: calc(8px + env(safe-area-inset-left, 0px));
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 100;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 16px;
+  pointer-events: none;
+  user-select: none;
+}
+
 :root {
   /* stock shadcn 기본 테마 (new-york / neutral) — 라이트 */
   --radius: 0.625rem;

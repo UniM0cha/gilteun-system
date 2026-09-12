@@ -47,6 +47,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      {window.location.hostname === "gilteun-staging.up.railway.app" && (
+        <div className="test-environment-label">테스트 환경</div>
+      )}
       <Toaster richColors position="top-center" />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
