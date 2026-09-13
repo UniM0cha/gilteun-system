@@ -29,6 +29,18 @@ function ids(store: DrawingSession, sheetId = "one") {
 }
 
 describe("DrawingSession", () => {
+  it("settles a failed add independently of a later redo with the same path ID", () => {
+    const store = createSession();
+    store.snapshot([{ sheetId: "one", paths: [] }]);
+    const first = store.mutate("one", { kind: "add", path: path("a") })!;
+    const undo = store.mutate("one", { kind: "delete", pathIds: ["a"] })!;
+    const redo = store.mutate("one", { kind: "add", path: path("a") })!;
+    store.acknowledge(first, { ok: false, sheetId: "one", error: "temporary failure" });
+    store.acknowledge(undo, { ok: true, sheetId: "one", deletedPathIds: [] });
+    store.acknowledge(redo, { ok: true, sheetId: "one", path: path("a") });
+    expect(ids(store)).toEqual(["a"]);
+  });
+
   it("distinguishes unknown pages from confirmed empty pages", () => {
     const store = createSession();
     store.remote("one", { kind: "add", path: path("partial") });
@@ -120,9 +132,9 @@ describe("DrawingSession", () => {
     const store = createSession();
     const canonical = { ...path("same"), color: "#0000ff" };
     store.snapshot([{ sheetId: "one", paths: [canonical] }]);
-    store.mutate("one", { kind: "add", path: path("same") });
+    const operation = store.mutate("one", { kind: "add", path: path("same") })!;
     expect(store.getSnapshot().get("one")![0].color).toBe("#ff0000");
-    store.rejectPath("one", "same");
+    store.acknowledge(operation, { ok: false, sheetId: "one", error: "conflict" });
     expect(store.getSnapshot().get("one")).toEqual([canonical]);
   });
 
