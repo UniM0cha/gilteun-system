@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Sheet } from "../types";
 import type { DrawingPath } from "../hooks/useDrawingSync";
@@ -10,6 +9,7 @@ const fake = vi.hoisted(() => {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
   const emissions: { event: string; args: unknown[] }[] = [];
   return {
+    id: "self",
     connected: true,
     emissions,
     on(event: string, listener: (...args: unknown[]) => void) {
@@ -36,12 +36,11 @@ const fake = vi.hoisted(() => {
 vi.mock("../hooks/useSocket", () => ({ getSocket: () => fake }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 import { useDrawingSync } from "../hooks/useDrawingSync";
-import { queryKeys } from "./queryKeys";
+import type { DrawingSnapshotPage, RemoteInProgressPath } from "./drawingSession";
 
 type Options = Parameters<typeof useDrawingSync>[0];
 let current: ReturnType<typeof useDrawingSync>;
 let root: Root;
-let client: QueryClient;
 let options: Options;
 const renders: { sheetId: string | null; remote: number }[] = [];
 
@@ -62,18 +61,12 @@ function path(id: string, sheetId = "one"): DrawingPath {
 }
 function Harness() {
   current = useDrawingSync(options);
-  renders.push({ sheetId: options.sheetId, remote: current.remoteInProgress.length });
+  renders.push({ sheetId: options.sheetId, remote: current.inProgressBySheet.get(options.sheetId ?? "")?.length ?? 0 });
   return null;
 }
 async function render(updates: Partial<Options> = {}) {
   options = { ...options, ...updates };
-  await act(async () =>
-    root.render(
-      <QueryClientProvider client={client}>
-        <Harness />
-      </QueryClientProvider>,
-    ),
-  );
+  await act(async () => root.render(<Harness />));
 }
 function last<T>(event: string): T {
   const matching = fake.emissions.filter((item) => item.event === event);
@@ -82,19 +75,25 @@ function last<T>(event: string): T {
   return emission.args[0] as T;
 }
 async function page(paths: DrawingPath[] = []) {
-  const request = last<{ sheetId: string; requestId: string }>("join:sheet");
-  await act(async () => fake.receive("drawing:state", { ...request, paths }));
+  await bulk(
+    options.sheets.map((sheet) => ({
+      sheetId: sheet.id,
+      paths: sheet.id === options.sheetId ? paths : (current.pathsBySheet.get(sheet.id) ?? []),
+    })),
+  );
 }
-async function bulk(pages: { sheetId: string; paths: DrawingPath[] }[]) {
+async function bulk(pages: DrawingSnapshotPage[]) {
   const request = last<{ worshipId: string; subscriptionId: string }>("drawings:subscribe");
   await act(async () => fake.receive("drawings:state", { ...request, sheets: pages }));
+}
+function progress(sheetId = "two", ownerSocketId = "peer"): RemoteInProgressPath {
+  return { ...path("same", sheetId), pathId: "same", ownerSocketId };
 }
 
 beforeEach(() => {
   fake.reset();
   renders.length = 0;
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   root = createRoot(document.createElement("div"));
   options = {
     sheetId: "one",
@@ -106,29 +105,22 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => root.unmount());
-  client.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe("useDrawingSync session lifecycle", () => {
-  it("starts page and bulk requests on HTTP contexts without crypto.randomUUID", async () => {
+  it("starts one subscription on HTTP contexts without crypto.randomUUID", async () => {
     vi.stubGlobal("crypto", undefined);
     await render();
-    const first = last<{ requestId: string }>("join:sheet");
-    expect(first.requestId).toMatch(/^\d+-/);
-    await page([]);
-    await render({ preloadEnabled: true });
     expect(last<{ subscriptionId: string }>("drawings:subscribe").subscriptionId).toMatch(/^\d+-/);
-    await bulk([
-      { sheetId: "one", paths: [] },
-      { sheetId: "two", paths: [] },
-    ]);
+    expect(fake.emissions.map((item) => item.event)).toEqual(["drawings:subscribe"]);
+    await page([]);
     expect(current.bulkStatus).toBe("ready");
   });
 
-  it("times out an unanswered first page after ten seconds and recovers on retry", async () => {
+  it("times out an unanswered subscription after ten seconds and recovers on retry", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     await render();
     await act(async () => vi.advanceTimersByTime(9_999));
@@ -143,29 +135,25 @@ describe("useDrawingSync session lifecycle", () => {
     expect(current.paths.map((item) => item.id)).toEqual(["loaded"]);
   });
 
-  it("keeps bulk timeout errors visible when a separate page response succeeds, then retries", async () => {
+  it("keeps loaded drawings during a failed refresh and recovers on retry", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    await render({ preloadEnabled: true });
-    await act(async () => vi.advanceTimersByTime(10_000));
-    expect(current.bulkStatus).toBe("error");
+    await render();
     await page([path("loaded")]);
-    expect(current.loadError).toContain("예배의 그림");
     const retained = current.paths;
     await act(async () => current.retryLoad());
-    expect(current.loadError).toBeNull();
+    await act(async () => vi.advanceTimersByTime(10_000));
+    expect(current.bulkStatus).toBe("error");
     expect(current.paths).toBe(retained);
-    await bulk([
-      { sheetId: "one", paths: [path("loaded")] },
-      { sheetId: "two", paths: [] },
-    ]);
-    await act(async () => vi.advanceTimersByTime(20_000));
-    expect(current.bulkStatus).toBe("ready");
+    await act(async () => current.retryLoad());
     expect(current.loadError).toBeNull();
+    await page([path("loaded")]);
+    expect(current.paths).toBe(retained);
+    expect(current.bulkStatus).toBe("ready");
   });
 
   it("cancels old request timers on replacement and when a bulk snapshot fills the current page", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    await render({ preloadEnabled: true });
+    await render();
     await act(async () => vi.advanceTimersByTime(5_000));
     await act(async () => current.retryLoad());
     await act(async () => vi.advanceTimersByTime(5_000));
@@ -181,8 +169,8 @@ describe("useDrawingSync session lifecycle", () => {
 
   it("cancels timers on disconnect, reports unknown drawings, and keeps loaded vectors", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    await render({ preloadEnabled: true });
-    await page([path("retained")]);
+    await render();
+    await bulk([{ sheetId: "one", paths: [path("retained")] }]);
     const retained = current.paths;
     await act(async () => {
       fake.connected = false;
@@ -204,20 +192,19 @@ describe("useDrawingSync session lifecycle", () => {
     expect(current.paths).toBe(retained);
   });
 
-  it("cancels page and worship timers when their owner leaves", async () => {
+  it("cancels worship timers when their owner leaves", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    await render({ preloadEnabled: true });
+    await render();
     await act(async () => vi.advanceTimersByTime(5_000));
     await render({
       worshipId: "next",
       sheetId: "next-page",
       sheets: [sheet("next-page", "next")],
-      preloadEnabled: false,
     });
     await page([]);
     await act(async () => vi.advanceTimersByTime(20_000));
     expect(current.loadError).toBeNull();
-    expect(current.bulkStatus).toBe("idle");
+    expect(current.bulkStatus).toBe("ready");
   });
 
   it("preserves redo when the earlier add of the same path is rejected", async () => {
@@ -284,56 +271,40 @@ describe("useDrawingSync session lifecycle", () => {
     expect(current.paths).toEqual([]);
   });
 
-  it("has its listeners installed before the initial page request is emitted", async () => {
+  it("has its listeners installed before the initial worship request is emitted", async () => {
     const emit = fake.emit.bind(fake);
     vi.spyOn(fake, "emit").mockImplementation((event, ...args) => {
       emit(event, ...args);
-      if (event === "join:sheet") {
-        fake.receive("drawing:state", { ...(args[0] as object), paths: [path("immediate")] });
+      if (event === "drawings:subscribe") {
+        fake.receive("drawings:state", {
+          ...(args[0] as object),
+          sheets: [{ sheetId: "one", paths: [path("immediate")] }],
+        });
       }
     });
     await render();
     expect(current.paths.map((item) => item.id)).toEqual(["immediate"]);
   });
 
-  it("loads the first page before starting the requested background subscription", async () => {
+  it("keeps completed drawings during round trips without any page requests", async () => {
     await render();
-    expect(fake.emissions.map((item) => item.event)).toEqual(["join:sheet"]);
-    await page([path("a")]);
-    expect(current.paths.map((item) => item.id)).toEqual(["a"]);
-    expect(current.pathsBySheet.has("two")).toBe(false);
-    await render({ preloadEnabled: true });
-    expect(current.bulkStatus).toBe("loading");
-    await bulk([
-      { sheetId: "one", paths: [path("a")] },
-      { sheetId: "two", paths: [] },
-    ]);
-    expect(current.bulkStatus).toBe("ready");
-    expect(current.pathsBySheet.get("two")).toEqual([]);
-  });
-
-  it("preserves completed drawings during page round trips and rejects an old page response", async () => {
-    await render({ preloadEnabled: true });
     await bulk([
       { sheetId: "one", paths: [path("a")] },
       { sheetId: "two", paths: [path("b", "two")] },
     ]);
-    const oldRequest = last<{ sheetId: string; requestId: string }>("join:sheet");
     const first = current.paths;
+    const count = fake.emissions.length;
     await render({ sheetId: "two" });
     expect(current.paths.map((item) => item.id)).toEqual(["b"]);
-    expect(last<{ withState: boolean }>("join:sheet").withState).toBe(false);
     await render({ sheetId: "one" });
     expect(current.paths).toBe(first);
-    expect(last<{ withState: boolean }>("join:sheet").withState).toBe(false);
-    await act(async () => fake.receive("drawing:state", { ...oldRequest, paths: [] }));
-    expect(current.paths).toBe(first);
-    await page([path("a")]);
+    expect(fake.emissions).toHaveLength(count);
+    await act(async () => fake.receive("drawing:state", { sheetId: "one", paths: [] }));
     expect(current.paths).toBe(first);
   });
 
   it("receives a remote edit for an inactive page before revisiting", async () => {
-    await render({ preloadEnabled: true });
+    await render();
     await bulk([
       { sheetId: "one", paths: [] },
       { sheetId: "two", paths: [] },
@@ -359,7 +330,7 @@ describe("useDrawingSync session lifecycle", () => {
   });
 
   it("reconciles ambiguous edits after reconnect without emitting mutation retries", async () => {
-    await render({ preloadEnabled: true });
+    await render();
     await bulk([
       { sheetId: "one", paths: [path("a")] },
       { sheetId: "two", paths: [] },
@@ -374,7 +345,6 @@ describe("useDrawingSync session lifecycle", () => {
       fake.connected = true;
       fake.receive("connect");
     });
-    expect(last<{ withState: boolean }>("join:sheet").withState).toBe(true);
     expect(fake.emissions.filter((item) => item.event === "drawing:delete")).toHaveLength(1);
     await act(async () => current.addPath(path("new")));
     await act(async () => fake.receive("drawings:state", { ...oldRequest, sheets: [{ sheetId: "one", paths: [] }] }));
@@ -391,7 +361,7 @@ describe("useDrawingSync session lifecycle", () => {
     async (change) => {
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       const serverPaths = change === "add" ? [] : [path("a")];
-      await render({ preloadEnabled: true });
+      await render();
       await bulk([
         { sheetId: "one", paths: serverPaths },
         { sheetId: "two", paths: [] },
@@ -426,7 +396,7 @@ describe("useDrawingSync session lifecycle", () => {
     },
   );
 
-  it("reconciles an uncertain edit when a failed reconnect page request is retried before bulk loading", async () => {
+  it("reconciles an uncertain edit when a failed reconnect subscription is retried", async () => {
     await render();
     await page([]);
     await act(async () => current.addPath(path("uncertain")));
@@ -438,31 +408,18 @@ describe("useDrawingSync session lifecycle", () => {
       fake.connected = true;
       fake.receive("connect");
     });
-    const failed = last<{ sheetId: string; requestId: string }>("join:sheet");
-    await act(async () => fake.receive("drawing:error", { ...failed, error: "query failed" }));
+    const failed = last<{ worshipId: string; subscriptionId: string }>("drawings:subscribe");
+    await act(async () => fake.receive("drawings:error", { ...failed, error: "query failed" }));
     await act(async () => current.retryLoad());
     await act(async () => current.addPath(path("after-retry")));
     await page([]);
     expect(current.paths.map((item) => item.id)).toEqual(["after-retry"]);
     expect(fake.emissions.filter((item) => item.event === "drawing:end")).toHaveLength(2);
-    expect(fake.emissions.filter((item) => item.event === "drawings:subscribe")).toHaveLength(0);
-  });
-
-  it("shows a first-page load failure and retries its own request even before bulk is enabled", async () => {
-    await render();
-    const original = last<{ sheetId: string; requestId: string }>("join:sheet");
-    await act(async () => fake.receive("drawing:error", { ...original, error: "query failed" }));
-    expect(current.loadError).toBeTruthy();
-    await act(async () => current.retryLoad());
-    expect(last<{ requestId: string }>("join:sheet").requestId).not.toBe(original.requestId);
-    expect(fake.emissions.filter((item) => item.event === "drawings:subscribe")).toHaveLength(0);
-    await page([]);
-    expect(current.loadError).toBeNull();
-    expect(current.pathsBySheet.get("one")).toEqual([]);
+    expect(fake.emissions.filter((item) => item.event === "drawings:subscribe")).toHaveLength(3);
   });
 
   it("ignores obsolete subscriptions and old worship responses", async () => {
-    await render({ preloadEnabled: true });
+    await render();
     const old = last<{ worshipId: string; subscriptionId: string }>("drawings:subscribe");
     await render({ worshipId: "next", sheetId: "next-page", sheets: [sheet("next-page", "next")] });
     await act(async () =>
@@ -475,7 +432,7 @@ describe("useDrawingSync session lifecycle", () => {
   });
 
   it("retries failed bulk loading and prunes pages removed from the worship", async () => {
-    await render({ preloadEnabled: true });
+    await render();
     const original = last<{ worshipId: string; subscriptionId: string }>("drawings:subscribe");
     await act(async () => fake.receive("drawings:error", { ...original, error: "query failed" }));
     expect(current.bulkStatus).toBe("error");
@@ -503,6 +460,7 @@ describe("useDrawingSync session lifecycle", () => {
       fake.receive("drawing:started", {
         sheetId: "one",
         pathId: "remote",
+        ownerSocketId: "peer",
         profileId: "peer",
         color: "red",
         width: 1,
@@ -511,18 +469,9 @@ describe("useDrawingSync session lifecycle", () => {
         point: { x: 0, y: 0 },
       }),
     );
-    expect(current.remoteInProgress).toHaveLength(1);
+    expect(current.inProgressBySheet.get("one")).toHaveLength(1);
     await render({ sheetId: "two" });
     expect(renders.filter((item) => item.sheetId === "two").every((item) => item.remote === 0)).toBe(true);
-  });
-
-  it("reactively seeds late HTTP cache data without overwriting confirmed page drawings", async () => {
-    await render();
-    await act(async () => client.setQueryData(queryKeys.drawings.bySheet("one"), [path("http")]));
-    expect(current.paths.map((item) => item.id)).toEqual(["http"]);
-    await page([path("server")]);
-    await act(async () => client.setQueryData(queryKeys.drawings.bySheet("one"), [path("stale")]));
-    expect(current.paths.map((item) => item.id)).toEqual(["server"]);
   });
 
   it("preserves local undo/redo and clears that history on a page transition", async () => {
@@ -540,5 +489,83 @@ describe("useDrawingSync session lifecycle", () => {
     const count = fake.emissions.length;
     await act(async () => current.undo());
     expect(fake.emissions).toHaveLength(count);
+  });
+  it("receives and retains inactive-page progress across navigation and completion", async () => {
+    await render();
+    await page([]);
+    const stroke = progress();
+    await act(async () => fake.receive("drawing:started", { ...stroke, point: stroke.points[0] }));
+    await act(async () => fake.receive("drawing:moved", { ...stroke, point: { x: 0.6, y: 0.7 } }));
+    expect(current.inProgressBySheet.get("two")?.[0].points).toHaveLength(2);
+    await render({ sheetId: "two" });
+    expect(current.inProgressBySheet.get("two")?.[0].points).toHaveLength(2);
+    await render({ sheetId: "one" });
+    await act(async () =>
+      fake.receive("drawing:ended", { ...path("same", "two"), pathId: "same", ownerSocketId: "peer" }),
+    );
+    expect(current.inProgressBySheet.has("two")).toBe(false);
+    expect(current.pathsBySheet.get("two")?.[0].id).toBe("same");
+  });
+
+  it("restores the entire in-progress line on entry and reconnect without echoing self", async () => {
+    await render();
+    const stroke = {
+      ...progress(),
+      points: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.5, y: 0.5 },
+      ],
+    };
+    await bulk([
+      { sheetId: "one", paths: [] },
+      { sheetId: "two", paths: [], inProgress: [stroke, progress("two", "self")] },
+    ]);
+    expect(current.inProgressBySheet.get("two")).toEqual([stroke]);
+    await act(async () => {
+      fake.connected = false;
+      fake.receive("disconnect");
+    });
+    expect(current.inProgressBySheet.size).toBe(0);
+    await act(async () => {
+      fake.connected = true;
+      fake.receive("connect");
+    });
+    await bulk([
+      { sheetId: "one", paths: [] },
+      { sheetId: "two", paths: [], inProgress: [stroke] },
+    ]);
+    await act(async () => fake.receive("drawing:moved", { ...stroke, point: { x: 0.9, y: 0.9 } }));
+    expect(current.inProgressBySheet.get("two")?.[0].points).toHaveLength(3);
+    await act(async () => fake.receive("drawing:started", { ...progress("one", "self"), point: { x: 0, y: 0 } }));
+    expect(current.inProgressBySheet.has("one")).toBe(false);
+    await render({ worshipId: "next", sheetId: "next-page", sheets: [sheet("next-page", "next")] });
+    expect(current.inProgressBySheet.size).toBe(0);
+    await act(async () => fake.receive("drawing:started", { ...stroke, point: { x: 0, y: 0 } }));
+    expect(current.inProgressBySheet.size).toBe(0);
+  });
+
+  it("does not enqueue disconnected drawing gestures, while preserving completed edit delivery", async () => {
+    await render();
+    await page([]);
+    await act(async () => {
+      fake.connected = false;
+      fake.receive("disconnect");
+    });
+    const before = fake.emissions.length;
+    await act(async () => {
+      current.emitDrawStart({
+        pathId: "gesture",
+        color: "red",
+        width: 1,
+        isEraser: false,
+        isHighlighter: false,
+        point: { x: 0, y: 0 },
+      });
+      current.emitDrawMove({ pathId: "gesture", point: { x: 1, y: 1 } });
+      current.emitDrawCancel({ pathId: "gesture" });
+    });
+    expect(fake.emissions).toHaveLength(before);
+    await act(async () => current.addPath(path("queued")));
+    expect(fake.emissions[fake.emissions.length - 1]?.event).toBe("drawing:end");
   });
 });
