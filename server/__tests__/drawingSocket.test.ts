@@ -8,9 +8,18 @@ import { db, sqlite } from "../db";
 import { drawingPaths, sheets, worships, worshipTypes } from "../db/schema.js";
 import { setupDatabase } from "../db/setup.js";
 import { setupDrawingHandler } from "../socket/drawingHandler.js";
+import { progressRegistry, type ProgressPath } from "../socket/drawingProgress.js";
+import express from "express";
+import request from "supertest";
+import sheetsRouter from "../routes/sheets.js";
+import worshipsRouter from "../routes/worships.js";
 
 type Path = Omit<typeof drawingPaths.$inferSelect, "points"> & { points: { x: number; y: number }[] };
-type State = { worshipId: string; subscriptionId: string; sheets: { sheetId: string; paths: Path[] }[] };
+type State = {
+  worshipId: string;
+  subscriptionId: string;
+  sheets: { sheetId: string; paths: Path[]; inProgress: ProgressPath[] }[];
+};
 type Ack = { ok: boolean; sheetId: string; path?: Path; deletedPathIds?: string[]; error?: string };
 
 let http: HttpServer;
@@ -177,10 +186,10 @@ describe("Drawing socket subscriptions", () => {
       path: { id: "path-1", isHighlighter: true, points: drawing().points },
     });
     expect(ack.path?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    expect(all[1][0]).toEqual({ ...ack.path, pathId: "path-1" });
+    expect(all[1][0]).toEqual({ ...ack.path, pathId: "path-1", ownerSocketId: writer.id });
   });
 
-  it("진행 중 획은 현재 페이지에만 전달하고 snapshot 이후 확정 delta를 순서대로 보낸다", async () => {
+  it("진행 중 획은 예배 전체와 기존 페이지 구독에 전달하고 snapshot 이후 확정 delta를 순서대로 보낸다", async () => {
     const [writer, watcher, peer] = await Promise.all([client(), client(), client()]);
     const order: string[] = [];
     watcher.on("drawings:state", () => order.push("state"));
@@ -188,6 +197,7 @@ describe("Drawing socket subscriptions", () => {
     const progress = ["drawing:started", "drawing:moved", "drawing:cancelled"].map((event) => collect(watcher, event));
     const peerProgress = ["drawing:started", "drawing:moved", "drawing:cancelled"].map((event) => collect(peer, event));
     await subscribe(watcher);
+    await subscribe(peer);
     await join(peer);
     writer.emit("drawing:start", { ...drawing(), point: drawing().points[0] });
     writer.emit("drawing:move", { sheetId: "sheet-1", pathId: "path-1", point: drawing().points[1] });
@@ -195,7 +205,7 @@ describe("Drawing socket subscriptions", () => {
     await mutate(writer, "drawing:end", drawing());
     await Promise.all([watcher, peer].map(barrier));
     expect(order).toEqual(["state", "ended"]);
-    expect(progress.map((events) => events.length)).toEqual([0, 0, 0]);
+    expect(progress.map((events) => events.length)).toEqual([1, 1, 1]);
     expect(peerProgress.map((events) => events.length)).toEqual([1, 1, 1]);
   });
 
@@ -288,12 +298,13 @@ describe("Drawing socket compatibility and mutation acknowledgement", () => {
     peer.emit("join:sheet", { sheetId: "sheet-1", requestId: "participate-only", withState: false });
     await barrier(peer);
     const move = { sheetId: "sheet-1", pathId: "progress", point: { x: 0.3, y: 0.4 } };
+    writer.emit("drawing:start", { ...drawing("progress"), point: drawing().points[0] });
     writer.emit("drawing:move", move);
     await barrier(writer);
     await barrier(peer);
     expect(states).toEqual([]);
     expect(errors).toEqual([]);
-    expect(moved).toEqual([move]);
+    expect(moved).toEqual([{ ...move, ownerSocketId: writer.id }]);
   });
 
   it("기존 클라이언트는 ack 없이 쓰고 읽으며 requestId는 요청한 경우만 반환한다", async () => {
@@ -337,7 +348,7 @@ describe("Drawing socket compatibility and mutation acknowledgement", () => {
       path: { color: "#ff0000", points: drawing().points, createdAt: "2026-09-13T00:00:00.000Z" },
     });
     expect(events.map((items) => items.length)).toEqual([1, 1]);
-    expect(events[0][0]).toEqual({ ...ack.path, pathId: "path-1" });
+    expect(events[0][0]).toEqual({ ...ack.path, pathId: "path-1", ownerSocketId: writer.id });
     expect(db.select().from(drawingPaths).all()).toHaveLength(1);
   });
 
@@ -362,7 +373,7 @@ describe("Drawing socket compatibility and mutation acknowledgement", () => {
     });
     await barrier(peer);
     expect(ended).toEqual([]);
-    expect(cancelled).toEqual([{ sheetId: "sheet-1", pathId: "collision" }]);
+    expect(cancelled).toEqual([{ sheetId: "sheet-1", pathId: "collision", ownerSocketId: writer.id }]);
     expect(rejected).toEqual([
       { sheetId: "sheet-1", pathId: "collision" },
       { sheetId: "missing-sheet", pathId: "bad-fk" },
@@ -443,5 +454,154 @@ describe("Drawing socket compatibility and mutation acknowledgement", () => {
         .all()
         .map((path) => path.id),
     ).toEqual(["path-1"]);
+  });
+});
+
+describe("Worship-wide in-progress strokes", () => {
+  async function start(socket: Socket, pathId = "path-1", sheetId = "sheet-1") {
+    socket.emit("drawing:start", { ...drawing(pathId, sheetId), point: drawing().points[0] });
+    socket.emit("drawing:move", { sheetId, pathId, point: drawing().points[1] });
+    await barrier(socket);
+  }
+
+  it("다른 페이지를 보는 기기에 진행획을 한 번 보내며 중간 입장은 앞부분부터 복원한다", async () => {
+    const [writer, watcher, newcomer] = await Promise.all([client(), client(), client()]);
+    await subscribe(writer);
+    await subscribe(watcher);
+    await join(watcher, "sheet-2"); // 다른 페이지를 보아도 전체 구독으로 진행획을 받는다.
+    const started = collect(watcher, "drawing:started");
+    const moved = collect(watcher, "drawing:moved");
+    await start(writer);
+    await barrier(watcher);
+    expect(started).toHaveLength(1);
+    expect(moved).toHaveLength(1);
+    const state = await subscribe(newcomer);
+    expect(state.sheets[0].inProgress).toEqual([
+      {
+        ...drawing(),
+        ownerSocketId: writer.id,
+      },
+    ]);
+    expect(state.sheets[1].inProgress).toEqual([]);
+    expect((await subscribe(writer, "worship-1", "refresh")).sheets[0].inProgress).toEqual([]);
+    const after = nextEvent(watcher, "drawing:moved");
+    writer.emit("drawing:move", { sheetId: "sheet-1", pathId: "path-1", point: { x: 0.7, y: 0.8 } });
+    expect(await after).toMatchObject({ ownerSocketId: writer.id });
+    expect((await subscribe(newcomer)).sheets[0].inProgress[0].points).toHaveLength(3);
+  });
+
+  it("동일 path ID도 소유자별로 구분하며 타인의 move/cancel은 기존 획을 바꾸지 않는다", async () => {
+    const [a, b, watcher] = await Promise.all([client(), client(), client()]);
+    await start(a);
+    b.emit("drawing:move", { sheetId: "sheet-1", pathId: "path-1", point: { x: 0.9, y: 0.9 } });
+    b.emit("drawing:cancel", { sheetId: "sheet-1", pathId: "path-1", ownerSocketId: a.id });
+    await barrier(b);
+    expect((await subscribe(watcher)).sheets[0].inProgress[0].points).toEqual(drawing().points);
+    await start(b);
+    expect((await subscribe(watcher)).sheets[0].inProgress).toHaveLength(2);
+    b.emit("drawing:cancel", { sheetId: "sheet-1", pathId: "path-1" });
+    await barrier(b);
+    const remaining = (await subscribe(watcher)).sheets[0].inProgress;
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].ownerSocketId).toBe(a.id);
+    await mutate(a, "drawing:end", drawing());
+    const state = await subscribe(watcher);
+    expect(state.sheets[0].inProgress).toEqual([]);
+    expect(state.sheets[0].paths).toHaveLength(1);
+  });
+
+  it("move는 DB 접근 없이 registry만 갱신하며 존재하지 않는 페이지의 start는 무시한다", async () => {
+    const [writer, watcher] = await Promise.all([client(), client()]);
+    await start(writer);
+    const select = vi.spyOn(db, "select");
+    const insert = vi.spyOn(db, "insert");
+    writer.emit("drawing:move", { sheetId: "sheet-1", pathId: "path-1", point: { x: 0.4, y: 0.5 } });
+    await barrier(writer);
+    expect(select).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    select.mockRestore();
+    insert.mockRestore();
+    await start(writer, "missing", "absent");
+    expect(progressRegistry(io).size).toBe(1);
+    expect((await subscribe(watcher)).sheets[0].inProgress[0].points).toHaveLength(3);
+  });
+
+  it.each(["leave:sheet", "leave:worship", "drawings:unsubscribe", "change-worship", "disconnect"])(
+    "%s는 소유자의 임시획을 정리하고 구독자에게 취소를 알린다",
+    async (action) => {
+      const [writer, watcher] = await Promise.all([client(), client()]);
+      await subscribe(writer);
+      await subscribe(watcher);
+      await start(writer);
+      const cancelled = nextEvent(watcher, "drawing:cancelled");
+      const ownerSocketId = writer.id;
+      if (action === "disconnect") writer.disconnect();
+      else if (action === "change-worship") await subscribe(writer, "worship-2", "other");
+      else {
+        writer.emit(action, { sheetId: "sheet-1", worshipId: "worship-1", subscriptionId: "generation-1" });
+        await barrier(writer);
+      }
+      expect(await cancelled).toEqual({ sheetId: "sheet-1", pathId: "path-1", ownerSocketId });
+      expect((await subscribe(watcher)).sheets[0].inProgress).toEqual([]);
+    },
+  );
+
+  it("저장 실패와 다른 페이지 ID 충돌은 본인 임시획만 취소한다", async () => {
+    const [writer, watcher] = await Promise.all([client(), client()]);
+    await subscribe(watcher);
+    await start(writer);
+    sqlite.exec(
+      "CREATE TRIGGER fail_drawing_insert BEFORE INSERT ON drawing_paths BEGIN SELECT RAISE(ABORT, 'failed'); END;",
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const cancelled = collect(watcher, "drawing:cancelled");
+    expect(await mutate(writer, "drawing:end", drawing())).toMatchObject({ ok: false });
+    sqlite.exec("DROP TRIGGER fail_drawing_insert;");
+    seedPath("path-1", "sheet-other");
+    await start(writer);
+    expect(await mutate(writer, "drawing:end", drawing())).toMatchObject({ ok: false });
+    await barrier(watcher);
+    expect(cancelled).toHaveLength(2);
+    expect((await subscribe(watcher)).sheets[0].inProgress).toEqual([]);
+    expect(progressRegistry(io).size).toBe(0);
+  });
+
+  it.each(["sheet", "worship"])("%s 삭제 REST는 진행획을 정리하고 취소를 전파한다", async (target) => {
+    const app = express();
+    app.use(express.json());
+    app.set("io", io);
+    app.use("/api", sheetsRouter);
+    app.use("/api/worships", worshipsRouter);
+    const [writer, watcher] = await Promise.all([client(), client()]);
+    await subscribe(watcher);
+    await start(writer);
+    await request(app).put("/api/sheets/sheet-1").send({ title: "Updated title" }).expect(200);
+    expect(progressRegistry(io).size).toBe(1);
+    const cancelled = nextEvent(watcher, "drawing:cancelled");
+    await request(app)
+      .delete(target === "sheet" ? "/api/sheets/sheet-1" : "/api/worships/worship-1")
+      .expect(200);
+    expect(await cancelled).toMatchObject({ sheetId: "sheet-1", ownerSocketId: writer.id });
+    expect(progressRegistry(io).size).toBe(0);
+  });
+
+  it("서버 인스턴스끼리는 진행획을 공유하지 않는다", async () => {
+    const writer = await client();
+    await start(writer);
+    const secondHttp = createServer();
+    const secondIo = new Server(secondHttp);
+    secondIo.on("connection", (socket) => setupDrawingHandler(secondIo, socket));
+    await new Promise<void>((resolve) => secondHttp.listen(0, "127.0.0.1", resolve));
+    const remote = connectSocket(`http://127.0.0.1:${(secondHttp.address() as AddressInfo).port}`, {
+      transports: ["websocket"],
+    });
+    try {
+      await nextEvent(remote, "connect");
+      expect((await subscribe(remote)).sheets[0].inProgress).toEqual([]);
+      expect(progressRegistry(io).size).toBe(1);
+    } finally {
+      remote.disconnect();
+      await new Promise<void>((resolve) => secondIo.close(() => resolve()));
+    }
   });
 });
