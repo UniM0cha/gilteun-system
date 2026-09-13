@@ -6,15 +6,10 @@ let socket: Socket | null = null;
 // 현재 join된 방 정보를 추적하는 레지스트리 (재연결 시 자동 재입장용)
 const roomRegistry = {
   worship: null as { worshipId: string; profileId: string } | null,
-  sheet: null as { sheetId: string } | null,
 };
 
 export function setWorshipRoom(data: typeof roomRegistry.worship) {
   roomRegistry.worship = data;
-}
-
-export function setSheetRoom(data: typeof roomRegistry.sheet) {
-  roomRegistry.sheet = data;
 }
 
 export function getSocket(): Socket {
@@ -30,9 +25,8 @@ export function getSocket(): Socket {
       if (roomRegistry.worship) {
         socket!.emit("join:worship", roomRegistry.worship);
       }
-      if (roomRegistry.sheet) {
-        socket!.emit("join:sheet", roomRegistry.sheet);
-      }
+      // DrawingSync rejoins its page with a fresh request ID after this listener.
+      // It also requests a worship snapshot after Socket.IO's buffered mutations.
     });
 
     // dev 전용: 재연결 시나리오 검증용 (preview_eval에서 __socket.disconnect()/connect())
