@@ -12,6 +12,10 @@ interface UseSheetPageMotionOptions {
   onCommitPage: (nextPage: number) => void;
   onDragStart?: () => void;
   reducedMotion?: boolean;
+  isPageReady?: (page: number) => boolean;
+  onPreparePage?: (page: number) => void;
+  onAwaitPage?: (page: number) => void;
+  onCancelPrepare?: () => void;
 }
 
 const COMMIT_THRESHOLD_RATIO = 0.25;
@@ -33,6 +37,10 @@ export function useSheetPageMotion({
   onCommitPage,
   onDragStart,
   reducedMotion = false,
+  isPageReady,
+  onPreparePage,
+  onAwaitPage,
+  onCancelPrepare,
 }: UseSheetPageMotionOptions) {
   const x = useMotionValue(0);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -190,7 +198,8 @@ export function useSheetPageMotion({
     inFlightRef.current = null;
     baseOffsetRef.current = 0;
     x.set(0);
-  }, [stopAnimation, x, resetPreview]);
+    onCancelPrepare?.();
+  }, [stopAnimation, x, resetPreview, onCancelPrepare]);
 
   const goToPageWithMotion = useCallback(
     (nextPage: number) => {
@@ -200,6 +209,12 @@ export function useSheetPageMotion({
 
       const fromPage = committedPageRef.current;
       if (nextPage === fromPage) return;
+      onPreparePage?.(nextPage);
+
+      if (isPageReady && !isPageReady(nextPage)) {
+        onAwaitPage?.(nextPage);
+        return;
+      }
 
       if (Math.abs(nextPage - fromPage) !== 1) {
         baseOffsetRef.current = 0;
@@ -234,7 +249,18 @@ export function useSheetPageMotion({
         onCommitPage(nextPage);
       });
     },
-    [pageCount, hardFinalizeInFlight, animateTo, onCommitPage, resetPreview, x, reducedMotion],
+    [
+      pageCount,
+      hardFinalizeInFlight,
+      animateTo,
+      onCommitPage,
+      resetPreview,
+      x,
+      reducedMotion,
+      isPageReady,
+      onAwaitPage,
+      onPreparePage,
+    ],
   );
 
   const bindPageDrag = useDrag(
@@ -302,6 +328,9 @@ export function useSheetPageMotion({
         intendedDir = null;
       }
 
+      const targetReady = intendedTarget === null || !isPageReady || isPageReady(intendedTarget);
+      if (intendedTarget !== null) onPreparePage?.(intendedTarget);
+
       if (active) {
         if (Math.abs(mx) > CLICK_DRAG_THRESHOLD) {
           markSuppressNextClick();
@@ -310,11 +339,11 @@ export function useSheetPageMotion({
         // `!==` 게이트로 비교하면 같은 방향 연속 플릭에서 방향/타깃이 복구되지 않는다.
         // directionRef는 매 프레임 동기화(previewX 즉시 보정), state는 무조건 set
         // (값이 같으면 React가 리렌더를 bail-out 하므로 비용 없음).
-        directionRef.current = intendedDir;
-        setActiveTargetPage(intendedTarget);
-        setActiveDirection(intendedDir);
+        directionRef.current = targetReady ? intendedDir : null;
+        setActiveTargetPage(targetReady ? intendedTarget : null);
+        setActiveDirection(targetReady ? intendedDir : null);
         // baseOffset은 인터럽트로 이어받은 드래그의 시작 좌표(일반 드래그는 0).
-        x.set(baseOffsetRef.current + offset);
+        x.set(targetReady ? baseOffsetRef.current + offset : 0);
       }
 
       if (last) {
@@ -329,6 +358,7 @@ export function useSheetPageMotion({
           resetPreview();
           animateTo(0, SNAP_DURATION, () => {
             baseOffsetRef.current = 0;
+            onCancelPrepare?.();
           });
           return;
         }
@@ -338,6 +368,11 @@ export function useSheetPageMotion({
         const passesFlick = Math.abs(vx) >= FLICK_VELOCITY && absMx >= FLICK_MIN_PX && velocityAligned;
 
         if (passesDistance || passesFlick) {
+          if (!targetReady) {
+            cancelPageMotion();
+            onAwaitPage?.(intendedTarget);
+            return;
+          }
           const dir = intendedDir as -1 | 1;
           const committedTarget = intendedTarget;
           // 스냅/커밋 목표는 현재 페이지의 표준 좌표계(홈=0, 다음=-dir*w) 기준.
@@ -355,6 +390,7 @@ export function useSheetPageMotion({
           resetPreview();
           animateTo(0, SNAP_DURATION, () => {
             baseOffsetRef.current = 0;
+            onCancelPrepare?.();
           });
         }
       }

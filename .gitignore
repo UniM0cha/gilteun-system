@@ -42,3 +42,8 @@ server/data/*.db-shm
 # Server uploads (keep .gitkeep)
 server/uploads/sheets/*
 !server/uploads/sheets/.gitkeep
+
+# Browser regression artifacts
+output/playwright/
+client/test-results/
+client/playwright-report/

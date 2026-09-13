@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Upload } from "lucide-react";
+import { LoaderCircle, Upload } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { useWorship, useCommands, useSheetDrawings, useAdjacentDrawingsPreload } from "@/hooks/queries";
+import { useWorship, useCommands } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { useDeviceSettingsStore, selectPenOnlyActive, type PanelSide } from "@/store/deviceSettingsStore";
 import { useWorshipSocket } from "@/hooks/useWorshipSocket";
@@ -14,6 +14,7 @@ import { useDrawingSync, type DrawingPath } from "@/hooks/useDrawingSync";
 import { getSocket } from "@/hooks/useSocket";
 import { useAdjacentSheetPreload } from "@/hooks/useAdjacentSheetPreload";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useRetainedSheetPages } from "@/hooks/useRetainedSheetPages";
 import { useSheetPageMotion } from "@/hooks/useSheetPageMotion";
 import { useSheetZoomPan } from "@/hooks/useSheetZoomPan";
 import WorshipHeader from "@/components/worship/WorshipHeader";
@@ -53,6 +54,10 @@ const highlighterColors = [
 
 export default function Worship() {
   const { id } = useParams();
+  return <WorshipViewer key={id} worshipId={id} />;
+}
+
+function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
   const navigate = useNavigate();
   const { data: worshipData } = useWorship(id);
   const currentProfileId = useAppStore((s) => s.currentProfileId);
@@ -100,12 +105,26 @@ export default function Worship() {
   const currentSheet = useMemo(() => sheets.find((s) => s.id === currentSheetId) || null, [sheets, currentSheetId]);
   const currentPage = sheets.findIndex((s) => s.id === currentSheetId);
 
+  const [preparedTargetId, setPreparedTargetId] = useState<string | null>(null);
+  const [pendingTargetId, setPendingTargetState] = useState<string | null>(null);
+  const pendingTargetRef = useRef<string | null>(null);
+  const setPendingTargetId = useCallback((target: string | null) => {
+    pendingTargetRef.current = target;
+    setPendingTargetState(target);
+  }, []);
+  const navigatePageRef = useRef<(page: number) => void>(() => {});
+  const surfaces = useRetainedSheetPages(sheets, currentSheetId, preparedTargetId);
+
   const socket = getSocket();
 
   // Socket.IO + TanStack Query 브릿지 (sheets:updated, worship:updated, worship:deleted, commands:updated)
   useWorshipSocket(
     id,
     (updatedSheets) => {
+      // A reorder/removal invalidates a gesture's page-index target.
+      cancelPageMotionRef.current();
+      setPreparedTargetId(null);
+      setPendingTargetId(null);
       // 현재 보는 악보가 삭제되면 첫 번째로 이동
       if (currentSheetId && !updatedSheets.find((s) => s.id === currentSheetId)) {
         cancelPageMotionRef.current();
@@ -119,7 +138,10 @@ export default function Worship() {
 
   // 드로잉 동기화 훅
   const {
-    paths: drawingPaths,
+    pathsBySheet,
+    bulkStatus,
+    loadError,
+    retryLoad,
     remoteInProgress,
     emitDrawStart,
     emitDrawMove,
@@ -134,6 +156,11 @@ export default function Worship() {
     sheetId: currentSheetId,
     profileId: currentProfileId,
     enabled: !!id,
+    worshipId: id ?? null,
+    sheets,
+    // A failed first image must not prevent other pages from loading. Explicit
+    // navigation can also prioritize the remaining data before the first paint.
+    preloadEnabled: surfaces.firstPageReady || !!pendingTargetId || surfaces.failedIds.size > 0,
   });
 
   // 프로필 미선택 시 홈으로 리다이렉트
@@ -190,20 +217,22 @@ export default function Worship() {
     (index: number) => {
       if (index >= 0 && index < sheets.length) {
         cancelPageMotionRef.current();
+        setPreparedTargetId(null);
+        setPendingTargetId(null);
         setCurrentSheetId(sheets[index].id);
         resetZoom();
         flashNavBar();
       }
     },
-    [sheets, flashNavBar, resetZoom],
+    [sheets, flashNavBar, resetZoom, setPendingTargetId],
   );
 
   const commitSheetId = useCallback(
     (sheetId: string) => {
       const index = sheets.findIndex((sheet) => sheet.id === sheetId);
-      if (index >= 0) commitPage(index);
+      if (index >= 0) navigatePageRef.current(index);
     },
-    [sheets, commitPage],
+    [sheets],
   );
 
   // 호출된 악보가 현재 악보에서 몇 장 떨어져 있는지 (+: 오른쪽, -: 왼쪽, null: 계산 불가)
@@ -223,7 +252,6 @@ export default function Worship() {
   });
 
   useAdjacentSheetPreload(sheets, currentPage);
-  useAdjacentDrawingsPreload(sheets, currentPage);
 
   const shouldReduceMotion = useReducedMotion();
   const isLargeScreen = useMediaQuery("(min-width: 64rem)");
@@ -237,6 +265,36 @@ export default function Worship() {
   const penOnly = useDeviceSettingsStore(selectPenOnlyActive);
   const setPenOnly = useDeviceSettingsStore((s) => s.setPenOnly);
   const notePenDetected = useDeviceSettingsStore((s) => s.notePenDetected);
+
+  const preparePage = useCallback(
+    (page: number) => {
+      const target = sheets[page];
+      if (target) setPreparedTargetId(target.id);
+    },
+    [sheets],
+  );
+  const awaitPage = useCallback(
+    (page: number) => {
+      const target = sheets[page];
+      if (!target) return;
+      setPreparedTargetId(target.id);
+      setPendingTargetId(target.id);
+    },
+    [sheets, setPendingTargetId],
+  );
+  const cancelPreparation = useCallback(() => setPreparedTargetId(null), []);
+  const startPageDrag = useCallback(() => {
+    setPendingTargetId(null);
+    setPreparedTargetId(null);
+    flashNavBar();
+  }, [flashNavBar, setPendingTargetId]);
+  const isPageReady = useCallback(
+    (page: number) => {
+      const target = sheets[page];
+      return !!target && surfaces.readyIds.has(target.id);
+    },
+    [sheets, surfaces.readyIds],
+  );
 
   const {
     x: pageX,
@@ -253,15 +311,44 @@ export default function Worship() {
     enabled: !!currentSheet && !toolPopoverOpen,
     isBlocked: () => isDrawModeRef.current || isZoomActive(),
     onCommitPage: commitPage,
-    onDragStart: flashNavBar,
+    onDragStart: startPageDrag,
     reducedMotion: !!shouldReduceMotion,
+    isPageReady,
+    onPreparePage: preparePage,
+    onAwaitPage: awaitPage,
+    onCancelPrepare: cancelPreparation,
   });
 
-  cancelPageMotionRef.current = cancelPageMotion;
+  cancelPageMotionRef.current = () => {
+    cancelPageMotion();
+    setPendingTargetId(null);
+    setPreparedTargetId(null);
+  };
 
-  // 전환 미리보기에 들어올 대상 시트의 stroke (프리페치돼 있으면 즉시 캐시 반환)
+  const navigatePage = useCallback(
+    (page: number) => {
+      setPendingTargetId(null);
+      setPreparedTargetId(null);
+      goToPageWithMotion(page);
+    },
+    [goToPageWithMotion, setPendingTargetId],
+  );
+  navigatePageRef.current = navigatePage;
+
+  useEffect(() => {
+    if (!pendingTargetId || pendingTargetRef.current !== pendingTargetId || !surfaces.readyIds.has(pendingTargetId))
+      return;
+    const page = sheets.findIndex((sheet) => sheet.id === pendingTargetId);
+    setPendingTargetId(null);
+    if (page >= 0) goToPageWithMotion(page);
+  }, [pendingTargetId, surfaces.readyIds, sheets, goToPageWithMotion, setPendingTargetId]);
+
   const previewTargetSheet = activeTargetPage !== null ? sheets[activeTargetPage] : null;
-  const { data: previewDrawings } = useSheetDrawings(previewTargetSheet?.id ?? null);
+  const retainedSheets = sheets.filter((sheet) => surfaces.retainedIds.includes(sheet.id));
+  const loadingTargetId =
+    pendingTargetId ?? (currentSheetId && !surfaces.displayedIds.has(currentSheetId) ? currentSheetId : null);
+  const loadingFailed =
+    !!loadingTargetId && (surfaces.failedIds.has(loadingTargetId) || !!loadError || bulkStatus === "error");
 
   const handleSendCommand = useCallback(
     (command: { id: string; emoji: string; label: string }) => {
@@ -380,7 +467,7 @@ export default function Worship() {
       currentSheetId={currentSheetId}
       presenceUsers={presenceUsers}
       worshipId={id}
-      onSelectPage={commitPage}
+      onSelectPage={navigatePage}
     />
   );
   const commandPanel = (
@@ -472,82 +559,112 @@ export default function Worship() {
             onTouchEnd={handleSheetTouchEnd}
             {...bindPageDrag()}
           >
-            <motion.div
-              className="absolute inset-0 flex items-center justify-center p-4"
-              style={{ x: pageX, containerType: "size" }}
-            >
-              <div
-                className="relative bg-white rounded-lg shadow-lg overflow-hidden"
-                ref={sheetContainerRef}
-                style={{
-                  ...SHEET_CARD_SIZE_STYLE,
-                  ...(scale !== 1
-                    ? {
-                        transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
-                        transformOrigin,
-                      }
-                    : {}),
-                }}
-              >
-                {currentSheet ? (
-                  <SheetCanvas
-                    sheetId={currentSheet.id}
-                    imageUrl={currentSheet.imagePath ? `/uploads/${currentSheet.imagePath}` : null}
-                    isDrawMode={isDrawMode && !toolPopoverOpen}
-                    penColor={activeColor}
-                    penWidth={activeWidth}
-                    isHighlighter={isHighlighter && eraserType === "none"}
-                    eraserType={eraserType}
-                    eraserWidth={eraserWidth}
-                    paths={drawingPaths}
-                    remoteInProgress={remoteInProgress}
-                    penOnly={penOnly}
-                    onPenDetected={handlePenDetected}
-                    onDrawCancel={emitDrawCancel}
-                    onDrawStart={emitDrawStart}
-                    onDrawMove={emitDrawMove}
-                    onPathAdd={addPath}
-                    onPathDelete={deletePath}
-                    onBatchStart={startBatch}
-                    onBatchEnd={endBatch}
-                    profileId={currentProfileId || ""}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-muted">
-                    <div className="text-center">
-                      <Upload className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground text-lg">악보를 업로드하세요</p>
-                    </div>
+            {retainedSheets.map((sheet) => {
+              const isCurrent = sheet.id === currentSheetId;
+              const isPreview = sheet.id === previewTargetSheet?.id;
+              const visible = (isCurrent || isPreview) && surfaces.displayedIds.has(sheet.id);
+              return (
+                <motion.div
+                  key={sheet.id}
+                  data-sheet-page={sheet.id}
+                  data-page-active={isCurrent}
+                  data-page-ready={surfaces.readyIds.has(sheet.id)}
+                  className="absolute inset-0 flex items-center justify-center p-4"
+                  style={{
+                    x: isCurrent ? pageX : isPreview ? previewX : 0,
+                    containerType: "size",
+                    visibility: visible ? "visible" : "hidden",
+                    pointerEvents: isCurrent ? "auto" : "none",
+                  }}
+                  aria-hidden={!isCurrent}
+                  inert={!isCurrent}
+                >
+                  <div
+                    className="relative bg-white rounded-lg shadow-lg overflow-hidden"
+                    ref={isCurrent ? sheetContainerRef : undefined}
+                    style={{
+                      ...SHEET_CARD_SIZE_STYLE,
+                      ...(isCurrent && scale !== 1
+                        ? {
+                            transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
+                            transformOrigin,
+                          }
+                        : {}),
+                    }}
+                  >
+                    <SheetCanvas
+                      sheetId={sheet.id}
+                      imageUrl={sheet.imagePath ? `/uploads/${sheet.imagePath}` : null}
+                      isActive={isCurrent}
+                      drawingsReady={pathsBySheet.has(sheet.id)}
+                      imageLoadAttempt={surfaces.imageAttempts[sheet.id] ?? 0}
+                      onReadyChange={surfaces.onReadyChange}
+                      onRenderMetrics={surfaces.onRenderMetrics}
+                      onLoadError={surfaces.onLoadError}
+                      isDrawMode={isDrawMode && !toolPopoverOpen}
+                      penColor={activeColor}
+                      penWidth={activeWidth}
+                      isHighlighter={isHighlighter && eraserType === "none"}
+                      eraserType={eraserType}
+                      eraserWidth={eraserWidth}
+                      paths={pathsBySheet.get(sheet.id) ?? EMPTY_PATHS}
+                      remoteInProgress={isCurrent ? remoteInProgress : EMPTY_REMOTE}
+                      penOnly={penOnly}
+                      onPenDetected={handlePenDetected}
+                      onDrawCancel={emitDrawCancel}
+                      onDrawStart={emitDrawStart}
+                      onDrawMove={emitDrawMove}
+                      onPathAdd={addPath}
+                      onPathDelete={deletePath}
+                      onBatchStart={startBatch}
+                      onBatchEnd={endBatch}
+                      profileId={currentProfileId || ""}
+                    />
                   </div>
+                </motion.div>
+              );
+            })}
+            {!currentSheet && worshipData && sheets.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                <div className="text-center">
+                  <Upload className="w-16 h-16 mx-auto mb-4" />
+                  <p className="text-lg">악보를 업로드하세요</p>
+                </div>
+              </div>
+            )}
+            {loadingTargetId && (
+              <div
+                className="absolute inset-x-4 top-4 z-20 flex flex-wrap items-center justify-center gap-3 rounded-lg bg-background/95 p-3 text-sm shadow-lg"
+                role={loadingFailed ? "alert" : "status"}
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                {!loadingFailed && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+                <span>{loadingFailed ? "악보를 불러오지 못했습니다" : "악보를 준비하고 있습니다"}</span>
+                {loadingFailed && (
+                  <button
+                    className="min-h-11 px-3 underline"
+                    onClick={() => {
+                      surfaces.retryImage(loadingTargetId);
+                      retryLoad();
+                    }}
+                  >
+                    다시 시도
+                  </button>
+                )}
+                {pendingTargetId && (
+                  <button
+                    className="min-h-11 px-3"
+                    onClick={() => {
+                      setPendingTargetId(null);
+                      setPreparedTargetId(null);
+                      cancelPageMotion();
+                    }}
+                  >
+                    이동 취소
+                  </button>
                 )}
               </div>
-            </motion.div>
-
-            {previewTargetSheet && (
-              <motion.div
-                className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none"
-                style={{ x: previewX, containerType: "size" }}
-                aria-hidden="true"
-              >
-                {/* 메인 카드와 동일 좌표계 유지 위해 동일 sizing 상수 사용 */}
-                <div className="relative bg-white rounded-lg shadow-lg overflow-hidden" style={SHEET_CARD_SIZE_STYLE}>
-                  {/* 읽기 전용 SheetCanvas — 미리 받아둔 stroke를 메인과 동일 좌표계로 렌더 */}
-                  <SheetCanvas
-                    sheetId={previewTargetSheet.id}
-                    imageUrl={previewTargetSheet.imagePath ? `/uploads/${previewTargetSheet.imagePath}` : null}
-                    isDrawMode={false}
-                    penColor={selectedColor}
-                    penWidth={penWidth}
-                    isHighlighter={false}
-                    eraserType="none"
-                    eraserWidth={eraserWidth}
-                    paths={previewDrawings ?? EMPTY_PATHS}
-                    remoteInProgress={EMPTY_REMOTE}
-                    penOnly={false}
-                    profileId={currentProfileId || ""}
-                  />
-                </div>
-              </motion.div>
             )}
 
             {/* 페이지 네비게이션 */}
@@ -556,7 +673,7 @@ export default function Worship() {
                 visible={showNavBar}
                 currentPage={currentPage}
                 total={sheets.length}
-                onNavigate={goToPageWithMotion}
+                onNavigate={navigatePage}
               />
             )}
           </div>
