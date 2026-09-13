@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DrawingSession } from "./drawingSession";
+import { DrawingSession, type RemoteInProgressPath } from "./drawingSession";
 import type { DrawingPath } from "../hooks/useDrawingSync";
 
 function path(id: string, sheetId = "one", profileId = "me"): DrawingPath {
@@ -24,7 +24,7 @@ function createSession() {
 function ids(store: DrawingSession, sheetId = "one") {
   return store
     .getSnapshot()
-    .get(sheetId)
+    .pathsBySheet.get(sheetId)
     ?.map((item) => item.id);
 }
 
@@ -44,10 +44,10 @@ describe("DrawingSession", () => {
   it("distinguishes unknown pages from confirmed empty pages", () => {
     const store = createSession();
     store.remote("one", { kind: "add", path: path("partial") });
-    expect(store.getSnapshot().has("one")).toBe(false);
+    expect(store.getSnapshot().pathsBySheet.has("one")).toBe(false);
     store.snapshot([{ sheetId: "one", paths: [] }]);
     expect(ids(store)).toEqual([]);
-    expect(store.getSnapshot().has("two")).toBe(false);
+    expect(store.getSnapshot().pathsBySheet.has("two")).toBe(false);
   });
 
   it("keeps page arrays and map identity when navigation snapshots contain the same paths", () => {
@@ -57,11 +57,11 @@ describe("DrawingSession", () => {
       { sheetId: "two", paths: [] },
     ]);
     const map = store.getSnapshot();
-    const first = map.get("one");
+    const first = map.pathsBySheet.get("one");
     store.snapshot([{ sheetId: "two", paths: [] }]);
     store.snapshot([{ sheetId: "one", paths: [path("a")] }]);
     expect(store.getSnapshot()).toBe(map);
-    expect(store.getSnapshot().get("one")).toBe(first);
+    expect(store.getSnapshot().pathsBySheet.get("one")).toBe(first);
   });
 
   it("receives offscreen additions/deletions while preserving unchanged page references", () => {
@@ -70,10 +70,10 @@ describe("DrawingSession", () => {
       { sheetId: "one", paths: [path("a")] },
       { sheetId: "two", paths: [] },
     ]);
-    const first = store.getSnapshot().get("one");
+    const first = store.getSnapshot().pathsBySheet.get("one");
     store.remote("two", { kind: "add", path: path("b", "two") });
     expect(ids(store, "two")).toEqual(["b"]);
-    expect(store.getSnapshot().get("one")).toBe(first);
+    expect(store.getSnapshot().pathsBySheet.get("one")).toBe(first);
     store.remote("two", { kind: "delete", pathIds: ["b"] });
     expect(ids(store, "two")).toEqual([]);
   });
@@ -133,9 +133,9 @@ describe("DrawingSession", () => {
     const canonical = { ...path("same"), color: "#0000ff" };
     store.snapshot([{ sheetId: "one", paths: [canonical] }]);
     const operation = store.mutate("one", { kind: "add", path: path("same") })!;
-    expect(store.getSnapshot().get("one")![0].color).toBe("#ff0000");
+    expect(store.getSnapshot().pathsBySheet.get("one")![0].color).toBe("#ff0000");
     store.acknowledge(operation, { ok: false, sheetId: "one", error: "conflict" });
-    expect(store.getSnapshot().get("one")).toEqual([canonical]);
+    expect(store.getSnapshot().pathsBySheet.get("one")).toEqual([canonical]);
   });
 
   it("reconciles uncertain pre-reconnect operations while preserving post-request edits", () => {
@@ -160,17 +160,6 @@ describe("DrawingSession", () => {
     expect(ids(store, "two")).toEqual(["queued"]);
   });
 
-  it("never lets late HTTP cache results overwrite live vectors or pending changes", () => {
-    const store = createSession();
-    store.seedPage("one", [path("a")]);
-    store.mutate("one", { kind: "delete", pathIds: ["a"] });
-    store.seedPage("one", [path("a"), path("stale")]);
-    expect(ids(store)).toEqual([]);
-    store.snapshot([{ sheetId: "one", paths: [path("server")] }]);
-    store.seedPage("one", [path("a")]);
-    expect(ids(store)).toEqual(["server"]);
-  });
-
   it("prunes removed pages and ignores their late acknowledgements", () => {
     const store = createSession();
     store.snapshot([{ sheetId: "one", paths: [path("a")] }]);
@@ -178,7 +167,58 @@ describe("DrawingSession", () => {
     store.setSheets(["two"]);
     store.acknowledge(operation, { ok: true, sheetId: "one", path: path("b") });
     store.snapshot([{ sheetId: "one", paths: [path("a")] }]);
-    expect(store.getSnapshot().has("one")).toBe(false);
+    expect(store.getSnapshot().pathsBySheet.has("one")).toBe(false);
     expect(store.mutate("one", { kind: "add", path: path("c") })).toBeNull();
+  });
+  it("publishes temporary removal and final insertion as one snapshot", () => {
+    const store = createSession();
+    store.snapshot([{ sheetId: "two", paths: [] }]);
+    const drawing = path("a", "two");
+    const pending: RemoteInProgressPath = { ...drawing, pathId: "a", ownerSocketId: "peer" };
+    store.startProgress(pending);
+    const changes: ReturnType<DrawingSession["getSnapshot"]>[] = [];
+    store.subscribe(() => changes.push(store.getSnapshot()));
+    store.completeProgress(drawing, "peer", "a");
+    expect(changes).toHaveLength(1);
+    expect(changes[0].pathsBySheet.get("two")).toEqual([drawing]);
+    expect(changes[0].inProgressBySheet.has("two")).toBe(false);
+  });
+
+  it("replaces confirmed and temporary lines together from a snapshot", () => {
+    const store = createSession();
+    store.snapshot([{ sheetId: "two", paths: [] }]);
+    const drawing = path("a", "two");
+    store.startProgress({ ...drawing, pathId: "a", ownerSocketId: "peer" });
+    let count = 0;
+    store.subscribe(() => count++);
+    store.snapshot([{ sheetId: "two", paths: [drawing], inProgress: [] }]);
+    expect(count).toBe(1);
+    expect(store.getSnapshot().pathsBySheet.get("two")).toEqual([drawing]);
+    expect(store.getSnapshot().inProgressBySheet.size).toBe(0);
+  });
+
+  it("isolates matching temporary IDs by page and owner socket", () => {
+    const store = createSession();
+    const drawing = path("same", "two");
+    const first = { ...drawing, pathId: "same", ownerSocketId: "peer-a" };
+    store.startProgress(first);
+    store.startProgress({ ...first, ownerSocketId: "peer-b" });
+    store.startProgress({ ...first, sheetId: "one" });
+    store.moveProgress("two", "peer-a", "same", { x: 0.8, y: 0.8 });
+    expect(
+      store
+        .getSnapshot()
+        .inProgressBySheet.get("two")
+        ?.map((item) => item.points.length),
+    ).toEqual([2, 1]);
+    const confirmed = store.getSnapshot().pathsBySheet;
+    store.cancelProgress("two", "peer-a", "same");
+    expect(store.getSnapshot().pathsBySheet).toBe(confirmed);
+    expect(store.getSnapshot().inProgressBySheet.get("two")?.[0].ownerSocketId).toBe("peer-b");
+    expect(store.getSnapshot().inProgressBySheet.get("one")).toHaveLength(1);
+    store.setSheets(["two"]);
+    expect(store.getSnapshot().inProgressBySheet.has("one")).toBe(false);
+    store.clearProgress();
+    expect(store.getSnapshot().inProgressBySheet.size).toBe(0);
   });
 });

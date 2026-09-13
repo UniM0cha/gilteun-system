@@ -1,4 +1,4 @@
-import type { DrawingPath } from "../hooks/useDrawingSync";
+import type { DrawingPath, Point } from "../hooks/useDrawingSync";
 
 export type DrawingMutation =
   | { kind: "add"; path: DrawingPath }
@@ -11,9 +11,27 @@ interface PendingMutation {
   change: DrawingMutation;
 }
 
+export interface RemoteInProgressPath {
+  sheetId: string;
+  pathId: string;
+  ownerSocketId: string;
+  profileId: string;
+  color: string;
+  width: number;
+  isEraser: boolean;
+  isHighlighter: boolean;
+  points: Point[];
+}
+
+export interface DrawingSessionSnapshot {
+  pathsBySheet: ReadonlyMap<string, DrawingPath[]>;
+  inProgressBySheet: ReadonlyMap<string, RemoteInProgressPath[]>;
+}
+
 export interface DrawingSnapshotPage {
   sheetId: string;
   paths: DrawingPath[];
+  inProgress?: RemoteInProgressPath[];
 }
 
 export type DrawingAcknowledgement =
@@ -57,12 +75,13 @@ export class DrawingSession {
   private confirmed = new Map<string, DrawingPath[]>();
   private pending: PendingMutation[] = [];
   private serial = 0;
-  private visible: ReadonlyMap<string, DrawingPath[]> = new Map();
+  private inProgress = new Map<string, RemoteInProgressPath[]>();
+  private visible: DrawingSessionSnapshot = { pathsBySheet: new Map(), inProgressBySheet: new Map() };
   private listeners = new Set<() => void>();
 
   constructor(readonly worshipId: string | null = null) {}
 
-  getSnapshot = (): ReadonlyMap<string, DrawingPath[]> => this.visible;
+  getSnapshot = (): DrawingSessionSnapshot => this.visible;
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -78,14 +97,10 @@ export class DrawingSession {
     for (const id of this.confirmed.keys()) {
       if (!this.allowed.has(id)) this.confirmed.delete(id);
     }
+    for (const id of this.inProgress.keys()) {
+      if (!this.allowed.has(id)) this.inProgress.delete(id);
+    }
     this.pending = this.pending.filter((item) => this.allowed.has(item.sheetId));
-    this.publish();
-  }
-
-  /** HTTP cache values may seed an unknown page, but never overwrite socket/local state. */
-  seedPage(sheetId: string, paths: DrawingPath[]): void {
-    if (!this.allowed.has(sheetId) || this.confirmed.has(sheetId)) return;
-    this.confirmed.set(sheetId, paths);
     this.publish();
   }
 
@@ -95,6 +110,8 @@ export class DrawingSession {
       if (!this.allowed.has(page.sheetId)) continue;
       included.add(page.sheetId);
       this.confirmed.set(page.sheetId, page.paths);
+      if (page.inProgress?.length) this.inProgress.set(page.sheetId, page.inProgress);
+      else this.inProgress.delete(page.sheetId);
     }
     // On reconnect, Socket.IO has already flushed its own outbound queue before
     // this snapshot request. Reconcile uncertain edits from that queue exactly once;
@@ -143,6 +160,60 @@ export class DrawingSession {
     }
   }
 
+  startProgress(path: RemoteInProgressPath): void {
+    if (!this.allowed.has(path.sheetId)) return;
+    const paths = this.inProgress.get(path.sheetId) ?? [];
+    this.inProgress.set(path.sheetId, [
+      ...paths.filter((item) => item.ownerSocketId !== path.ownerSocketId || item.pathId !== path.pathId),
+      path,
+    ]);
+    this.publish();
+  }
+
+  moveProgress(sheetId: string, ownerSocketId: string, pathId: string, point: Point): void {
+    const paths = this.inProgress.get(sheetId);
+    if (!paths?.some((item) => item.ownerSocketId === ownerSocketId && item.pathId === pathId)) return;
+    this.inProgress.set(
+      sheetId,
+      paths.map((item) =>
+        item.ownerSocketId === ownerSocketId && item.pathId === pathId
+          ? { ...item, points: [...item.points, point] }
+          : item,
+      ),
+    );
+    this.publish();
+  }
+
+  cancelProgress(sheetId: string, ownerSocketId: string, pathId: string): void {
+    if (this.removeProgress(sheetId, ownerSocketId, pathId)) this.publish();
+  }
+
+  completeProgress(path: DrawingPath, ownerSocketId: string, pathId: string): void {
+    if (!this.allowed.has(path.sheetId)) return;
+    this.removeProgress(path.sheetId, ownerSocketId, pathId);
+    if (this.confirmed.has(path.sheetId)) {
+      this.confirmed.set(path.sheetId, upsert(this.confirmed.get(path.sheetId)!, path));
+    }
+    // One publication prevents a frame with neither the temporary nor final line.
+    this.publish();
+  }
+
+  clearProgress(): void {
+    if (!this.inProgress.size) return;
+    this.inProgress.clear();
+    this.publish();
+  }
+
+  private removeProgress(sheetId: string, ownerSocketId: string, pathId: string): boolean {
+    const paths = this.inProgress.get(sheetId);
+    if (!paths) return false;
+    const next = paths.filter((item) => item.ownerSocketId !== ownerSocketId || item.pathId !== pathId);
+    if (next.length === paths.length) return false;
+    if (next.length) this.inProgress.set(sheetId, next);
+    else this.inProgress.delete(sheetId);
+    return true;
+  }
+
   private publish(): void {
     const next = new Map(this.confirmed);
     for (const item of this.pending) {
@@ -151,9 +222,9 @@ export class DrawingSession {
       if (!next.has(item.sheetId)) continue;
       next.set(item.sheetId, applyChange(next.get(item.sheetId)!, item.change));
     }
-    let changed = next.size !== this.visible.size;
+    let changed = next.size !== this.visible.pathsBySheet.size;
     for (const [sheetId, paths] of next) {
-      const previous = this.visible.get(sheetId);
+      const previous = this.visible.pathsBySheet.get(sheetId);
       if (previous === paths) continue;
       if (previous && previous.length === paths.length && previous.every((path, i) => sameDrawing(path, paths[i]))) {
         next.set(sheetId, previous);
@@ -161,8 +232,14 @@ export class DrawingSession {
         changed = true;
       }
     }
-    if (!changed) return;
-    this.visible = next;
+    const progressChanged =
+      this.inProgress.size !== this.visible.inProgressBySheet.size ||
+      [...this.inProgress].some(([id, paths]) => this.visible.inProgressBySheet.get(id) !== paths);
+    if (!changed && !progressChanged) return;
+    this.visible = {
+      pathsBySheet: changed ? next : this.visible.pathsBySheet,
+      inProgressBySheet: progressChanged ? new Map(this.inProgress) : this.visible.inProgressBySheet,
+    };
     this.listeners.forEach((listener) => listener());
   }
 }

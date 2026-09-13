@@ -1,8 +1,6 @@
 import { useEffect, useRef, useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSocket } from "./useSocket";
-import { queryKeys } from "@/lib/queryKeys";
 import { generateId } from "@/lib/canvas";
 import {
   DrawingSession,
@@ -10,6 +8,7 @@ import {
   type DrawingAcknowledgement,
   type DrawingMutation,
   type DrawingSnapshotPage,
+  type RemoteInProgressPath,
 } from "@/lib/drawingSession";
 import type { Sheet } from "@/types";
 
@@ -29,16 +28,6 @@ export interface DrawingPath {
   isHighlighter: boolean;
 }
 
-interface RemoteInProgressPath {
-  pathId: string;
-  profileId: string;
-  color: string;
-  width: number;
-  isEraser: boolean;
-  isHighlighter: boolean;
-  points: Point[];
-}
-
 interface UndoAction {
   added: DrawingPath[];
   deleted: DrawingPath[];
@@ -47,7 +36,6 @@ interface UndoAction {
 
 type BulkStatus = "idle" | "loading" | "ready" | "error";
 const EMPTY_PATHS: DrawingPath[] = [];
-const EMPTY_REMOTE: RemoteInProgressPath[] = [];
 const SNAPSHOT_TIMEOUT_MS = 10_000;
 const CONNECTION_ERROR = "연결이 끊겨 그림을 불러올 수 없습니다. 연결 후 다시 시도해 주세요.";
 
@@ -57,100 +45,43 @@ interface UseDrawingSyncOptions {
   worshipId: string | null;
   sheets: Sheet[];
   enabled: boolean;
-  preloadEnabled?: boolean;
 }
 
-export function useDrawingSync({
-  sheetId,
-  profileId,
-  worshipId,
-  sheets,
-  enabled,
-  preloadEnabled = false,
-}: UseDrawingSyncOptions) {
+export function useDrawingSync({ sheetId, profileId, worshipId, sheets, enabled }: UseDrawingSyncOptions) {
   // A new worship receives a completely new store, including pending operations.
   // Page changes keep the same store and the exact array for unchanged drawings.
   const session = useMemo(() => new DrawingSession(enabled ? worshipId : null), [worshipId, enabled]);
-  const pathsBySheet = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const { pathsBySheet, inProgressBySheet } = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const paths = (sheetId && pathsBySheet.get(sheetId)) || EMPTY_PATHS;
-  const [remoteInProgress, setRemoteInProgress] = useState<Map<string, RemoteInProgressPath>>(new Map());
   const [bulk, setBulk] = useState<{ session: DrawingSession; status: BulkStatus }>({ session, status: "idle" });
-  const bulkStatusRef = useRef<BulkStatus>("idle");
-  bulkStatusRef.current = bulk.session === session ? bulk.status : "idle";
-  const [failure, setFailure] = useState<{ session: DrawingSession; sheetId: string | null; message: string } | null>(
-    null,
-  );
+  const [failure, setFailure] = useState<{ session: DrawingSession; message: string } | null>(null);
   const currentSheetIdRef = useRef<string | null>(null);
-  const pageRequestRef = useRef<{ id: string; reconciledThrough?: number } | null>(null);
   const subscriptionRef = useRef<{ id: string; reconciledThrough?: number } | null>(null);
-  const pageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bulkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const batchRef = useRef<UndoAction | null>(null);
   const undoRef = useRef<UndoAction[]>([]);
   const redoRef = useRef<UndoAction[]>([]);
   const activeSessionRef = useRef(session);
   activeSessionRef.current = session;
-  const optionsRef = useRef({ sheetId, worshipId, enabled, preloadEnabled, sheetIds: sheets.map((sheet) => sheet.id) });
-  optionsRef.current = { sheetId, worshipId, enabled, preloadEnabled, sheetIds: sheets.map((sheet) => sheet.id) };
+  const optionsRef = useRef({ sheetId, worshipId, enabled, sheetIds: sheets.map((sheet) => sheet.id) });
+  optionsRef.current = { sheetId, worshipId, enabled, sheetIds: sheets.map((sheet) => sheet.id) };
   const socket = getSocket();
-  const queryClient = useQueryClient();
   const sheetIdsKey = JSON.stringify(sheets.map((sheet) => sheet.id));
 
-  const clearPageTimer = useCallback(() => {
-    if (pageTimerRef.current !== null) clearTimeout(pageTimerRef.current);
-    pageTimerRef.current = null;
-  }, []);
   const clearBulkTimer = useCallback(() => {
     if (bulkTimerRef.current !== null) clearTimeout(bulkTimerRef.current);
     bulkTimerRef.current = null;
   }, []);
 
-  const requestPage = useCallback(
-    (reconcilePending = false, forceState = false) => {
-      const current = optionsRef.current;
-      clearPageTimer();
-      if (!current.enabled || !current.sheetId) return;
-      if (!socket.connected) {
-        if (!session.getSnapshot().has(current.sheetId)) {
-          setFailure({ session, sheetId: current.sheetId, message: CONNECTION_ERROR });
-        }
-        return;
-      }
-      const requestId = generateId();
-      const withState =
-        reconcilePending ||
-        forceState ||
-        bulkStatusRef.current !== "ready" ||
-        !session.getSnapshot().has(current.sheetId);
-      pageRequestRef.current = withState
-        ? { id: requestId, reconciledThrough: reconcilePending ? session.checkpoint() : undefined }
-        : null;
-      setFailure((previous) => (previous?.sheetId ? null : previous));
-      if (withState) {
-        pageTimerRef.current = setTimeout(() => {
-          if (activeSessionRef.current !== session || pageRequestRef.current?.id !== requestId) return;
-          pageTimerRef.current = null;
-          setFailure({
-            session,
-            sheetId: current.sheetId,
-            message: "그림을 불러오는 데 시간이 걸리고 있습니다. 다시 시도해 주세요.",
-          });
-        }, SNAPSHOT_TIMEOUT_MS);
-      }
-      socket.emit("join:sheet", { sheetId: current.sheetId, withState, ...(withState ? { requestId } : {}) });
-    },
-    [session, socket, clearPageTimer],
-  );
-
   const requestAll = useCallback(
     (reconcilePending = false) => {
       const current = optionsRef.current;
       clearBulkTimer();
-      if (!current.enabled || !current.worshipId || !current.preloadEnabled) return;
+      if (!current.enabled || !current.worshipId) return;
       if (!socket.connected) {
-        if (current.sheetIds.some((id) => !session.getSnapshot().has(id))) {
+        if (current.sheetIds.some((id) => !session.getSnapshot().pathsBySheet.has(id))) {
           setBulk({ session, status: "error" });
-          setFailure({ session, sheetId: null, message: CONNECTION_ERROR });
+          setFailure({ session, message: CONNECTION_ERROR });
         }
         return;
       }
@@ -160,14 +91,13 @@ export function useDrawingSync({
         reconciledThrough: reconcilePending ? session.checkpoint() : undefined,
       };
       setBulk({ session, status: "loading" });
-      setFailure((previous) => (previous?.sheetId === null ? null : previous));
+      setFailure(null);
       bulkTimerRef.current = setTimeout(() => {
         if (activeSessionRef.current !== session || subscriptionRef.current?.id !== subscriptionId) return;
         bulkTimerRef.current = null;
         setBulk({ session, status: "error" });
         setFailure({
           session,
-          sheetId: null,
           message: "예배의 그림을 불러오는 데 시간이 걸리고 있습니다. 다시 시도해 주세요.",
         });
       }, SNAPSHOT_TIMEOUT_MS);
@@ -176,54 +106,14 @@ export function useDrawingSync({
     [session, socket, clearBulkTimer],
   );
 
-  // Register page membership before any socket request. A missing map key means
-  // unknown; an empty array means the server confirmed that page has no drawings.
+  // Register membership before installing listeners and subscribing to the worship.
   useEffect(() => {
     const ids: string[] = JSON.parse(sheetIdsKey);
     session.setSheets(enabled ? ids : []);
-    for (const id of ids) {
-      const cached = queryClient.getQueryData<DrawingPath[]>(queryKeys.drawings.bySheet(id));
-      if (cached) session.seedPage(id, cached);
-    }
-  }, [session, enabled, sheetIdsKey, queryClient]);
+  }, [session, enabled, sheetIdsKey]);
 
-  useEffect(() => {
-    if (!enabled) return;
-    // An adjacent HTTP request that finishes late can still seed an unknown page;
-    // it cannot overwrite a socket snapshot or a pending local edit.
-    return queryClient.getQueryCache().subscribe((event) => {
-      const [prefix, id] = event.query.queryKey;
-      if (prefix === "drawings" && typeof id === "string" && event.query.state.data) {
-        session.seedPage(id, event.query.state.data as DrawingPath[]);
-      }
-    });
-  }, [enabled, session, queryClient]);
-
-  // Listeners are installed before the page-entry and whole-worship effects emit.
   useEffect(() => {
     if (!enabled || !worshipId) return;
-    const handleState = (data: { sheetId: string; requestId?: string; paths: DrawingPath[] }) => {
-      if (
-        !pageRequestRef.current ||
-        data.sheetId !== currentSheetIdRef.current ||
-        data.requestId !== pageRequestRef.current.id
-      )
-        return;
-      clearPageTimer();
-      session.snapshot([data], pageRequestRef.current.reconciledThrough);
-      pageRequestRef.current.reconciledThrough = undefined;
-      setFailure((previous) => (previous?.sheetId === data.sheetId ? null : previous));
-    };
-    const handlePageError = (data: { sheetId: string; requestId?: string; error: string }) => {
-      if (
-        !pageRequestRef.current ||
-        data.sheetId !== currentSheetIdRef.current ||
-        data.requestId !== pageRequestRef.current.id
-      )
-        return;
-      clearPageTimer();
-      setFailure({ session, sheetId: data.sheetId, message: "이 페이지의 그림을 불러오지 못했습니다." });
-    };
     const handleAll = (data: { worshipId: string; subscriptionId: string; sheets: DrawingSnapshotPage[] }) => {
       if (
         !subscriptionRef.current ||
@@ -232,11 +122,13 @@ export function useDrawingSync({
       )
         return;
       clearBulkTimer();
-      if (data.sheets.some((page) => page.sheetId === currentSheetIdRef.current)) {
-        clearPageTimer();
-        pageRequestRef.current = null;
-      }
-      session.snapshot(data.sheets, subscriptionRef.current.reconciledThrough);
+      session.snapshot(
+        data.sheets.map((page) => ({
+          ...page,
+          inProgress: page.inProgress?.filter((path) => path.ownerSocketId !== socket.id),
+        })),
+        subscriptionRef.current.reconciledThrough,
+      );
       subscriptionRef.current.reconciledThrough = undefined;
       setBulk({ session, status: "ready" });
       setFailure(null);
@@ -245,47 +137,28 @@ export function useDrawingSync({
       if (data.worshipId !== worshipId || data.subscriptionId !== subscriptionRef.current?.id) return;
       clearBulkTimer();
       setBulk({ session, status: "error" });
-      setFailure({ session, sheetId: null, message: "예배의 그림을 미리 불러오지 못했습니다." });
+      setFailure({ session, message: "예배의 그림을 미리 불러오지 못했습니다." });
     };
-    const handleStarted = (data: Omit<RemoteInProgressPath, "points"> & { sheetId: string; point: Point }) => {
-      if (data.sheetId !== currentSheetIdRef.current) return;
-      setRemoteInProgress((prev) => {
-        const next = new Map(prev);
-        next.set(data.pathId, { ...data, isHighlighter: data.isHighlighter ?? false, points: [data.point] });
-        return next;
-      });
+    const handleStarted = (data: Omit<RemoteInProgressPath, "points"> & { point: Point }) => {
+      if (data.ownerSocketId === socket.id) return;
+      session.startProgress({ ...data, isHighlighter: data.isHighlighter ?? false, points: [data.point] });
     };
-    const handleMoved = (data: { sheetId: string; pathId: string; point: Point }) => {
-      if (data.sheetId !== currentSheetIdRef.current) return;
-      setRemoteInProgress((prev) => {
-        const existing = prev.get(data.pathId);
-        if (!existing) return prev;
-        const next = new Map(prev);
-        next.set(data.pathId, { ...existing, points: [...existing.points, data.point] });
-        return next;
-      });
+    const handleMoved = (data: { sheetId: string; ownerSocketId: string; pathId: string; point: Point }) => {
+      if (data.ownerSocketId === socket.id) return;
+      session.moveProgress(data.sheetId, data.ownerSocketId, data.pathId, data.point);
     };
-    const removeInProgress = (data: { sheetId: string; pathId: string }) => {
-      if (data.sheetId !== currentSheetIdRef.current) return;
-      setRemoteInProgress((prev) => {
-        if (!prev.has(data.pathId)) return prev;
-        const next = new Map(prev);
-        next.delete(data.pathId);
-        return next;
-      });
+    const removeInProgress = (data: { sheetId: string; ownerSocketId: string; pathId: string }) => {
+      session.cancelProgress(data.sheetId, data.ownerSocketId, data.pathId);
     };
-    const handleEnded = (data: DrawingPath & { pathId: string }) => {
-      if (!session.hasSheet(data.sheetId)) return;
-      removeInProgress(data);
+    const handleEnded = (data: DrawingPath & { pathId: string; ownerSocketId: string }) => {
       const path = { ...data, id: data.id || data.pathId, isHighlighter: data.isHighlighter ?? false };
-      session.remote(data.sheetId, { kind: "add", path });
-      // Only an operation's ack can settle its optimistic edit. A collision echo
-      // can precede a later undo/redo using the same path ID.
+      session.completeProgress(path, data.ownerSocketId, data.pathId);
+      // Only the matching acknowledgement settles an optimistic edit.
     };
     const handleDeleted = (data: { sheetId: string; pathId: string }) => {
       session.remote(data.sheetId, { kind: "delete", pathIds: [data.pathId] });
     };
-    const handleRejected = (data: { sheetId: string; pathId: string }) => {
+    const handleRejected = (data: { sheetId: string; ownerSocketId: string; pathId: string }) => {
       // Legacy rejection notifications identify a path, not an operation. Its
       // ack performs the rollback without discarding a later add of the same ID.
       removeInProgress(data);
@@ -294,27 +167,20 @@ export function useDrawingSync({
       session.remote(data.sheetId, { kind: "delete", pathIds: data.deletedPathIds });
     };
     const handleDisconnect = () => {
-      clearPageTimer();
       clearBulkTimer();
-      pageRequestRef.current = null;
       subscriptionRef.current = null;
-      setRemoteInProgress(new Map());
+      session.clearProgress();
       const current = optionsRef.current;
-      if (current.preloadEnabled && current.sheetIds.some((id) => !session.getSnapshot().has(id))) {
+      if (current.sheetIds.some((id) => !session.getSnapshot().pathsBySheet.has(id))) {
         setBulk({ session, status: "error" });
-        setFailure({ session, sheetId: null, message: CONNECTION_ERROR });
-      } else if (current.sheetId && !session.getSnapshot().has(current.sheetId)) {
-        setFailure({ session, sheetId: current.sheetId, message: CONNECTION_ERROR });
+        setFailure({ session, message: CONNECTION_ERROR });
       }
     };
     const handleConnect = () => {
       // Socket.IO flushes its sendBuffer before firing connect. Request a fresh
       // snapshot after that queue; do not introduce a second mutation retry queue.
-      requestPage(true);
       requestAll(true);
     };
-    socket.on("drawing:state", handleState);
-    socket.on("drawing:error", handlePageError);
     socket.on("drawings:state", handleAll);
     socket.on("drawings:error", handleAllError);
     socket.on("drawing:started", handleStarted);
@@ -327,8 +193,6 @@ export function useDrawingSync({
     socket.on("disconnect", handleDisconnect);
     socket.on("connect", handleConnect);
     return () => {
-      socket.off("drawing:state", handleState);
-      socket.off("drawing:error", handlePageError);
       socket.off("drawings:state", handleAll);
       socket.off("drawings:error", handleAllError);
       socket.off("drawing:started", handleStarted);
@@ -341,49 +205,35 @@ export function useDrawingSync({
       socket.off("disconnect", handleDisconnect);
       socket.off("connect", handleConnect);
     };
-  }, [enabled, worshipId, session, socket, requestPage, requestAll, clearPageTimer, clearBulkTimer]);
+  }, [enabled, worshipId, session, socket, requestAll, clearBulkTimer]);
 
   useEffect(() => {
-    if (!enabled || !sheetId) return;
-    currentSheetIdRef.current = sheetId;
-    setRemoteInProgress(new Map());
+    currentSheetIdRef.current = enabled ? sheetId : null;
     batchRef.current = null;
     undoRef.current = [];
     redoRef.current = [];
-    requestPage();
-    return () => {
-      clearPageTimer();
-      socket.emit("leave:sheet", { sheetId });
-      currentSheetIdRef.current = null;
-      pageRequestRef.current = null;
-      // Keep both the page's vectors and its rendered canvas when leaving a page.
-    };
-  }, [sheetId, enabled, session, socket, requestPage, clearPageTimer]);
+  }, [sheetId, enabled, session]);
 
   useEffect(() => {
-    if (!enabled || !worshipId || !preloadEnabled) return;
+    if (!enabled || !worshipId) return;
     requestAll();
     return clearBulkTimer;
-  }, [enabled, worshipId, preloadEnabled, sheetIdsKey, requestAll, clearBulkTimer]);
+  }, [enabled, worshipId, sheetIdsKey, requestAll, clearBulkTimer]);
 
   useEffect(() => {
     return () => {
-      clearPageTimer();
       clearBulkTimer();
-      if (worshipId && subscriptionRef.current) {
+      if (worshipId && subscriptionRef.current && socket.connected) {
         socket.emit("drawings:unsubscribe", { worshipId, subscriptionId: subscriptionRef.current.id });
       }
       subscriptionRef.current = null;
-      queryClient.removeQueries({ queryKey: queryKeys.drawings.all });
     };
-  }, [session, worshipId, queryClient, socket, clearPageTimer, clearBulkTimer]);
+  }, [session, worshipId, socket, clearBulkTimer]);
 
   const retryLoad = useCallback(() => {
-    // A manual retry is also ordered after mutations already emitted on this
-    // connection. Preserve that fence even if the reconnect snapshot timed out.
-    requestPage(true, true);
+    // Retry is ordered after already-emitted mutations, including reconnect flushes.
     requestAll(true);
-  }, [requestPage, requestAll]);
+  }, [requestAll]);
 
   const sendChange = useCallback(
     (targetSheet: string, change: DrawingMutation, action: UndoAction) => {
@@ -442,14 +292,14 @@ export function useDrawingSync({
       isHighlighter: boolean;
       point: Point;
     }) => {
-      if (!enabled || !sheetId || !profileId) return;
+      if (!enabled || !sheetId || !profileId || !socket.connected) return;
       socket.emit("drawing:start", { sheetId, profileId, ...data });
     },
     [enabled, sheetId, profileId, socket],
   );
   const emitDrawMove = useCallback(
     (data: { pathId: string; point: Point }) => {
-      if (enabled && sheetId) socket.emit("drawing:move", { sheetId, ...data });
+      if (enabled && sheetId && socket.connected) socket.emit("drawing:move", { sheetId, ...data });
     },
     [enabled, sheetId, socket],
   );
@@ -457,7 +307,8 @@ export function useDrawingSync({
     (data: { pathId: string }) => {
       // The page prop may have changed before its room effect. Cancel the stroke
       // in the room that actually owned it, not the incoming page.
-      if (currentSheetIdRef.current) socket.emit("drawing:cancel", { sheetId: currentSheetIdRef.current, ...data });
+      if (socket.connected && currentSheetIdRef.current)
+        socket.emit("drawing:cancel", { sheetId: currentSheetIdRef.current, ...data });
     },
     [socket],
   );
@@ -476,7 +327,7 @@ export function useDrawingSync({
       if (!sheetId) return;
       const deleted = session
         .getSnapshot()
-        .get(sheetId)
+        .pathsBySheet.get(sheetId)
         ?.find((path) => path.id === pathId);
       if (!deleted) return;
       const action = batchRef.current ?? { added: [], deleted: [], revision: 0 };
@@ -501,7 +352,7 @@ export function useDrawingSync({
   }, []);
   const clearMyPaths = useCallback(() => {
     if (!sheetId || !profileId) return;
-    const mine = (session.getSnapshot().get(sheetId) ?? []).filter((path) => path.profileId === profileId);
+    const mine = (session.getSnapshot().pathsBySheet.get(sheetId) ?? []).filter((path) => path.profileId === profileId);
     const action = { added: [], deleted: mine, revision: 0 };
     if (mine.length) {
       undoRef.current.push(action);
@@ -528,15 +379,13 @@ export function useDrawingSync({
     for (const path of action.deleted) sendChange(sheetId, { kind: "delete", pathIds: [path.id] }, action);
   }, [sheetId, profileId, sendChange]);
 
-  const visibleRemoteInProgress = useMemo(() => Array.from(remoteInProgress.values()), [remoteInProgress]);
   return {
     paths,
     pathsBySheet,
+    inProgressBySheet,
     bulkStatus: bulk.session === session ? bulk.status : "idle",
-    loadError:
-      failure?.session === session && (!failure.sheetId || failure.sheetId === sheetId) ? failure.message : null,
+    loadError: failure?.session === session ? failure.message : null,
     retryLoad,
-    remoteInProgress: currentSheetIdRef.current === sheetId ? visibleRemoteInProgress : EMPTY_REMOTE,
     emitDrawStart,
     emitDrawMove,
     emitDrawCancel,

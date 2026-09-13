@@ -25,8 +25,7 @@ export function getSocket(): Socket {
       if (roomRegistry.worship) {
         socket!.emit("join:worship", roomRegistry.worship);
       }
-      // DrawingSync rejoins its page with a fresh request ID after this listener.
-      // It also requests a worship snapshot after Socket.IO's buffered mutations.
+      // DrawingSync requests one worship snapshot after Socket.IO's buffered mutations.
     });
 
     // dev 전용: 재연결 시나리오 검증용 (preview_eval에서 __socket.disconnect()/connect())
