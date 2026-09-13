@@ -12,9 +12,8 @@ import { useWorshipPresence } from "@/hooks/useWorshipPresence";
 import SheetCanvas, { type EraserType, type RemoteInProgressPath } from "@/components/SheetCanvas";
 import { useDrawingSync, type DrawingPath } from "@/hooks/useDrawingSync";
 import { getSocket } from "@/hooks/useSocket";
-import { useAdjacentSheetPreload } from "@/hooks/useAdjacentSheetPreload";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { useRetainedSheetPages } from "@/hooks/useRetainedSheetPages";
+import { useWorshipPages } from "@/hooks/useWorshipPages";
 import { useSheetPageMotion } from "@/hooks/useSheetPageMotion";
 import { useSheetZoomPan } from "@/hooks/useSheetZoomPan";
 import WorshipHeader from "@/components/worship/WorshipHeader";
@@ -105,7 +104,6 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
   const currentSheet = useMemo(() => sheets.find((s) => s.id === currentSheetId) || null, [sheets, currentSheetId]);
   const currentPage = sheets.findIndex((s) => s.id === currentSheetId);
 
-  const [preparedTargetId, setPreparedTargetId] = useState<string | null>(null);
   const [pendingTargetId, setPendingTargetState] = useState<string | null>(null);
   const pendingTargetRef = useRef<string | null>(null);
   const setPendingTargetId = useCallback((target: string | null) => {
@@ -113,7 +111,7 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
     setPendingTargetState(target);
   }, []);
   const navigatePageRef = useRef<(page: number) => void>(() => {});
-  const surfaces = useRetainedSheetPages(sheets, currentSheetId, preparedTargetId);
+  const surfaces = useWorshipPages(sheets);
 
   const socket = getSocket();
 
@@ -123,7 +121,6 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
     (updatedSheets) => {
       // A reorder/removal invalidates a gesture's page-index target.
       cancelPageMotionRef.current();
-      setPreparedTargetId(null);
       setPendingTargetId(null);
       // 현재 보는 악보가 삭제되면 첫 번째로 이동
       if (currentSheetId && !updatedSheets.find((s) => s.id === currentSheetId)) {
@@ -142,7 +139,7 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
     bulkStatus,
     loadError,
     retryLoad,
-    remoteInProgress,
+    inProgressBySheet,
     emitDrawStart,
     emitDrawMove,
     emitDrawCancel,
@@ -155,12 +152,9 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
   } = useDrawingSync({
     sheetId: currentSheetId,
     profileId: currentProfileId,
-    enabled: !!id,
+    enabled: !!id && !!worshipData && !!currentProfileId,
     worshipId: id ?? null,
     sheets,
-    // A failed first image must not prevent other pages from loading. Explicit
-    // navigation can also prioritize the remaining data before the first paint.
-    preloadEnabled: surfaces.firstPageReady || !!pendingTargetId || surfaces.failedIds.size > 0,
   });
 
   // 프로필 미선택 시 홈으로 리다이렉트
@@ -217,7 +211,6 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
     (index: number) => {
       if (index >= 0 && index < sheets.length) {
         cancelPageMotionRef.current();
-        setPreparedTargetId(null);
         setPendingTargetId(null);
         setCurrentSheetId(sheets[index].id);
         resetZoom();
@@ -251,8 +244,6 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
     getSheetOffset,
   });
 
-  useAdjacentSheetPreload(sheets, currentPage);
-
   const shouldReduceMotion = useReducedMotion();
   const isLargeScreen = useMediaQuery("(min-width: 64rem)");
   // 폰(< md): 좌/우 패널을 밀어내기 대신 오버레이 드로어로 동작시킨다.
@@ -266,34 +257,24 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
   const setPenOnly = useDeviceSettingsStore((s) => s.setPenOnly);
   const notePenDetected = useDeviceSettingsStore((s) => s.notePenDetected);
 
-  const preparePage = useCallback(
-    (page: number) => {
-      const target = sheets[page];
-      if (target) setPreparedTargetId(target.id);
-    },
-    [sheets],
-  );
   const awaitPage = useCallback(
     (page: number) => {
       const target = sheets[page];
       if (!target) return;
-      setPreparedTargetId(target.id);
       setPendingTargetId(target.id);
     },
     [sheets, setPendingTargetId],
   );
-  const cancelPreparation = useCallback(() => setPreparedTargetId(null), []);
   const startPageDrag = useCallback(() => {
     setPendingTargetId(null);
-    setPreparedTargetId(null);
     flashNavBar();
   }, [flashNavBar, setPendingTargetId]);
   const isPageReady = useCallback(
     (page: number) => {
       const target = sheets[page];
-      return !!target && surfaces.readyIds.has(target.id);
+      return !!target && surfaces.preparedIds.has(target.id) && !surfaces.failedIds.has(target.id);
     },
-    [sheets, surfaces.readyIds],
+    [sheets, surfaces.preparedIds, surfaces.failedIds],
   );
 
   const {
@@ -314,21 +295,17 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
     onDragStart: startPageDrag,
     reducedMotion: !!shouldReduceMotion,
     isPageReady,
-    onPreparePage: preparePage,
     onAwaitPage: awaitPage,
-    onCancelPrepare: cancelPreparation,
   });
 
   cancelPageMotionRef.current = () => {
     cancelPageMotion();
     setPendingTargetId(null);
-    setPreparedTargetId(null);
   };
 
   const navigatePage = useCallback(
     (page: number) => {
       setPendingTargetId(null);
-      setPreparedTargetId(null);
       goToPageWithMotion(page);
     },
     [goToPageWithMotion, setPendingTargetId],
@@ -336,19 +313,24 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
   navigatePageRef.current = navigatePage;
 
   useEffect(() => {
-    if (!pendingTargetId || pendingTargetRef.current !== pendingTargetId || !surfaces.readyIds.has(pendingTargetId))
+    if (
+      !pendingTargetId ||
+      pendingTargetRef.current !== pendingTargetId ||
+      !surfaces.preparedIds.has(pendingTargetId) ||
+      surfaces.failedIds.has(pendingTargetId)
+    )
       return;
     const page = sheets.findIndex((sheet) => sheet.id === pendingTargetId);
     setPendingTargetId(null);
     if (page >= 0) goToPageWithMotion(page);
-  }, [pendingTargetId, surfaces.readyIds, sheets, goToPageWithMotion, setPendingTargetId]);
+  }, [pendingTargetId, surfaces.preparedIds, surfaces.failedIds, sheets, goToPageWithMotion, setPendingTargetId]);
 
   const previewTargetSheet = activeTargetPage !== null ? sheets[activeTargetPage] : null;
-  const retainedSheets = sheets.filter((sheet) => surfaces.retainedIds.includes(sheet.id));
-  const loadingTargetId =
-    pendingTargetId ?? (currentSheetId && !surfaces.displayedIds.has(currentSheetId) ? currentSheetId : null);
-  const loadingFailed =
-    !!loadingTargetId && (surfaces.failedIds.has(loadingTargetId) || !!loadError || bulkStatus === "error");
+  const preparedCount = sheets.filter(
+    (sheet) => surfaces.preparedIds.has(sheet.id) && !surfaces.failedIds.has(sheet.id),
+  ).length;
+  const preparationFailed = surfaces.failedIds.size > 0 || !!loadError || bulkStatus === "error";
+  const showPreparation = sheets.length > 0 && (preparedCount < sheets.length || preparationFailed);
 
   const handleSendCommand = useCallback(
     (command: { id: string; emoji: string; label: string }) => {
@@ -559,10 +541,10 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
             onTouchEnd={handleSheetTouchEnd}
             {...bindPageDrag()}
           >
-            {retainedSheets.map((sheet) => {
+            {sheets.map((sheet) => {
               const isCurrent = sheet.id === currentSheetId;
               const isPreview = sheet.id === previewTargetSheet?.id;
-              const visible = (isCurrent || isPreview) && surfaces.displayedIds.has(sheet.id);
+              const visible = (isCurrent || isPreview) && surfaces.preparedIds.has(sheet.id);
               return (
                 <motion.div
                   key={sheet.id}
@@ -595,9 +577,10 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
                     <SheetCanvas
                       sheetId={sheet.id}
                       imageUrl={sheet.imagePath ? `/uploads/${sheet.imagePath}` : null}
-                      isActive={isCurrent}
+                      isActive={isCurrent && isConnected}
                       drawingsReady={pathsBySheet.has(sheet.id)}
                       imageLoadAttempt={surfaces.imageAttempts[sheet.id] ?? 0}
+                      imagePriority={isCurrent || (!currentSheetId && sheet.id === sheets[0]?.id) ? "high" : "low"}
                       onReadyChange={surfaces.onReadyChange}
                       onRenderMetrics={surfaces.onRenderMetrics}
                       onLoadError={surfaces.onLoadError}
@@ -608,7 +591,7 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
                       eraserType={eraserType}
                       eraserWidth={eraserWidth}
                       paths={pathsBySheet.get(sheet.id) ?? EMPTY_PATHS}
-                      remoteInProgress={isCurrent ? remoteInProgress : EMPTY_REMOTE}
+                      remoteInProgress={inProgressBySheet.get(sheet.id) ?? EMPTY_REMOTE}
                       penOnly={penOnly}
                       onPenDetected={handlePenDetected}
                       onDrawCancel={emitDrawCancel}
@@ -632,20 +615,22 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
                 </div>
               </div>
             )}
-            {loadingTargetId && (
+            {showPreparation && (
               <div
                 className="absolute inset-x-4 top-4 z-20 flex flex-wrap items-center justify-center gap-3 rounded-lg bg-background/95 p-3 text-sm shadow-lg"
-                role={loadingFailed ? "alert" : "status"}
+                role={preparationFailed ? "alert" : "status"}
+                data-testid="worship-preparation"
                 onClick={(event) => event.stopPropagation()}
                 onPointerDown={(event) => event.stopPropagation()}
               >
-                {!loadingFailed && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-                <span>{loadingFailed ? "악보를 불러오지 못했습니다" : "악보를 준비하고 있습니다"}</span>
-                {loadingFailed && (
+                {!preparationFailed && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+                <span>{`악보 준비 ${preparedCount}/${sheets.length}`}</span>
+                {preparationFailed && <span>일부 악보를 불러오지 못했습니다</span>}
+                {preparationFailed && (
                   <button
                     className="min-h-11 px-3 underline"
                     onClick={() => {
-                      surfaces.retryImage(loadingTargetId);
+                      surfaces.failedIds.forEach(surfaces.retryImage);
                       retryLoad();
                     }}
                   >
@@ -657,7 +642,6 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
                     className="min-h-11 px-3"
                     onClick={() => {
                       setPendingTargetId(null);
-                      setPreparedTargetId(null);
                       cancelPageMotion();
                     }}
                   >

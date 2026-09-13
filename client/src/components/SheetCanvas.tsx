@@ -1,5 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import type { DrawingPath, Point } from "@/hooks/useDrawingSync";
+import { createDrawingMoveEmitter } from "@/lib/drawingMoveEmitter";
 import {
   denormalizePoint,
   normalizePoint,
@@ -33,6 +34,7 @@ interface SheetCanvasProps {
   isActive?: boolean;
   drawingsReady?: boolean;
   imageLoadAttempt?: number;
+  imagePriority?: "high" | "low";
   onReadyChange?: (sheetId: string, ready: boolean) => void;
   onRenderMetrics?: (sheetId: string, bytes: number) => void;
   onLoadError?: (sheetId: string) => void;
@@ -73,6 +75,7 @@ function SheetCanvas({
   isActive = true,
   drawingsReady = true,
   imageLoadAttempt = 0,
+  imagePriority = "low",
   onReadyChange,
   onRenderMetrics,
   onLoadError,
@@ -114,7 +117,7 @@ function SheetCanvas({
     isHighlighter: boolean;
     profileId: string;
     onDrawCancel: SheetCanvasProps["onDrawCancel"];
-    onDrawMove: SheetCanvasProps["onDrawMove"];
+    moves: ReturnType<typeof createDrawingMoveEmitter>;
     onPathAdd: SheetCanvasProps["onPathAdd"];
     onPathDelete: SheetCanvasProps["onPathDelete"];
     onBatchEnd: SheetCanvasProps["onBatchEnd"];
@@ -134,7 +137,6 @@ function SheetCanvas({
   const currentPathIdRef = useRef<string>("");
   const drawingPointerIdRef = useRef<number | null>(null);
 
-  const lastMoveTimeRef = useRef(0);
   const redrawCanvasRef = useRef<() => void>(() => {});
   // 이 마운트에서 스타일러스를 이미 봤는지 — onPenDetected 중복 호출 방지
   const penSeenRef = useRef(false);
@@ -247,7 +249,7 @@ function SheetCanvas({
     if (!canvas) return;
 
     const size = getCanvasRenderSize(canvas);
-    if (!size || !drawingsReady) {
+    if (!size || !drawingsReady || !imageReadyRef.current) {
       publishReady(sheetId, false);
       return;
     }
@@ -336,6 +338,7 @@ function SheetCanvas({
     });
     if (bytes === null) {
       publishReady(sheetId, false);
+      callbacksRef.current.onLoadError?.(sheetId);
       return;
     }
     lastRenderRef.current = {
@@ -450,6 +453,7 @@ function SheetCanvas({
   // cannot redirect a cancellation or batch completion into another page.
   const cancelDrawing = () => {
     const session = drawingSessionRef.current;
+    session?.moves.cancel();
     const hadDrawing = isDrawingRef.current;
     isDrawingRef.current = false;
     if (hadDrawing && session?.eraserType === "stroke") {
@@ -531,7 +535,7 @@ function SheetCanvas({
       isHighlighter,
       profileId,
       onDrawCancel,
-      onDrawMove,
+      moves: createDrawingMoveEmitter((move) => onDrawMove?.(move)),
       onPathAdd,
       onPathDelete,
       onBatchEnd,
@@ -609,12 +613,7 @@ function SheetCanvas({
     }
     requestRedraw();
 
-    // 스로틀링: 16ms (60fps) — 소켓 전송용
-    const now = Date.now();
-    if (now - lastMoveTimeRef.current >= 16) {
-      lastMoveTimeRef.current = now;
-      session.onDrawMove?.({ pathId: currentPathIdRef.current, point });
-    }
+    session.moves.push({ pathId: currentPathIdRef.current, point });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -627,6 +626,7 @@ function SheetCanvas({
     const session = drawingSessionRef.current;
     if (!session) return;
     isDrawingRef.current = false;
+    session.moves.cancel();
     releaseDrawingPointer();
 
     if (session.eraserType === "stroke") {
@@ -664,6 +664,8 @@ function SheetCanvas({
           key={`${imageUrl}:${imageLoadAttempt}`}
           ref={imageRef}
           src={imageUrl}
+          fetchPriority={imagePriority}
+          loading="eager"
           alt="악보"
           className="absolute inset-0 w-full h-full pointer-events-none object-contain"
           onLoad={() => void prepareImage()}

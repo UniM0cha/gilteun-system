@@ -198,6 +198,30 @@ test("all ten canvases stay ready and retain identity across distant round trips
   await expect(page.getByTestId("worship-preparation")).toHaveCount(0);
   const canvases = await page.locator("[data-sheet-page] canvas").elementHandles();
   expect(canvases).toHaveLength(10);
+  const rasterBytes = await page.locator("[data-sheet-page] canvas").evaluateAll((elements) =>
+    elements.reduce((sum, element) => {
+      const canvas = element as HTMLCanvasElement;
+      return sum + canvas.width * canvas.height * 4;
+    }, 0),
+  );
+  const sharedBufferBytes = await page.evaluate(async () => {
+    // Read the same renderer module instance as the application, not a test replica.
+    const renderer = await import("/src/lib/canvasRender.ts");
+    return renderer.getSharedCanvasRenderBytes() as number;
+  });
+  expect(rasterBytes).toBeGreaterThan(0);
+  expect(sharedBufferBytes).toBeGreaterThan(0);
+  await test.info().attach("canvas-pixel-memory", {
+    contentType: "application/json",
+    body: Buffer.from(
+      JSON.stringify({
+        pages: canvases.length,
+        rasterBytes,
+        sharedBufferBytes,
+        totalBytes: rasterBytes + sharedBufferBytes,
+      }),
+    ),
+  });
   const joinsBefore = emissions.filter((event) => event === "join:sheet").length;
   expect(joinsBefore).toBeLessThanOrEqual(1);
   expect(emissions.filter((event) => event === "drawings:subscribe")).toHaveLength(1);
@@ -230,8 +254,19 @@ test("all ten canvases stay ready and retain identity across distant round trips
       () => (window as unknown as { preparationProbe: { appearances: number } }).preparationProbe.appearances,
     ),
   ).toBe(0);
-  await page.goto("/");
+  await page.getByRole("link", { name: "예배 목록으로", exact: true }).click();
   await expect(page.locator("[data-sheet-page]")).toHaveCount(0);
+  for (const canvas of canvases) {
+    expect(
+      await canvas.evaluate((node) => ({ connected: node.isConnected, pixels: node.width * node.height })),
+    ).toEqual({ connected: false, pixels: 0 });
+  }
+  expect(
+    await page.evaluate(async () => {
+      const renderer = await import("/src/lib/canvasRender.ts");
+      return renderer.getSharedCanvasRenderBytes();
+    }),
+  ).toBe(0);
 });
 
 test("pen editing, undo and redo update the retained pixels and persisted paths", async ({ page, request }) => {
@@ -320,7 +355,8 @@ test("a broken first image does not block other pages", async ({ page }) => {
     localStorage.setItem("gilteun-profile", JSON.stringify({ state: { currentProfileId: "profile-e2e" }, version: 0 }));
   });
   await page.goto("/worship/worship-e2e");
-  await expect(page.getByText("악보를 불러오지 못했습니다", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("worship-preparation")).toHaveAttribute("role", "alert");
+  await expect(page.getByText("일부 악보를 불러오지 못했습니다", { exact: true })).toBeVisible();
   await navigate(page, "next", "sheet-1");
   expect(await alphaAt(page, "sheet-1")).toBeGreaterThan(0);
 });

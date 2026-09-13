@@ -13,9 +13,7 @@ interface UseSheetPageMotionOptions {
   onDragStart?: () => void;
   reducedMotion?: boolean;
   isPageReady?: (page: number) => boolean;
-  onPreparePage?: (page: number) => void;
   onAwaitPage?: (page: number) => void;
-  onCancelPrepare?: () => void;
 }
 
 const COMMIT_THRESHOLD_RATIO = 0.25;
@@ -38,9 +36,7 @@ export function useSheetPageMotion({
   onDragStart,
   reducedMotion = false,
   isPageReady,
-  onPreparePage,
   onAwaitPage,
-  onCancelPrepare,
 }: UseSheetPageMotionOptions) {
   const x = useMotionValue(0);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -198,8 +194,7 @@ export function useSheetPageMotion({
     inFlightRef.current = null;
     baseOffsetRef.current = 0;
     x.set(0);
-    onCancelPrepare?.();
-  }, [stopAnimation, x, resetPreview, onCancelPrepare]);
+  }, [stopAnimation, x, resetPreview]);
 
   const goToPageWithMotion = useCallback(
     (nextPage: number) => {
@@ -209,7 +204,6 @@ export function useSheetPageMotion({
 
       const fromPage = committedPageRef.current;
       if (nextPage === fromPage) return;
-      onPreparePage?.(nextPage);
 
       if (isPageReady && !isPageReady(nextPage)) {
         onAwaitPage?.(nextPage);
@@ -259,7 +253,6 @@ export function useSheetPageMotion({
       reducedMotion,
       isPageReady,
       onAwaitPage,
-      onPreparePage,
     ],
   );
 
@@ -329,7 +322,6 @@ export function useSheetPageMotion({
       }
 
       const targetReady = intendedTarget === null || !isPageReady || isPageReady(intendedTarget);
-      if (intendedTarget !== null) onPreparePage?.(intendedTarget);
 
       if (active) {
         if (Math.abs(mx) > CLICK_DRAG_THRESHOLD) {
@@ -358,7 +350,6 @@ export function useSheetPageMotion({
           resetPreview();
           animateTo(0, SNAP_DURATION, () => {
             baseOffsetRef.current = 0;
-            onCancelPrepare?.();
           });
           return;
         }
@@ -390,7 +381,6 @@ export function useSheetPageMotion({
           resetPreview();
           animateTo(0, SNAP_DURATION, () => {
             baseOffsetRef.current = 0;
-            onCancelPrepare?.();
           });
         }
       }
