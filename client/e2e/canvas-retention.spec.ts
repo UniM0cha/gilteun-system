@@ -94,6 +94,7 @@ test("round trips retain the same canvas and never expose an empty drawing frame
   expect(result.frames).toBeGreaterThan(10);
   expect(result.blank).toBe(0);
   expect(drawingGets).toBe(0);
+  await page.screenshot({ path: test.info().outputPath("retained-viewer.png") });
 });
 
 test("changes on an inactive page update its retained canvas before returning", async ({ page }) => {
@@ -269,4 +270,112 @@ test("a broken first image does not block other pages", async ({ page }) => {
   await expect(page.getByText("악보를 불러오지 못했습니다", { exact: true })).toBeVisible();
   await navigate(page, "next", "sheet-1");
   expect(await alphaAt(page, "sheet-1")).toBeGreaterThan(0);
+});
+
+test("highlighter overlap, erasing and deletion preserve the correct composite pixels", async ({ page }) => {
+  await openViewer(page);
+  const peer = io("http://127.0.0.1:3197", { transports: ["websocket"], forceNew: true });
+  await new Promise<void>((resolve) => peer.on("connect", resolve));
+  const profileId = `highlight-${Date.now()}`;
+  const draw = (pathId: string, isEraser = false) =>
+    peer.timeout(5000).emitWithAck("drawing:end", {
+      sheetId: "sheet-0",
+      profileId,
+      pathId,
+      color: "#fde047",
+      width: 0.04,
+      points: [
+        { x: 0.2, y: 0.65 },
+        { x: 0.8, y: 0.65 },
+        { x: 0.2, y: 0.65 },
+      ],
+      isEraser,
+      isHighlighter: !isEraser,
+    });
+  const first = `${profileId}-1`,
+    second = `${profileId}-2`,
+    eraser = `${profileId}-eraser`;
+  try {
+    await draw(first);
+    await expect.poll(() => alphaAt(page, "sheet-0", 0.65)).toBeGreaterThan(80);
+    expect(await alphaAt(page, "sheet-0", 0.65)).toBeLessThan(100);
+    await draw(second);
+    await expect.poll(() => alphaAt(page, "sheet-0", 0.65)).toBeGreaterThan(140);
+    expect(await alphaAt(page, "sheet-0", 0.65)).toBeLessThan(155);
+    await draw(eraser, true);
+    await expect.poll(() => alphaAt(page, "sheet-0", 0.65)).toBe(0);
+    await peer.timeout(5000).emitWithAck("drawing:delete", { sheetId: "sheet-0", pathId: eraser });
+    await expect.poll(() => alphaAt(page, "sheet-0", 0.65)).toBeGreaterThan(140);
+    await peer.timeout(5000).emitWithAck("drawing:delete", { sheetId: "sheet-0", pathId: second });
+    await expect.poll(() => alphaAt(page, "sheet-0", 0.65)).toBeLessThan(100);
+    expect(await alphaAt(page, "sheet-0", 0.65)).toBeGreaterThan(80);
+  } finally {
+    await peer.timeout(5000).emitWithAck("drawing:clear", { sheetId: "sheet-0", profileId });
+    peer.disconnect();
+  }
+});
+
+test("leaving a page with the pointer down cancels its stroke before joining the next page", async ({
+  page,
+  request,
+}) => {
+  await openViewer(page);
+  await expect(pageSurface(page, "sheet-1")).toHaveAttribute("data-page-ready", "true");
+  const before = (await (await request.get("/api/sheets/sheet-0/drawings")).json()) as { id: string }[];
+  const peer = io("http://127.0.0.1:3197", { transports: ["websocket"], forceNew: true });
+  await new Promise<void>((resolve) => peer.on("connect", resolve));
+  peer.emit("join:sheet", { sheetId: "sheet-0", withState: false });
+  const cancelled: { sheetId: string }[] = [];
+  peer.on("drawing:cancelled", (event) => cancelled.push(event));
+  try {
+    await page.getByRole("button", { name: "그리기 시작", exact: true }).click();
+    const bounds = (await drawingCanvas(page, "sheet-0").boundingBox())!;
+    await page.mouse.move(bounds.x + bounds.width * 0.2, bounds.y + bounds.height * 0.75);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width * 0.7, bounds.y + bounds.height * 0.75, { steps: 8 });
+    await page.getByRole("button", { name: "다음 페이지", exact: true }).dispatchEvent("click");
+    await expect(pageSurface(page, "sheet-1")).toHaveAttribute("data-page-active", "true");
+    await page.mouse.up();
+    await expect.poll(() => cancelled.length).toBe(1);
+    expect(cancelled[0].sheetId).toBe("sheet-0");
+    expect((await (await request.get("/api/sheets/sheet-0/drawings")).json()).length).toBe(before.length);
+    expect(await alphaAt(page, "sheet-1", 0.75)).toBe(0);
+  } finally {
+    await page.mouse.up();
+    peer.disconnect();
+  }
+});
+
+test("reconnection refreshes inactive pages without clearing the retained current image", async ({ page }) => {
+  await openViewer(page);
+  await expect(pageSurface(page, "sheet-1")).toHaveAttribute("data-page-ready", "true");
+  const peer = io("http://127.0.0.1:3197", { transports: ["websocket"], forceNew: true });
+  await new Promise<void>((resolve) => peer.on("connect", resolve));
+  const pathId = `reconnect-${Date.now()}`;
+  try {
+    await peer.timeout(5000).emitWithAck("drawing:end", {
+      sheetId: "sheet-1",
+      profileId: "profile-e2e",
+      pathId,
+      color: "#00f",
+      width: 0.01,
+      points: [
+        { x: 0.2, y: 0.8 },
+        { x: 0.8, y: 0.8 },
+      ],
+      isEraser: false,
+      isHighlighter: false,
+    });
+    await expect.poll(() => alphaAt(page, "sheet-1", 0.8)).toBeGreaterThan(0);
+    await page.evaluate(() => (window as unknown as { __socket: { disconnect(): void } }).__socket.disconnect());
+    await peer.timeout(5000).emitWithAck("drawing:delete", { sheetId: "sheet-1", pathId });
+    expect(await alphaAt(page, "sheet-0")).toBeGreaterThan(0);
+    expect(await alphaAt(page, "sheet-1", 0.8)).toBeGreaterThan(0);
+    await page.evaluate(() => (window as unknown as { __socket: { connect(): void } }).__socket.connect());
+    await expect.poll(() => alphaAt(page, "sheet-1", 0.8)).toBe(0);
+    expect(await alphaAt(page, "sheet-0")).toBeGreaterThan(0);
+  } finally {
+    await peer.timeout(5000).emitWithAck("drawing:delete", { sheetId: "sheet-1", pathId });
+    peer.disconnect();
+  }
 });
