@@ -379,8 +379,10 @@ export function useDrawingSync({
   }, [session, worshipId, queryClient, socket, clearPageTimer, clearBulkTimer]);
 
   const retryLoad = useCallback(() => {
-    requestPage(false, true);
-    requestAll();
+    // A manual retry is also ordered after mutations already emitted on this
+    // connection. Preserve that fence even if the reconnect snapshot timed out.
+    requestPage(true, true);
+    requestAll(true);
   }, [requestPage, requestAll]);
 
   const sendChange = useCallback(
