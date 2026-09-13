@@ -1,24 +1,102 @@
 import { Server, Socket } from "socket.io";
 import { nanoid } from "nanoid";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import { db } from "../db";
-import { drawingPaths } from "../db/schema.js";
+import { drawingPaths, sheets, worships } from "../db/schema.js";
 import { nowIso } from "../lib/date.js";
 
+type DrawingRow = typeof drawingPaths.$inferSelect;
+type DrawingPath = Omit<DrawingRow, "points"> & { points: { x: number; y: number }[] };
+type MutationAck = (
+  result:
+    | { ok: true; sheetId: string; path?: DrawingPath; deletedPathIds?: string[] }
+    | { ok: false; sheetId: string; error: string },
+) => void;
+type DrawingsSubscription = { worshipId: string; subscriptionId: string };
+
+function parsePath(path: DrawingRow): DrawingPath {
+  return { ...path, points: JSON.parse(path.points) };
+}
+
+function drawingsRoom(worshipId: string): string {
+  return `drawings:worship:${worshipId}`;
+}
+
+// 하나의 union broadcast로 현재 페이지와 예배 전체 구독에 모두 속한 소켓의 중복 수신을 막는다.
+function completedRooms(sheetId: string): string[] {
+  const sheet = db.select({ worshipId: sheets.worshipId }).from(sheets).where(eq(sheets.id, sheetId)).get();
+  return sheet ? [`sheet:${sheetId}`, drawingsRoom(sheet.worshipId)] : [`sheet:${sheetId}`];
+}
+
 export function setupDrawingHandler(io: Server, socket: Socket): void {
+  let subscription: DrawingsSubscription | null = null;
+
+  socket.on("drawings:subscribe", (data: DrawingsSubscription) => {
+    if (subscription) socket.leave(drawingsRoom(subscription.worshipId));
+    subscription = null;
+
+    try {
+      if (!data?.worshipId || !data.subscriptionId) throw new Error("Invalid subscription");
+      const worship = db.select({ id: worships.id }).from(worships).where(eq(worships.id, data.worshipId)).get();
+      if (!worship) throw new Error("Worship not found");
+
+      subscription = { worshipId: data.worshipId, subscriptionId: data.subscriptionId };
+      // 현재 서버는 기본 메모리 adapter와 동기 SQLite를 사용한다. 가입부터 snapshot 전송까지
+      // await 없이 수행하므로 다른 변경 핸들러가 snapshot과 후속 delta 사이를 끼어들지 않는다.
+      socket.join(drawingsRoom(data.worshipId));
+      const worshipSheets = db
+        .select()
+        .from(sheets)
+        .where(eq(sheets.worshipId, data.worshipId))
+        .orderBy(asc(sheets.order))
+        .all();
+      const states = worshipSheets.map((sheet) => ({
+        sheetId: sheet.id,
+        // 기존 페이지 조회와 동일한 DB 순서를 유지해 형광펜/지우개의 합성 순서를 보존한다.
+        paths: db.select().from(drawingPaths).where(eq(drawingPaths.sheetId, sheet.id)).all().map(parsePath),
+      }));
+      socket.emit("drawings:state", { ...subscription, sheets: states });
+    } catch (error) {
+      if (subscription) socket.leave(drawingsRoom(subscription.worshipId));
+      subscription = null;
+      console.error("[Drawing] Failed to subscribe:", error);
+      socket.emit("drawings:error", {
+        worshipId: data?.worshipId,
+        subscriptionId: data?.subscriptionId,
+        error: "Failed to load worship drawings",
+      });
+    }
+  });
+
+  socket.on("drawings:unsubscribe", (data: DrawingsSubscription) => {
+    if (
+      !subscription ||
+      subscription.worshipId !== data?.worshipId ||
+      subscription.subscriptionId !== data?.subscriptionId
+    )
+      return;
+    socket.leave(drawingsRoom(subscription.worshipId));
+    subscription = null;
+  });
+
   // Sheet Room 입장 → 기존 드로잉 전송
-  socket.on("join:sheet", ({ sheetId }: { sheetId: string }) => {
+  socket.on("join:sheet", ({ sheetId, requestId }: { sheetId: string; requestId?: string }) => {
     socket.join(`sheet:${sheetId}`);
 
     try {
       const paths = db.select().from(drawingPaths).where(eq(drawingPaths.sheetId, sheetId)).all();
-      const parsed = paths.map((p) => ({
-        ...p,
-        points: JSON.parse(p.points),
-      }));
-      socket.emit("drawing:state", { sheetId, paths: parsed });
+      socket.emit("drawing:state", {
+        sheetId,
+        paths: paths.map(parsePath),
+        ...(requestId === undefined ? {} : { requestId }),
+      });
     } catch (error) {
       console.error("[Drawing] Failed to load paths:", error);
+      socket.emit("drawing:error", {
+        sheetId,
+        ...(requestId === undefined ? {} : { requestId }),
+        error: "Failed to load drawings",
+      });
     }
   });
 
@@ -58,16 +136,19 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
   // 드로잉 완료 → DB 저장 + 브로드캐스트
   socket.on(
     "drawing:end",
-    (data: {
-      sheetId: string;
-      pathId: string;
-      profileId: string;
-      color: string;
-      width: number;
-      isEraser: boolean;
-      isHighlighter: boolean;
-      points: { x: number; y: number }[];
-    }) => {
+    (
+      data: {
+        sheetId: string;
+        pathId: string;
+        profileId: string;
+        color: string;
+        width: number;
+        isEraser: boolean;
+        isHighlighter: boolean;
+        points: { x: number; y: number }[];
+      },
+      ack?: MutationAck,
+    ) => {
       try {
         const id = data.pathId || nanoid();
         const now = nowIso();
@@ -103,47 +184,48 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
             // 피어에 rejected를 보내면 송신자 전용 롤백 로직까지 실행되므로 이벤트를 분리
             socket.emit("drawing:rejected", { sheetId: data.sheetId, pathId: id });
             socket.to(`sheet:${data.sheetId}`).emit("drawing:cancelled", { sheetId: data.sheetId, pathId: id });
+            ack?.({ ok: false, sheetId: data.sheetId, error: "Path ID belongs to another sheet" });
             return;
           }
-          io.to(`sheet:${existing.sheetId}`).emit("drawing:ended", {
-            id: existing.id,
+          const path = parsePath(existing);
+          io.to(completedRooms(existing.sheetId)).emit("drawing:ended", {
+            ...path,
             pathId: existing.id,
-            sheetId: existing.sheetId,
-            profileId: existing.profileId,
-            color: existing.color,
-            width: existing.width,
-            isEraser: existing.isEraser,
-            isHighlighter: existing.isHighlighter,
-            points: JSON.parse(existing.points),
           });
+          ack?.({ ok: true, sheetId: data.sheetId, path });
           return;
         }
 
-        socket.to(`sheet:${data.sheetId}`).emit("drawing:ended", {
-          ...data,
-          id,
-        });
+        const path = parsePath(db.select().from(drawingPaths).where(eq(drawingPaths.id, id)).get()!);
+        socket.to(completedRooms(data.sheetId)).emit("drawing:ended", { ...path, pathId: id });
+        ack?.({ ok: true, sheetId: data.sheetId, path });
       } catch (error) {
         console.error("[Drawing] Failed to save path:", error);
+        socket.emit("drawing:rejected", { sheetId: data.sheetId, pathId: data.pathId });
+        socket.to(`sheet:${data.sheetId}`).emit("drawing:cancelled", { sheetId: data.sheetId, pathId: data.pathId });
+        ack?.({ ok: false, sheetId: data.sheetId, error: "Failed to save drawing" });
       }
     },
   );
 
   // 드로잉 삭제 → DB 삭제 + 브로드캐스트 (멱등성)
-  socket.on("drawing:delete", (data: { sheetId: string; pathId: string }) => {
+  socket.on("drawing:delete", (data: { sheetId: string; pathId: string }, ack?: MutationAck) => {
     try {
       // 삭제를 (id + sheetId)로 스코프 — 잘못된/충돌한 id로 다른 시트의 획이 지워지는 것 방지
-      db.delete(drawingPaths)
+      const result = db
+        .delete(drawingPaths)
         .where(and(eq(drawingPaths.id, data.pathId), eq(drawingPaths.sheetId, data.sheetId)))
         .run();
-      socket.to(`sheet:${data.sheetId}`).emit("drawing:deleted", data);
+      socket.to(completedRooms(data.sheetId)).emit("drawing:deleted", data);
+      ack?.({ ok: true, sheetId: data.sheetId, deletedPathIds: result.changes ? [data.pathId] : [] });
     } catch (error) {
       console.error("[Drawing] Failed to delete path:", error);
+      ack?.({ ok: false, sheetId: data.sheetId, error: "Failed to delete drawing" });
     }
   });
 
   // 내 드로잉 전체 삭제 → DB 삭제 + 브로드캐스트
-  socket.on("drawing:clear", (data: { sheetId: string; profileId: string }) => {
+  socket.on("drawing:clear", (data: { sheetId: string; profileId: string }, ack?: MutationAck) => {
     try {
       const mine = and(eq(drawingPaths.sheetId, data.sheetId), eq(drawingPaths.profileId, data.profileId));
       const myPaths = db.select({ id: drawingPaths.id }).from(drawingPaths).where(mine).all();
@@ -151,13 +233,15 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
 
       db.delete(drawingPaths).where(mine).run();
 
-      io.to(`sheet:${data.sheetId}`).emit("drawing:cleared", {
+      io.to(completedRooms(data.sheetId)).emit("drawing:cleared", {
         sheetId: data.sheetId,
         profileId: data.profileId,
         deletedPathIds,
       });
+      ack?.({ ok: true, sheetId: data.sheetId, deletedPathIds });
     } catch (error) {
       console.error("[Drawing] Failed to clear paths:", error);
+      ack?.({ ok: false, sheetId: data.sheetId, error: "Failed to clear drawings" });
     }
   });
 }
