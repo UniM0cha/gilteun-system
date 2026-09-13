@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const uploads = mkdtempSync(join(tmpdir(), "gilteun-canvas-e2e-"));
+writeFileSync(join(uploads, ".owner.json"), JSON.stringify({ suite: "canvas-retention", pid: process.pid }));
 process.env.PORT = "3197";
 process.env.DB_PATH = ":memory:";
 process.env.UPLOADS_DIR = uploads;
