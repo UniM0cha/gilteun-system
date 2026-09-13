@@ -1,3 +1,4 @@
+import { cancelProgress } from "../socket/drawingProgress.js";
 import { Router } from "express";
 import { nanoid } from "nanoid";
 import { eq, asc } from "drizzle-orm";
@@ -154,7 +155,10 @@ router.delete("/sheets/:id", (req, res) => {
     res.json({ success: true });
 
     const io = req.app.get("io") as Server | undefined;
-    if (io) broadcastSheetsUpdate(io, existing.worshipId);
+    if (io) {
+      cancelProgress(io, (path) => path.sheetId === id);
+      broadcastSheetsUpdate(io, existing.worshipId);
+    }
   } catch (error) {
     console.error("Failed to delete sheet:", error);
     res.status(500).json({ error: "Failed to delete sheet" });

@@ -1,3 +1,4 @@
+import { cancelProgress } from "../socket/drawingProgress.js";
 import { Router } from "express";
 import { nanoid } from "nanoid";
 import { eq, and, like, desc, inArray, sql } from "drizzle-orm";
@@ -201,7 +202,10 @@ router.delete("/:id", (req, res) => {
     res.json({ success: true });
 
     const io = req.app.get("io") as Server | undefined;
-    if (io) io.to(`worship:${id}`).emit("worship:deleted", { worshipId: id });
+    if (io) {
+      cancelProgress(io, (path) => path.worshipId === id);
+      io.to(`worship:${id}`).emit("worship:deleted", { worshipId: id });
+    }
   } catch (error) {
     console.error("Failed to delete worship:", error);
     res.status(500).json({ error: "Failed to delete worship" });

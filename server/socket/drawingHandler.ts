@@ -4,6 +4,7 @@ import { eq, and, asc, sql } from "drizzle-orm";
 import { db } from "../db";
 import { drawingPaths, sheets, worships } from "../db/schema.js";
 import { nowIso } from "../lib/date.js";
+import { cancelProgress, progressKey, progressRegistry, progressRooms } from "./drawingProgress.js";
 
 type DrawingRow = typeof drawingPaths.$inferSelect;
 type DrawingPath = Omit<DrawingRow, "points"> & { points: { x: number; y: number }[] };
@@ -30,9 +31,40 @@ function completedRooms(sheetId: string): string[] {
 
 export function setupDrawingHandler(io: Server, socket: Socket): void {
   let subscription: DrawingsSubscription | null = null;
+  const progress = progressRegistry(io);
+  const cancelOwned = (worshipId?: string, sheetId?: string) =>
+    cancelProgress(
+      io,
+      (path) =>
+        path.ownerSocketId === socket.id &&
+        (worshipId === undefined || path.worshipId === worshipId) &&
+        (sheetId === undefined || path.sheetId === sheetId),
+    );
+  const removeOwned = (sheetId: string, pathId: string) => {
+    const key = progressKey(socket.id, sheetId, pathId);
+    const path = progress.get(key);
+    progress.delete(key);
+    return path;
+  };
+  const cancelPath = (sheetId: string, pathId: string) => {
+    const path = removeOwned(sheetId, pathId);
+    socket.to(path ? progressRooms(path) : completedRooms(sheetId)).emit("drawing:cancelled", {
+      sheetId,
+      pathId,
+      ownerSocketId: socket.id,
+    });
+  };
+  socket.on("disconnecting", () => cancelOwned());
+  socket.on("leave:worship", ({ worshipId }: { worshipId: string }) => cancelOwned(worshipId));
+  socket.on("join:worship", ({ worshipId }: { worshipId: string }) => {
+    cancelProgress(io, (path) => path.ownerSocketId === socket.id && path.worshipId !== worshipId);
+  });
 
   socket.on("drawings:subscribe", (data: DrawingsSubscription) => {
-    if (subscription) socket.leave(drawingsRoom(subscription.worshipId));
+    if (subscription) {
+      if (subscription.worshipId !== data?.worshipId) cancelOwned(subscription.worshipId);
+      socket.leave(drawingsRoom(subscription.worshipId));
+    }
     subscription = null;
 
     try {
@@ -67,6 +99,9 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
       const states = worshipSheets.map((sheet) => ({
         sheetId: sheet.id,
         paths: pathsBySheet.get(sheet.id) ?? [],
+        inProgress: Array.from(progress.values())
+          .filter((path) => path.sheetId === sheet.id && path.ownerSocketId !== socket.id)
+          .map(({ worshipId: _worshipId, ...path }) => path),
       }));
       socket.emit("drawings:state", { ...subscription, sheets: states });
     } catch (error) {
@@ -88,6 +123,7 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
       subscription.subscriptionId !== data?.subscriptionId
     )
       return;
+    cancelOwned(subscription.worshipId);
     socket.leave(drawingsRoom(subscription.worshipId));
     subscription = null;
   });
@@ -118,6 +154,7 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
   );
 
   socket.on("leave:sheet", ({ sheetId }: { sheetId: string }) => {
+    cancelOwned(undefined, sheetId);
     socket.leave(`sheet:${sheetId}`);
   });
 
@@ -134,20 +171,39 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
       isHighlighter: boolean;
       point: { x: number; y: number };
     }) => {
-      socket.to(`sheet:${data.sheetId}`).emit("drawing:started", data);
+      const sheet = db.select({ worshipId: sheets.worshipId }).from(sheets).where(eq(sheets.id, data.sheetId)).get();
+      if (!sheet) return;
+      const path = {
+        sheetId: data.sheetId,
+        pathId: data.pathId,
+        profileId: data.profileId,
+        color: data.color,
+        width: data.width,
+        isEraser: data.isEraser,
+        isHighlighter: data.isHighlighter ?? false,
+        ownerSocketId: socket.id,
+        worshipId: sheet.worshipId,
+        points: [data.point],
+      };
+      progress.set(progressKey(socket.id, data.sheetId, data.pathId), path);
+      socket.to(progressRooms(path)).emit("drawing:started", { ...data, ownerSocketId: socket.id });
     },
   );
 
   // 드로잉 이동 → 브로드캐스트 (DB 저장 없음)
   socket.on("drawing:move", (data: { sheetId: string; pathId: string; point: { x: number; y: number } }) => {
-    socket.to(`sheet:${data.sheetId}`).emit("drawing:moved", data);
+    const path = progress.get(progressKey(socket.id, data.sheetId, data.pathId));
+    if (!path) return;
+    path.points.push(data.point);
+    socket.to(progressRooms(path)).emit("drawing:moved", { ...data, ownerSocketId: socket.id });
   });
 
   // 진행 중 획 취소 → 피어의 진행 중 렌더만 정리 (DB 저장 전 단계라 지울 row가 없음)
   // 이 이벤트가 없으면 drawing:end로 확정되지 않고 버려진 획이 피어의 remoteInProgress에 영원히 남는다.
   // 수신측은 기존 drawing:cancelled 핸들러를 그대로 재사용한다.
   socket.on("drawing:cancel", (data: { sheetId: string; pathId: string }) => {
-    socket.to(`sheet:${data.sheetId}`).emit("drawing:cancelled", { sheetId: data.sheetId, pathId: data.pathId });
+    if (!progress.has(progressKey(socket.id, data.sheetId, data.pathId))) return;
+    cancelPath(data.sheetId, data.pathId);
   });
 
   // 드로잉 완료 → DB 저장 + 브로드캐스트
@@ -200,26 +256,31 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
             // 나머지 피어에게는 이미 받은 started/moved의 진행 중 획 정리만 지시한다.
             // 피어에 rejected를 보내면 송신자 전용 롤백 로직까지 실행되므로 이벤트를 분리
             socket.emit("drawing:rejected", { sheetId: data.sheetId, pathId: id });
-            socket.to(`sheet:${data.sheetId}`).emit("drawing:cancelled", { sheetId: data.sheetId, pathId: id });
+            cancelPath(data.sheetId, id);
             ack?.({ ok: false, sheetId: data.sheetId, error: "Path ID belongs to another sheet" });
             return;
           }
+          removeOwned(data.sheetId, data.pathId);
           const path = parsePath(existing);
           io.to(completedRooms(existing.sheetId)).emit("drawing:ended", {
             ...path,
             pathId: existing.id,
+            ownerSocketId: socket.id,
           });
           ack?.({ ok: true, sheetId: data.sheetId, path });
           return;
         }
 
         const path = parsePath(db.select().from(drawingPaths).where(eq(drawingPaths.id, id)).get()!);
-        socket.to(completedRooms(data.sheetId)).emit("drawing:ended", { ...path, pathId: id });
+        removeOwned(data.sheetId, data.pathId);
+        socket
+          .to(completedRooms(data.sheetId))
+          .emit("drawing:ended", { ...path, pathId: id, ownerSocketId: socket.id });
         ack?.({ ok: true, sheetId: data.sheetId, path });
       } catch (error) {
         console.error("[Drawing] Failed to save path:", error);
         socket.emit("drawing:rejected", { sheetId: data.sheetId, pathId: data.pathId });
-        socket.to(`sheet:${data.sheetId}`).emit("drawing:cancelled", { sheetId: data.sheetId, pathId: data.pathId });
+        cancelPath(data.sheetId, data.pathId);
         ack?.({ ok: false, sheetId: data.sheetId, error: "Failed to save drawing" });
       }
     },
