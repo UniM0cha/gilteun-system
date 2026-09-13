@@ -108,9 +108,182 @@ afterEach(async () => {
   await act(async () => root.unmount());
   client.clear();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("useDrawingSync session lifecycle", () => {
+  it("starts page and bulk requests on HTTP contexts without crypto.randomUUID", async () => {
+    vi.stubGlobal("crypto", undefined);
+    await render();
+    const first = last<{ requestId: string }>("join:sheet");
+    expect(first.requestId).toMatch(/^\d+-/);
+    await page([]);
+    await render({ preloadEnabled: true });
+    expect(last<{ subscriptionId: string }>("drawings:subscribe").subscriptionId).toMatch(/^\d+-/);
+    await bulk([
+      { sheetId: "one", paths: [] },
+      { sheetId: "two", paths: [] },
+    ]);
+    expect(current.bulkStatus).toBe("ready");
+  });
+
+  it("times out an unanswered first page after ten seconds and recovers on retry", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await render();
+    await act(async () => vi.advanceTimersByTime(9_999));
+    expect(current.loadError).toBeNull();
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(current.loadError).toContain("다시 시도");
+    await act(async () => current.retryLoad());
+    expect(current.loadError).toBeNull();
+    await page([path("loaded")]);
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(current.loadError).toBeNull();
+    expect(current.paths.map((item) => item.id)).toEqual(["loaded"]);
+  });
+
+  it("keeps bulk timeout errors visible when a separate page response succeeds, then retries", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await render({ preloadEnabled: true });
+    await act(async () => vi.advanceTimersByTime(10_000));
+    expect(current.bulkStatus).toBe("error");
+    await page([path("loaded")]);
+    expect(current.loadError).toContain("예배의 그림");
+    const retained = current.paths;
+    await act(async () => current.retryLoad());
+    expect(current.loadError).toBeNull();
+    expect(current.paths).toBe(retained);
+    await bulk([
+      { sheetId: "one", paths: [path("loaded")] },
+      { sheetId: "two", paths: [] },
+    ]);
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(current.bulkStatus).toBe("ready");
+    expect(current.loadError).toBeNull();
+  });
+
+  it("cancels old request timers on replacement and when a bulk snapshot fills the current page", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await render({ preloadEnabled: true });
+    await act(async () => vi.advanceTimersByTime(5_000));
+    await act(async () => current.retryLoad());
+    await act(async () => vi.advanceTimersByTime(5_000));
+    expect(current.loadError).toBeNull();
+    expect(current.bulkStatus).toBe("loading");
+    await bulk([
+      { sheetId: "one", paths: [] },
+      { sheetId: "two", paths: [] },
+    ]);
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(current.loadError).toBeNull();
+  });
+
+  it("cancels timers on disconnect, reports unknown drawings, and keeps loaded vectors", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await render({ preloadEnabled: true });
+    await page([path("retained")]);
+    const retained = current.paths;
+    await act(async () => {
+      fake.connected = false;
+      fake.receive("disconnect");
+    });
+    expect(current.loadError).toContain("연결이 끊겨");
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(current.loadError).toContain("연결이 끊겨");
+    expect(current.paths).toBe(retained);
+    await act(async () => {
+      fake.connected = true;
+      fake.receive("connect");
+    });
+    await bulk([
+      { sheetId: "one", paths: [path("retained")] },
+      { sheetId: "two", paths: [] },
+    ]);
+    expect(current.loadError).toBeNull();
+    expect(current.paths).toBe(retained);
+  });
+
+  it("cancels page and worship timers when their owner leaves", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await render({ preloadEnabled: true });
+    await act(async () => vi.advanceTimersByTime(5_000));
+    await render({
+      worshipId: "next",
+      sheetId: "next-page",
+      sheets: [sheet("next-page", "next")],
+      preloadEnabled: false,
+    });
+    await page([]);
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(current.loadError).toBeNull();
+    expect(current.bulkStatus).toBe("idle");
+  });
+
+  it("preserves redo when the earlier add of the same path is rejected", async () => {
+    await render();
+    await page([]);
+    await act(async () => current.addPath(path("a")));
+    await act(async () => current.undo());
+    await act(async () => current.redo());
+    const adds = fake.emissions.filter((item) => item.event === "drawing:end");
+    const deletion = fake.emissions.find((item) => item.event === "drawing:delete")!;
+    const firstAck = adds[0].args[1] as (value: unknown) => void;
+    const deleteAck = deletion.args[1] as (value: unknown) => void;
+    const redoAck = adds[1].args[1] as (value: unknown) => void;
+    await act(async () => {
+      fake.receive("drawing:rejected", { sheetId: "one", pathId: "a" });
+      firstAck({ ok: false, sheetId: "one", error: "temporary save failure" });
+      deleteAck({ ok: true, sheetId: "one", deletedPathIds: [] });
+      redoAck({ ok: true, sheetId: "one", path: path("a") });
+    });
+    expect(current.paths.map((item) => item.id)).toEqual(["a"]);
+    await act(async () => current.undo());
+    expect(current.paths).toEqual([]);
+  });
+
+  it("does not let an older canonical collision echo discard a later redo operation", async () => {
+    await render();
+    const canonical = { ...path("a"), color: "blue" };
+    await page([canonical]);
+    await act(async () => current.addPath(path("a")));
+    await act(async () => current.undo());
+    await act(async () => current.redo());
+    const adds = fake.emissions.filter((item) => item.event === "drawing:end");
+    const firstAck = adds[0].args[1] as (value: unknown) => void;
+    const deleteAck = fake.emissions.find((item) => item.event === "drawing:delete")!.args[1] as (
+      value: unknown,
+    ) => void;
+    const redoAck = adds[1].args[1] as (value: unknown) => void;
+    await act(async () => {
+      fake.receive("drawing:ended", { ...canonical, pathId: "a" });
+      firstAck({ ok: true, sheetId: "one", path: canonical });
+      deleteAck({ ok: true, sheetId: "one", deletedPathIds: ["a"] });
+      redoAck({ ok: true, sheetId: "one", path: path("a") });
+    });
+    expect(current.paths).toEqual([path("a")]);
+    await act(async () => current.undo());
+    expect(current.paths).toEqual([]);
+  });
+
+  it("preserves newer successful undo history when an unrelated earlier edit fails", async () => {
+    await render();
+    await page([]);
+    await act(async () => current.addPath(path("failed")));
+    await act(async () => current.addPath(path("saved")));
+    const adds = fake.emissions.filter((item) => item.event === "drawing:end");
+    const firstAck = adds[0].args[1] as (value: unknown) => void;
+    const secondAck = adds[1].args[1] as (value: unknown) => void;
+    await act(async () => {
+      secondAck({ ok: true, sheetId: "one", path: path("saved") });
+      firstAck({ ok: false, sheetId: "one", error: "save failed" });
+    });
+    expect(current.paths.map((item) => item.id)).toEqual(["saved"]);
+    await act(async () => current.undo());
+    expect(last<{ pathId: string }>("drawing:delete").pathId).toBe("saved");
+    expect(current.paths).toEqual([]);
+  });
+
   it("has its listeners installed before the initial page request is emitted", async () => {
     const emit = fake.emit.bind(fake);
     vi.spyOn(fake, "emit").mockImplementation((event, ...args) => {

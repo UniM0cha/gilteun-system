@@ -143,13 +143,6 @@ export class DrawingSession {
     }
   }
 
-  rejectPath(sheetId: string, pathId: string): void {
-    this.pending = this.pending.filter(
-      (item) => !(item.sheetId === sheetId && item.change.kind === "add" && item.change.path.id === pathId),
-    );
-    this.publish();
-  }
-
   private publish(): void {
     const next = new Map(this.confirmed);
     for (const item of this.pending) {

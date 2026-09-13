@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSocket } from "./useSocket";
 import { queryKeys } from "@/lib/queryKeys";
+import { generateId } from "@/lib/canvas";
 import {
   DrawingSession,
   sameDrawing,
@@ -41,24 +42,14 @@ interface RemoteInProgressPath {
 interface UndoAction {
   added: DrawingPath[];
   deleted: DrawingPath[];
+  revision: number;
 }
 
 type BulkStatus = "idle" | "loading" | "ready" | "error";
 const EMPTY_PATHS: DrawingPath[] = [];
 const EMPTY_REMOTE: RemoteInProgressPath[] = [];
-
-function purgeLatestAdded(stack: UndoAction[], id: string): UndoAction[] {
-  for (let i = stack.length - 1; i >= 0; i--) {
-    if (stack[i].added.some((path) => path.id === id)) {
-      const next = [...stack];
-      const updated = { ...next[i], added: next[i].added.filter((path) => path.id !== id) };
-      if (updated.added.length > 0 || updated.deleted.length > 0) next[i] = updated;
-      else next.splice(i, 1);
-      return next;
-    }
-  }
-  return stack;
-}
+const SNAPSHOT_TIMEOUT_MS = 10_000;
+const CONNECTION_ERROR = "연결이 끊겨 그림을 불러올 수 없습니다. 연결 후 다시 시도해 주세요.";
 
 interface UseDrawingSyncOptions {
   sheetId: string | null;
@@ -92,22 +83,40 @@ export function useDrawingSync({
   const currentSheetIdRef = useRef<string | null>(null);
   const pageRequestRef = useRef<{ id: string; reconciledThrough?: number } | null>(null);
   const subscriptionRef = useRef<{ id: string; reconciledThrough?: number } | null>(null);
-  const batchRef = useRef<DrawingPath[] | null>(null);
+  const pageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bulkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const batchRef = useRef<UndoAction | null>(null);
   const undoRef = useRef<UndoAction[]>([]);
   const redoRef = useRef<UndoAction[]>([]);
   const activeSessionRef = useRef(session);
   activeSessionRef.current = session;
-  const optionsRef = useRef({ sheetId, worshipId, enabled, preloadEnabled });
-  optionsRef.current = { sheetId, worshipId, enabled, preloadEnabled };
+  const optionsRef = useRef({ sheetId, worshipId, enabled, preloadEnabled, sheetIds: sheets.map((sheet) => sheet.id) });
+  optionsRef.current = { sheetId, worshipId, enabled, preloadEnabled, sheetIds: sheets.map((sheet) => sheet.id) };
   const socket = getSocket();
   const queryClient = useQueryClient();
   const sheetIdsKey = JSON.stringify(sheets.map((sheet) => sheet.id));
 
+  const clearPageTimer = useCallback(() => {
+    if (pageTimerRef.current !== null) clearTimeout(pageTimerRef.current);
+    pageTimerRef.current = null;
+  }, []);
+  const clearBulkTimer = useCallback(() => {
+    if (bulkTimerRef.current !== null) clearTimeout(bulkTimerRef.current);
+    bulkTimerRef.current = null;
+  }, []);
+
   const requestPage = useCallback(
     (reconcilePending = false, forceState = false) => {
       const current = optionsRef.current;
-      if (!current.enabled || !current.sheetId || !socket.connected) return;
-      const requestId = crypto.randomUUID();
+      clearPageTimer();
+      if (!current.enabled || !current.sheetId) return;
+      if (!socket.connected) {
+        if (!session.getSnapshot().has(current.sheetId)) {
+          setFailure({ session, sheetId: current.sheetId, message: CONNECTION_ERROR });
+        }
+        return;
+      }
+      const requestId = generateId();
       const withState =
         reconcilePending ||
         forceState ||
@@ -116,25 +125,55 @@ export function useDrawingSync({
       pageRequestRef.current = withState
         ? { id: requestId, reconciledThrough: reconcilePending ? session.checkpoint() : undefined }
         : null;
-      setFailure(null);
+      setFailure((previous) => (previous?.sheetId ? null : previous));
+      if (withState) {
+        pageTimerRef.current = setTimeout(() => {
+          if (activeSessionRef.current !== session || pageRequestRef.current?.id !== requestId) return;
+          pageTimerRef.current = null;
+          setFailure({
+            session,
+            sheetId: current.sheetId,
+            message: "그림을 불러오는 데 시간이 걸리고 있습니다. 다시 시도해 주세요.",
+          });
+        }, SNAPSHOT_TIMEOUT_MS);
+      }
       socket.emit("join:sheet", { sheetId: current.sheetId, withState, ...(withState ? { requestId } : {}) });
     },
-    [session, socket],
+    [session, socket, clearPageTimer],
   );
 
   const requestAll = useCallback(
     (reconcilePending = false) => {
       const current = optionsRef.current;
-      if (!current.enabled || !current.worshipId || !current.preloadEnabled || !socket.connected) return;
-      const subscriptionId = crypto.randomUUID();
+      clearBulkTimer();
+      if (!current.enabled || !current.worshipId || !current.preloadEnabled) return;
+      if (!socket.connected) {
+        if (current.sheetIds.some((id) => !session.getSnapshot().has(id))) {
+          setBulk({ session, status: "error" });
+          setFailure({ session, sheetId: null, message: CONNECTION_ERROR });
+        }
+        return;
+      }
+      const subscriptionId = generateId();
       subscriptionRef.current = {
         id: subscriptionId,
         reconciledThrough: reconcilePending ? session.checkpoint() : undefined,
       };
       setBulk({ session, status: "loading" });
+      setFailure((previous) => (previous?.sheetId === null ? null : previous));
+      bulkTimerRef.current = setTimeout(() => {
+        if (activeSessionRef.current !== session || subscriptionRef.current?.id !== subscriptionId) return;
+        bulkTimerRef.current = null;
+        setBulk({ session, status: "error" });
+        setFailure({
+          session,
+          sheetId: null,
+          message: "예배의 그림을 불러오는 데 시간이 걸리고 있습니다. 다시 시도해 주세요.",
+        });
+      }, SNAPSHOT_TIMEOUT_MS);
       socket.emit("drawings:subscribe", { worshipId: current.worshipId, subscriptionId });
     },
-    [session, socket],
+    [session, socket, clearBulkTimer],
   );
 
   // Register page membership before any socket request. A missing map key means
@@ -170,9 +209,10 @@ export function useDrawingSync({
         data.requestId !== pageRequestRef.current.id
       )
         return;
+      clearPageTimer();
       session.snapshot([data], pageRequestRef.current.reconciledThrough);
       pageRequestRef.current.reconciledThrough = undefined;
-      setFailure(null);
+      setFailure((previous) => (previous?.sheetId === data.sheetId ? null : previous));
     };
     const handlePageError = (data: { sheetId: string; requestId?: string; error: string }) => {
       if (
@@ -181,6 +221,7 @@ export function useDrawingSync({
         data.requestId !== pageRequestRef.current.id
       )
         return;
+      clearPageTimer();
       setFailure({ session, sheetId: data.sheetId, message: "이 페이지의 그림을 불러오지 못했습니다." });
     };
     const handleAll = (data: { worshipId: string; subscriptionId: string; sheets: DrawingSnapshotPage[] }) => {
@@ -190,6 +231,11 @@ export function useDrawingSync({
         data.subscriptionId !== subscriptionRef.current.id
       )
         return;
+      clearBulkTimer();
+      if (data.sheets.some((page) => page.sheetId === currentSheetIdRef.current)) {
+        clearPageTimer();
+        pageRequestRef.current = null;
+      }
       session.snapshot(data.sheets, subscriptionRef.current.reconciledThrough);
       subscriptionRef.current.reconciledThrough = undefined;
       setBulk({ session, status: "ready" });
@@ -197,6 +243,7 @@ export function useDrawingSync({
     };
     const handleAllError = (data: { worshipId: string; subscriptionId: string; error: string }) => {
       if (data.worshipId !== worshipId || data.subscriptionId !== subscriptionRef.current?.id) return;
+      clearBulkTimer();
       setBulk({ session, status: "error" });
       setFailure({ session, sheetId: null, message: "예배의 그림을 미리 불러오지 못했습니다." });
     };
@@ -231,38 +278,34 @@ export function useDrawingSync({
       if (!session.hasSheet(data.sheetId)) return;
       removeInProgress(data);
       const path = { ...data, id: data.id || data.pathId, isHighlighter: data.isHighlighter ?? false };
-      const local = session
-        .getSnapshot()
-        .get(data.sheetId)
-        ?.find((item) => item.id === path.id);
       session.remote(data.sheetId, { kind: "add", path });
-      // A canonical collision echo must remove only the rejected optimistic add,
-      // so undo can never delete the pre-existing server row with the same ID.
-      if (local && !sameDrawing(local, path)) {
-        session.rejectPath(data.sheetId, path.id);
-        if (data.sheetId === currentSheetIdRef.current) {
-          undoRef.current = purgeLatestAdded(undoRef.current, path.id);
-          redoRef.current = purgeLatestAdded(redoRef.current, path.id);
-        }
-      }
+      // Only an operation's ack can settle its optimistic edit. A collision echo
+      // can precede a later undo/redo using the same path ID.
     };
     const handleDeleted = (data: { sheetId: string; pathId: string }) => {
       session.remote(data.sheetId, { kind: "delete", pathIds: [data.pathId] });
     };
     const handleRejected = (data: { sheetId: string; pathId: string }) => {
-      session.rejectPath(data.sheetId, data.pathId);
-      if (data.sheetId === currentSheetIdRef.current) {
-        undoRef.current = purgeLatestAdded(undoRef.current, data.pathId);
-        redoRef.current = purgeLatestAdded(redoRef.current, data.pathId);
-      }
+      // Legacy rejection notifications identify a path, not an operation. Its
+      // ack performs the rollback without discarding a later add of the same ID.
+      removeInProgress(data);
     };
     const handleCleared = (data: { sheetId: string; deletedPathIds: string[] }) => {
       session.remote(data.sheetId, { kind: "delete", pathIds: data.deletedPathIds });
     };
     const handleDisconnect = () => {
+      clearPageTimer();
+      clearBulkTimer();
       pageRequestRef.current = null;
       subscriptionRef.current = null;
       setRemoteInProgress(new Map());
+      const current = optionsRef.current;
+      if (current.preloadEnabled && current.sheetIds.some((id) => !session.getSnapshot().has(id))) {
+        setBulk({ session, status: "error" });
+        setFailure({ session, sheetId: null, message: CONNECTION_ERROR });
+      } else if (current.sheetId && !session.getSnapshot().has(current.sheetId)) {
+        setFailure({ session, sheetId: current.sheetId, message: CONNECTION_ERROR });
+      }
     };
     const handleConnect = () => {
       // Socket.IO flushes its sendBuffer before firing connect. Request a fresh
@@ -298,7 +341,7 @@ export function useDrawingSync({
       socket.off("disconnect", handleDisconnect);
       socket.off("connect", handleConnect);
     };
-  }, [enabled, worshipId, session, socket, requestPage, requestAll]);
+  }, [enabled, worshipId, session, socket, requestPage, requestAll, clearPageTimer, clearBulkTimer]);
 
   useEffect(() => {
     if (!enabled || !sheetId) return;
@@ -309,27 +352,31 @@ export function useDrawingSync({
     redoRef.current = [];
     requestPage();
     return () => {
+      clearPageTimer();
       socket.emit("leave:sheet", { sheetId });
       currentSheetIdRef.current = null;
       pageRequestRef.current = null;
       // Keep both the page's vectors and its rendered canvas when leaving a page.
     };
-  }, [sheetId, enabled, session, socket, requestPage]);
+  }, [sheetId, enabled, session, socket, requestPage, clearPageTimer]);
 
   useEffect(() => {
     if (!enabled || !worshipId || !preloadEnabled) return;
     requestAll();
-  }, [enabled, worshipId, preloadEnabled, sheetIdsKey, requestAll]);
+    return clearBulkTimer;
+  }, [enabled, worshipId, preloadEnabled, sheetIdsKey, requestAll, clearBulkTimer]);
 
   useEffect(() => {
     return () => {
+      clearPageTimer();
+      clearBulkTimer();
       if (worshipId && subscriptionRef.current) {
         socket.emit("drawings:unsubscribe", { worshipId, subscriptionId: subscriptionRef.current.id });
       }
       subscriptionRef.current = null;
       queryClient.removeQueries({ queryKey: queryKeys.drawings.all });
     };
-  }, [session, worshipId, queryClient, socket]);
+  }, [session, worshipId, queryClient, socket, clearPageTimer, clearBulkTimer]);
 
   const retryLoad = useCallback(() => {
     requestPage(false, true);
@@ -337,30 +384,39 @@ export function useDrawingSync({
   }, [requestPage, requestAll]);
 
   const sendChange = useCallback(
-    (targetSheet: string, change: DrawingMutation) => {
+    (targetSheet: string, change: DrawingMutation, action: UndoAction) => {
       if (!enabled || !profileId) return;
       if (change.kind === "add" && change.path.profileId !== profileId) {
         change = { kind: "add", path: { ...change.path, profileId } };
       }
       const id = session.mutate(targetSheet, change);
       if (id === null) return;
+      const revision = action.revision;
+      const removeFailedHistory = () => {
+        if (targetSheet !== currentSheetIdRef.current || action.revision !== revision) return;
+        const ids = new Set(
+          change.kind === "add"
+            ? [change.path.id]
+            : change.kind === "delete"
+              ? change.pathIds
+              : action.deleted.map((path) => path.id),
+        );
+        action.added = action.added.filter((path) => !ids.has(path.id));
+        action.deleted = action.deleted.filter((path) => !ids.has(path.id));
+        // Preserve newer transactions and successful paths from a partially failed
+        // eraser batch. An ack from an earlier undo/redo attempt changes neither.
+        const hasPaths = (item: UndoAction) => item.added.length > 0 || item.deleted.length > 0;
+        undoRef.current = undoRef.current.filter(hasPaths);
+        redoRef.current = redoRef.current.filter(hasPaths);
+      };
       const acknowledge = (ack: DrawingAcknowledgement) => {
         if (activeSessionRef.current !== session || ack.sheetId !== targetSheet) return;
         session.acknowledge(id, ack);
         if (!ack.ok) {
-          if (targetSheet === currentSheetIdRef.current) {
-            // A failed edit invalidates the current undo transaction. Rollback is
-            // computed from confirmed data, so it preserves intervening peer edits.
-            undoRef.current = [];
-            redoRef.current = [];
-            batchRef.current = null;
-          }
+          removeFailedHistory();
           toast.error("그림 변경을 저장하지 못해 이전 상태로 되돌렸습니다.");
         } else if (change.kind === "add" && ack.path && !sameDrawing(change.path, ack.path)) {
-          if (targetSheet === currentSheetIdRef.current) {
-            undoRef.current = purgeLatestAdded(undoRef.current, change.path.id);
-            redoRef.current = purgeLatestAdded(redoRef.current, change.path.id);
-          }
+          removeFailedHistory();
         }
       };
       if (change.kind === "add") {
@@ -406,9 +462,10 @@ export function useDrawingSync({
   const addPath = useCallback(
     (path: DrawingPath) => {
       if (!sheetId || !profileId || path.sheetId !== sheetId) return;
-      undoRef.current.push({ added: [path], deleted: [] });
+      const action = { added: [path], deleted: [], revision: 0 };
+      undoRef.current.push(action);
       redoRef.current = [];
-      sendChange(sheetId, { kind: "add", path });
+      sendChange(sheetId, { kind: "add", path }, action);
     },
     [sheetId, profileId, sendChange],
   );
@@ -420,21 +477,22 @@ export function useDrawingSync({
         .get(sheetId)
         ?.find((path) => path.id === pathId);
       if (!deleted) return;
-      if (batchRef.current) batchRef.current.push(deleted);
-      else {
-        undoRef.current.push({ added: [], deleted: [deleted] });
+      const action = batchRef.current ?? { added: [], deleted: [], revision: 0 };
+      action.deleted.push(deleted);
+      if (!batchRef.current) {
+        undoRef.current.push(action);
         redoRef.current = [];
       }
-      sendChange(sheetId, { kind: "delete", pathIds: [pathId] });
+      sendChange(sheetId, { kind: "delete", pathIds: [pathId] }, action);
     },
     [sheetId, session, sendChange],
   );
   const startBatch = useCallback(() => {
-    batchRef.current = [];
+    batchRef.current = { added: [], deleted: [], revision: 0 };
   }, []);
   const endBatch = useCallback(() => {
-    if (batchRef.current?.length) {
-      undoRef.current.push({ added: [], deleted: batchRef.current });
+    if (batchRef.current?.deleted.length) {
+      undoRef.current.push(batchRef.current);
       redoRef.current = [];
     }
     batchRef.current = null;
@@ -442,27 +500,30 @@ export function useDrawingSync({
   const clearMyPaths = useCallback(() => {
     if (!sheetId || !profileId) return;
     const mine = (session.getSnapshot().get(sheetId) ?? []).filter((path) => path.profileId === profileId);
+    const action = { added: [], deleted: mine, revision: 0 };
     if (mine.length) {
-      undoRef.current.push({ added: [], deleted: mine });
+      undoRef.current.push(action);
       redoRef.current = [];
     }
-    sendChange(sheetId, { kind: "clear", profileId });
+    sendChange(sheetId, { kind: "clear", profileId }, action);
   }, [sheetId, profileId, session, sendChange]);
   const undo = useCallback(() => {
     if (!sheetId || !profileId) return;
     const action = undoRef.current.pop();
     if (!action) return;
+    action.revision++;
     redoRef.current.push(action);
-    for (const path of action.added) sendChange(sheetId, { kind: "delete", pathIds: [path.id] });
-    for (const path of action.deleted) sendChange(sheetId, { kind: "add", path });
+    for (const path of action.added) sendChange(sheetId, { kind: "delete", pathIds: [path.id] }, action);
+    for (const path of action.deleted) sendChange(sheetId, { kind: "add", path }, action);
   }, [sheetId, profileId, sendChange]);
   const redo = useCallback(() => {
     if (!sheetId || !profileId) return;
     const action = redoRef.current.pop();
     if (!action) return;
+    action.revision++;
     undoRef.current.push(action);
-    for (const path of action.added) sendChange(sheetId, { kind: "add", path });
-    for (const path of action.deleted) sendChange(sheetId, { kind: "delete", pathIds: [path.id] });
+    for (const path of action.added) sendChange(sheetId, { kind: "add", path }, action);
+    for (const path of action.deleted) sendChange(sheetId, { kind: "delete", pathIds: [path.id] }, action);
   }, [sheetId, profileId, sendChange]);
 
   const visibleRemoteInProgress = useMemo(() => Array.from(remoteInProgress.values()), [remoteInProgress]);
