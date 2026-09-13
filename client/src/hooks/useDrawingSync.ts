@@ -73,38 +73,38 @@ export function useDrawingSync({ sheetId, profileId, worshipId, sheets, enabled 
     bulkTimerRef.current = null;
   }, []);
 
-  const requestAll = useCallback(
-    (reconcilePending = false) => {
-      const current = optionsRef.current;
-      clearBulkTimer();
-      if (!current.enabled || !current.worshipId) return;
-      if (!socket.connected) {
-        if (current.sheetIds.some((id) => !session.getSnapshot().pathsBySheet.has(id))) {
-          setBulk({ session, status: "error" });
-          setFailure({ session, message: CONNECTION_ERROR });
-        }
-        return;
-      }
-      const subscriptionId = generateId();
-      subscriptionRef.current = {
-        id: subscriptionId,
-        reconciledThrough: reconcilePending ? session.checkpoint() : undefined,
-      };
-      setBulk({ session, status: "loading" });
-      setFailure(null);
-      bulkTimerRef.current = setTimeout(() => {
-        if (activeSessionRef.current !== session || subscriptionRef.current?.id !== subscriptionId) return;
-        bulkTimerRef.current = null;
+  const requestAll = useCallback(() => {
+    const current = optionsRef.current;
+    clearBulkTimer();
+    if (!current.enabled || !current.worshipId) return;
+    if (!socket.connected) {
+      if (current.sheetIds.some((id) => !session.getSnapshot().pathsBySheet.has(id))) {
         setBulk({ session, status: "error" });
-        setFailure({
-          session,
-          message: "예배의 그림을 불러오는 데 시간이 걸리고 있습니다. 다시 시도해 주세요.",
-        });
-      }, SNAPSHOT_TIMEOUT_MS);
-      socket.emit("drawings:subscribe", { worshipId: current.worshipId, subscriptionId });
-    },
-    [session, socket, clearBulkTimer],
-  );
+        setFailure({ session, message: CONNECTION_ERROR });
+      }
+      return;
+    }
+    const subscriptionId = generateId();
+    subscriptionRef.current = {
+      id: subscriptionId,
+      // Every request follows already-emitted edits on this socket, including
+      // when a sheet-list refresh replaces an unanswered reconnect request.
+      // Edits created after this checkpoint stay optimistic until their own ack.
+      reconciledThrough: session.checkpoint(),
+    };
+    setBulk({ session, status: "loading" });
+    setFailure(null);
+    bulkTimerRef.current = setTimeout(() => {
+      if (activeSessionRef.current !== session || subscriptionRef.current?.id !== subscriptionId) return;
+      bulkTimerRef.current = null;
+      setBulk({ session, status: "error" });
+      setFailure({
+        session,
+        message: "예배의 그림을 불러오는 데 시간이 걸리고 있습니다. 다시 시도해 주세요.",
+      });
+    }, SNAPSHOT_TIMEOUT_MS);
+    socket.emit("drawings:subscribe", { worshipId: current.worshipId, subscriptionId });
+  }, [session, socket, clearBulkTimer]);
 
   // Register membership before installing listeners and subscribing to the worship.
   useEffect(() => {
@@ -179,7 +179,7 @@ export function useDrawingSync({ sheetId, profileId, worshipId, sheets, enabled 
     const handleConnect = () => {
       // Socket.IO flushes its sendBuffer before firing connect. Request a fresh
       // snapshot after that queue; do not introduce a second mutation retry queue.
-      requestAll(true);
+      requestAll();
     };
     socket.on("drawings:state", handleAll);
     socket.on("drawings:error", handleAllError);
@@ -232,7 +232,7 @@ export function useDrawingSync({ sheetId, profileId, worshipId, sheets, enabled 
 
   const retryLoad = useCallback(() => {
     // Retry is ordered after already-emitted mutations, including reconnect flushes.
-    requestAll(true);
+    requestAll();
   }, [requestAll]);
 
   const sendChange = useCallback(

@@ -396,6 +396,66 @@ describe("useDrawingSync session lifecycle", () => {
     },
   );
 
+  it.each([
+    ["add", "addition"],
+    ["add", "removal"],
+    ["add", "reorder"],
+    ["delete", "addition"],
+    ["delete", "removal"],
+    ["delete", "reorder"],
+  ] as const)(
+    "reconciles an unacknowledged %s when sheet %s replaces the reconnect request",
+    async (change, membershipChange) => {
+      const serverPaths = [path("keep"), ...(change === "delete" ? [path("uncertain")] : [])];
+      await render();
+      await page(serverPaths);
+      await act(async () => {
+        if (change === "add") current.addPath(path("uncertain"));
+        else current.deletePath("uncertain");
+      });
+      // No acknowledgement is received: the client cannot tell whether this edit saved.
+      await act(async () => {
+        fake.connected = false;
+        fake.receive("disconnect");
+      });
+      await act(async () => {
+        fake.connected = true;
+        fake.receive("connect");
+      });
+      const obsolete = last<{ worshipId: string; subscriptionId: string }>("drawings:subscribe");
+      const nextSheets =
+        membershipChange === "addition"
+          ? [sheet("one"), sheet("two"), sheet("three")]
+          : membershipChange === "removal"
+            ? [sheet("one")]
+            : [sheet("two"), sheet("one")];
+      await render({ sheets: nextSheets });
+      expect(last<{ subscriptionId: string }>("drawings:subscribe").subscriptionId).not.toBe(obsolete.subscriptionId);
+      // Both kinds of edits created after the replacement request must survive it.
+      await act(async () => {
+        current.addPath(path("after-request"));
+        current.deletePath("keep");
+      });
+      const beforeObsolete = current.paths;
+      await act(async () =>
+        fake.receive("drawings:state", {
+          ...obsolete,
+          sheets: [{ sheetId: "one", paths: [path("obsolete")] }],
+        }),
+      );
+      expect(current.paths).toBe(beforeObsolete);
+      await page(serverPaths);
+      expect(current.paths.map((item) => item.id)).toEqual([
+        ...(change === "delete" ? ["uncertain"] : []),
+        "after-request",
+      ]);
+      expect(fake.emissions.filter((item) => item.event === "drawing:end")).toHaveLength(change === "add" ? 2 : 1);
+      expect(fake.emissions.filter((item) => item.event === "drawing:delete")).toHaveLength(
+        change === "delete" ? 2 : 1,
+      );
+    },
+  );
+
   it("reconciles an uncertain edit when a failed reconnect subscription is retried", async () => {
     await render();
     await page([]);
