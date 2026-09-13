@@ -5,12 +5,10 @@ import { queryKeys } from "@/lib/queryKeys";
 import type { DrawingPath } from "@/hooks/useDrawingSync";
 import type { Sheet } from "@/types";
 
-// 미리보기/시드용으로만 쓰는 스냅샷이라 짧게 — 전환 직후 소켓 drawing:state가 권위 데이터로 reconcile
+// HTTP fallback 스냅샷의 유효기간. 예배 뷰어는 useDrawingSync의 예배 단위
+// 소켓 저장소를 사용하며, 이 캐시는 아직 모르는 페이지를 처음 채울 때만 참고한다.
 const DRAWINGS_STALE_TIME = 1000 * 15;
-// prefetch된 인접 시트 캐시는 observer가 없어 즉시 inactive — 기본 gcTime(5분)이면
-// 한 곡에 오래 머문 뒤 페이지 전환 시 useDrawingSync의 getQueryData seed가 GC로 사라져
-// 소켓 스냅샷 도착까지 획이 빈 채로 깜빡인다. 예배 화면에 머무는 동안은 GC하지 않고,
-// 누적 방지는 useAdjacentDrawingsPreload의 unmount 정리(예배 이탈 시 전체 제거)가 맡는다.
+// 예배를 떠날 때 useDrawingSync가 정리한다. 페이지를 넘길 때는 삭제하지 않는다.
 const DRAWINGS_GC_TIME = Infinity;
 
 async function fetchSheetDrawings(sheetId: string): Promise<DrawingPath[]> {
@@ -33,8 +31,7 @@ export function useSheetDrawings(sheetId: string | null) {
 export function useAdjacentDrawingsPreload(sheets: Sheet[], currentPage: number) {
   const queryClient = useQueryClient();
 
-  // 예배 이탈 시 drawings 캐시 전체 정리 — gcTime Infinity라 방문하지 않은 인접 시트의
-  // prefetch 잔여분은 useDrawingSync의 시트 단위 removeQueries에 걸리지 않고 세션 내내 쌓인다
+  // 이 HTTP fallback 훅을 단독으로 사용하는 화면에서도 이탈 시 캐시를 정리한다.
   useEffect(() => {
     return () => {
       queryClient.removeQueries({ queryKey: queryKeys.drawings.all });
