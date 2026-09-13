@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { nanoid } from "nanoid";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 import { db } from "../db";
 import { drawingPaths, sheets, worships } from "../db/schema.js";
 import { nowIso } from "../lib/date.js";
@@ -50,10 +50,23 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
         .where(eq(sheets.worshipId, data.worshipId))
         .orderBy(asc(sheets.order))
         .all();
+      const allPaths = db
+        .select({ path: drawingPaths })
+        .from(drawingPaths)
+        .innerJoin(sheets, eq(drawingPaths.sheetId, sheets.id))
+        .where(eq(sheets.worshipId, data.worshipId))
+        // 기존 페이지별 조회의 rowid 순서를 명시해 JOIN 이후에도 합성 순서를 보존한다.
+        .orderBy(sql`${drawingPaths}.rowid`)
+        .all();
+      const pathsBySheet = new Map<string, DrawingPath[]>();
+      for (const { path } of allPaths) {
+        const paths = pathsBySheet.get(path.sheetId) ?? [];
+        paths.push(parsePath(path));
+        pathsBySheet.set(path.sheetId, paths);
+      }
       const states = worshipSheets.map((sheet) => ({
         sheetId: sheet.id,
-        // 기존 페이지 조회와 동일한 DB 순서를 유지해 형광펜/지우개의 합성 순서를 보존한다.
-        paths: db.select().from(drawingPaths).where(eq(drawingPaths.sheetId, sheet.id)).all().map(parsePath),
+        paths: pathsBySheet.get(sheet.id) ?? [],
       }));
       socket.emit("drawings:state", { ...subscription, sheets: states });
     } catch (error) {
@@ -79,26 +92,30 @@ export function setupDrawingHandler(io: Server, socket: Socket): void {
     subscription = null;
   });
 
-  // Sheet Room 입장 → 기존 드로잉 전송
-  socket.on("join:sheet", ({ sheetId, requestId }: { sheetId: string; requestId?: string }) => {
-    socket.join(`sheet:${sheetId}`);
+  // 전체 snapshot이 준비된 클라이언트는 진행 중 획 참여만 요청할 수 있다.
+  socket.on(
+    "join:sheet",
+    ({ sheetId, requestId, withState }: { sheetId: string; requestId?: string; withState?: boolean }) => {
+      socket.join(`sheet:${sheetId}`);
+      if (withState === false) return;
 
-    try {
-      const paths = db.select().from(drawingPaths).where(eq(drawingPaths.sheetId, sheetId)).all();
-      socket.emit("drawing:state", {
-        sheetId,
-        paths: paths.map(parsePath),
-        ...(requestId === undefined ? {} : { requestId }),
-      });
-    } catch (error) {
-      console.error("[Drawing] Failed to load paths:", error);
-      socket.emit("drawing:error", {
-        sheetId,
-        ...(requestId === undefined ? {} : { requestId }),
-        error: "Failed to load drawings",
-      });
-    }
-  });
+      try {
+        const paths = db.select().from(drawingPaths).where(eq(drawingPaths.sheetId, sheetId)).all();
+        socket.emit("drawing:state", {
+          sheetId,
+          paths: paths.map(parsePath),
+          ...(requestId === undefined ? {} : { requestId }),
+        });
+      } catch (error) {
+        console.error("[Drawing] Failed to load paths:", error);
+        socket.emit("drawing:error", {
+          sheetId,
+          ...(requestId === undefined ? {} : { requestId }),
+          error: "Failed to load drawings",
+        });
+      }
+    },
+  );
 
   socket.on("leave:sheet", ({ sheetId }: { sheetId: string }) => {
     socket.leave(`sheet:${sheetId}`);
