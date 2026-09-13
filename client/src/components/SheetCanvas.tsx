@@ -266,7 +266,8 @@ function SheetCanvas({
       publishReady(sheetId, imageReadyRef.current);
       return;
     }
-    publishReady(sheetId, false);
+    // Synchronous composition preserves the previous complete bitmap until the
+    // replacement is copied. It does not make a ready page temporarily unready.
     const bytes = renderCanvasAtomically(canvas, size, (ctx, drawRect) => {
       // 저장된 paths 렌더링
       for (const path of paths) {
@@ -333,7 +334,10 @@ function SheetCanvas({
       ctx.globalCompositeOperation = "source-over";
       ctx.globalAlpha = 1; // 형광펜 alpha 누수 방지 — 다음 redraw·다른 컨텍스트 사용이 반투명해지지 않도록
     });
-    if (bytes === null) return;
+    if (bytes === null) {
+      publishReady(sheetId, false);
+      return;
+    }
     lastRenderRef.current = {
       sheetId,
       paths,
