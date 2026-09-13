@@ -143,6 +143,21 @@ describe("Drawing socket subscriptions", () => {
     expect(state.sheets[1].paths).toEqual([]);
   });
 
+  it("여러 페이지의 획이 번갈아 저장되어도 전체 snapshot은 페이지별 기존 합성 순서를 유지한다", async () => {
+    seedPath("z-first", "sheet-1");
+    seedPath("z-second-page", "sheet-2");
+    seedPath("a-second", "sheet-1");
+    seedPath("a-second-page", "sheet-2");
+    const socket = await client();
+    const state = await subscribe(socket);
+    expect(state.sheets[0].paths).toEqual((await join(socket, "sheet-1")).paths);
+    expect(state.sheets[1].paths).toEqual((await join(socket, "sheet-2")).paths);
+    expect(state.sheets.map((sheet) => sheet.paths.map((path) => path.id))).toEqual([
+      ["z-first", "a-second"],
+      ["z-second-page", "a-second-page"],
+    ]);
+  });
+
   it("전체 구독과 현재 페이지 구독의 교집합에도 완료 이벤트를 한 번만 보내고 다른 예배는 격리한다", async () => {
     const [writer, both, whole, legacy, other] = await Promise.all([client(), client(), client(), client(), client()]);
     await subscribe(writer);
@@ -262,6 +277,25 @@ describe("Drawing socket subscriptions", () => {
 });
 
 describe("Drawing socket compatibility and mutation acknowledgement", () => {
+  it("withState=false는 snapshot 조회 없이 페이지에 참여해 이후 진행 중 획을 받는다", async () => {
+    seedPath();
+    // 읽으면 오류가 날 데이터도 조회하지 않으므로 state/error 없이 room 참여만 완료되어야 한다.
+    db.update(drawingPaths).set({ points: "invalid-json" }).run();
+    const [writer, peer] = await Promise.all([client(), client()]);
+    const states = collect(peer, "drawing:state");
+    const errors = collect(peer, "drawing:error");
+    const moved = collect(peer, "drawing:moved");
+    peer.emit("join:sheet", { sheetId: "sheet-1", requestId: "participate-only", withState: false });
+    await barrier(peer);
+    const move = { sheetId: "sheet-1", pathId: "progress", point: { x: 0.3, y: 0.4 } };
+    writer.emit("drawing:move", move);
+    await barrier(writer);
+    await barrier(peer);
+    expect(states).toEqual([]);
+    expect(errors).toEqual([]);
+    expect(moved).toEqual([move]);
+  });
+
   it("기존 클라이언트는 ack 없이 쓰고 읽으며 requestId는 요청한 경우만 반환한다", async () => {
     const [writer, peer] = await Promise.all([client(), client()]);
     await join(peer);
