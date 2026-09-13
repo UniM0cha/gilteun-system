@@ -24,7 +24,7 @@ sqlite.exec(`
   CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   INSERT INTO app_meta VALUES ('drawing_coords_card_basis', 'e2e-card-basis');
 `);
-for (let i = 0; i < 12; i++) {
+for (let i = 0; i < 10; i++) {
   writeFileSync(
     join(uploads, `sheet-${i}.svg`),
     '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/><path d="M40 120H560M40 150H560M40 180H560M40 210H560M40 240H560" stroke="#444" stroke-width="2"/></svg>',

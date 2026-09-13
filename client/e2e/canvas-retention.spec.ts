@@ -19,31 +19,39 @@ async function navigate(page: Page, direction: "next" | "previous", target: stri
   await expect(pageSurface(page, target)).toHaveAttribute("data-page-ready", "true");
 }
 
-async function alphaAt(page: Page, id: string, y = 0.4) {
-  return drawingCanvas(page, id).evaluate((canvas: HTMLCanvasElement, pointY) => {
-    return canvas
-      .getContext("2d")!
-      .getImageData(Math.floor(canvas.width * 0.5), Math.floor(canvas.height * pointY), 1, 1).data[3];
-  }, y);
+async function alphaAt(page: Page, id: string, y = 0.4, x = 0.5) {
+  return drawingCanvas(page, id).evaluate(
+    (canvas: HTMLCanvasElement, point) => {
+      return canvas
+        .getContext("2d")!
+        .getImageData(Math.floor(canvas.width * point.x), Math.floor(canvas.height * point.y), 1, 1).data[3];
+    },
+    { x, y },
+  );
 }
 
-test("first page renders before the complete worship snapshot arrives", async ({ page }) => {
-  const pending: (() => void)[] = [];
-  let released = false;
-  await page.routeWebSocket("**/socket.io/**", (connection) => {
-    const server = connection.connectToServer();
-    server.onMessage((message) => {
-      if (!released && String(message).includes('"drawings:state"')) pending.push(() => connection.send(message));
-      else connection.send(message);
+test("first page renders while the last image is pending, then every page prepares without navigation", async ({
+  page,
+}) => {
+  let releaseImage: (() => void) | undefined;
+  await page.route("**/uploads/sheet-9.svg", async (route) => {
+    await new Promise<void>((resolve) => {
+      releaseImage = resolve;
     });
+    await route.continue();
   });
   await openViewer(page);
-  await expect.poll(() => pending.length).toBeGreaterThan(0);
   expect(await alphaAt(page, "sheet-0")).toBeGreaterThan(0);
-  await expect(pageSurface(page, "sheet-1")).toHaveAttribute("data-page-ready", "false");
-  released = true;
-  pending.forEach((send) => send());
-  await expect(pageSurface(page, "sheet-1")).toHaveAttribute("data-page-ready", "true");
+  await expect(page.locator('[data-page-ready="true"]')).toHaveCount(9);
+  const preparation = page.getByTestId("worship-preparation");
+  await expect(preparation).toHaveAttribute("role", "status");
+  await expect(preparation).toHaveCount(1);
+  await expect(preparation).toHaveText("악보 준비 9/10");
+  await expect(pageSurface(page, "sheet-9")).toHaveAttribute("data-page-ready", "false");
+  releaseImage?.();
+  await expect(page.locator('[data-page-ready="true"]')).toHaveCount(10);
+  await expect(preparation).toHaveCount(0);
+  await expect(pageSurface(page, "sheet-0")).toHaveAttribute("data-page-active", "true");
 });
 
 test("round trips retain the same canvas and never expose an empty drawing frame", async ({ page }) => {
@@ -142,7 +150,8 @@ test("an unprepared target leaves the current page visible and can be cancelled"
   await openViewer(page);
   await navigate(page, "next", "sheet-1");
   await page.getByRole("button", { name: "다음 페이지", exact: true }).click();
-  await expect(page.getByText("악보를 준비하고 있습니다", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("worship-preparation")).toHaveText(/악보 준비 \d+\/10/);
+  await expect(page.getByText("악보를 준비하고 있습니다", { exact: true })).toHaveCount(0);
   await expect(pageSurface(page, "sheet-1")).toHaveAttribute("data-page-active", "true");
   expect(await alphaAt(page, "sheet-1")).toBeGreaterThan(0);
   await page.getByRole("button", { name: "이동 취소" }).click();
@@ -170,13 +179,57 @@ test("resize retains page identity and reconstructs the correct drawing resoluti
   ).toBe(true);
 });
 
-test("empty drawings are ready and long navigation keeps a bounded raster cache", async ({ page }) => {
+test("all ten canvases stay ready and retain identity across distant round trips without page queries", async ({
+  page,
+}) => {
+  let drawingGets = 0;
+  const emissions: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/drawings")) drawingGets++;
+  });
+  page.on("websocket", (socket) =>
+    socket.on("framesent", ({ payload }) => {
+      const frame = String(payload);
+      if (frame.startsWith("42[")) emissions.push(JSON.parse(frame.slice(2))[0]);
+    }),
+  );
   await openViewer(page);
-  for (let i = 1; i < 12; i++) await navigate(page, "next", `sheet-${i}`);
-  expect(await page.locator("[data-sheet-page]").count()).toBeLessThanOrEqual(8);
-  for (let i = 10; i >= 3; i--) await navigate(page, "previous", `sheet-${i}`);
+  await expect(page.locator('[data-page-ready="true"]')).toHaveCount(10);
+  await expect(page.getByTestId("worship-preparation")).toHaveCount(0);
+  const canvases = await page.locator("[data-sheet-page] canvas").elementHandles();
+  expect(canvases).toHaveLength(10);
+  const joinsBefore = emissions.filter((event) => event === "join:sheet").length;
+  expect(joinsBefore).toBeLessThanOrEqual(1);
+  expect(emissions.filter((event) => event === "drawings:subscribe")).toHaveLength(1);
+  await page.evaluate(() => {
+    const state = { appearances: 0 };
+    Object.assign(window, { preparationProbe: state });
+    new MutationObserver((records) => {
+      for (const record of records)
+        for (const node of record.addedNodes) {
+          if (
+            node instanceof Element &&
+            (node.matches('[data-testid="worship-preparation"]') ||
+              node.querySelector('[data-testid="worship-preparation"]'))
+          )
+            state.appearances++;
+        }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+  for (let i = 1; i < 10; i++) await navigate(page, "next", `sheet-${i}`);
+  for (let i = 8; i >= 0; i--) await navigate(page, "previous", `sheet-${i}`);
+  for (const canvas of canvases) expect(await canvas.evaluate((node) => node.isConnected)).toBe(true);
+  await expect(page.locator('[data-page-ready="true"]')).toHaveCount(10);
   expect(await alphaAt(page, "sheet-3")).toBe(0);
-  await expect(page.getByText("악보를 준비하고 있습니다", { exact: true })).toHaveCount(0);
+  expect(drawingGets).toBe(0);
+  expect(emissions.filter((event) => event === "join:sheet")).toHaveLength(joinsBefore);
+  expect(emissions.filter((event) => event === "drawings:subscribe")).toHaveLength(1);
+  await expect(page.getByTestId("worship-preparation")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { preparationProbe: { appearances: number } }).preparationProbe.appearances,
+    ),
+  ).toBe(0);
   await page.goto("/");
   await expect(page.locator("[data-sheet-page]")).toHaveCount(0);
 });
@@ -315,7 +368,7 @@ test("highlighter overlap, erasing and deletion preserve the correct composite p
   }
 });
 
-test("leaving a page with the pointer down cancels its stroke before joining the next page", async ({
+test("leaving a page with the pointer down cancels its stroke before showing the next page", async ({
   page,
   request,
 }) => {
@@ -376,6 +429,147 @@ test("reconnection refreshes inactive pages without clearing the retained curren
     expect(await alphaAt(page, "sheet-0")).toBeGreaterThan(0);
   } finally {
     await peer.timeout(5000).emitWithAck("drawing:delete", { sheetId: "sheet-1", pathId });
+    peer.disconnect();
+  }
+});
+
+test("three viewers share an unfinished stroke on page four without moving their current pages", async ({
+  page,
+  context,
+  request,
+}) => {
+  await openViewer(page);
+  await expect(pageSurface(page, "sheet-3")).toHaveAttribute("data-page-ready", "true");
+  const author = await context.newPage();
+  const newcomer = await context.newPage();
+  await openViewer(author);
+  for (let i = 1; i <= 3; i++) await navigate(author, "next", `sheet-${i}`);
+  const before = (await (await request.get("/api/sheets/sheet-3/drawings")).json()) as { id: string }[];
+  try {
+    await author.getByRole("button", { name: "그리기 시작", exact: true }).click();
+    const bounds = (await drawingCanvas(author, "sheet-3").boundingBox())!;
+    const y = bounds.y + bounds.height * 0.6;
+    await author.mouse.move(bounds.x + bounds.width * 0.2, y);
+    await author.mouse.down();
+    await author.mouse.move(bounds.x + bounds.width * 0.45, y, { steps: 8 });
+    await expect.poll(() => alphaAt(page, "sheet-3", 0.6, 0.3)).toBeGreaterThan(0);
+    // Join only after the first part is visible: the newcomer must recover it
+    // from the worship snapshot, not from a subsequent point event.
+    await openViewer(newcomer);
+    await expect.poll(() => alphaAt(newcomer, "sheet-3", 0.6, 0.3)).toBeGreaterThan(0);
+    await author.mouse.move(bounds.x + bounds.width * 0.8, y, { steps: 8 });
+    for (const viewer of [page, newcomer]) {
+      await expect.poll(() => alphaAt(viewer, "sheet-3", 0.6, 0.65)).toBeGreaterThan(0);
+      await expect(pageSurface(viewer, "sheet-0")).toHaveAttribute("data-page-active", "true");
+    }
+    await expect(pageSurface(author, "sheet-3")).toHaveAttribute("data-page-active", "true");
+    await author.mouse.up();
+    await expect
+      .poll(async () => (await (await request.get("/api/sheets/sheet-3/drawings")).json()).length)
+      .toBe(before.length + 1);
+    for (const viewer of [page, newcomer]) {
+      expect(await alphaAt(viewer, "sheet-3", 0.6, 0.3)).toBeGreaterThan(0);
+      expect(await alphaAt(viewer, "sheet-3", 0.6, 0.65)).toBeGreaterThan(0);
+    }
+  } finally {
+    await author.mouse.up();
+    await author.close();
+    await newcomer.close();
+    const after = (await (await request.get("/api/sheets/sheet-3/drawings")).json()) as { id: string }[];
+    const peer = io("http://127.0.0.1:3197", { transports: ["websocket"], forceNew: true });
+    await new Promise<void>((resolve) => peer.on("connect", resolve));
+    try {
+      for (const path of after.filter((path) => !before.some((existing) => existing.id === path.id))) {
+        await peer.timeout(5000).emitWithAck("drawing:delete", { sheetId: "sheet-3", pathId: path.id });
+      }
+    } finally {
+      peer.disconnect();
+    }
+  }
+});
+
+test("completing a remote highlighter replaces its unfinished pixels without increasing alpha", async ({ page }) => {
+  await openViewer(page);
+  await expect(pageSurface(page, "sheet-3")).toHaveAttribute("data-page-ready", "true");
+  const peer = io("http://127.0.0.1:3197", { transports: ["websocket"], forceNew: true });
+  await new Promise<void>((resolve) => peer.on("connect", resolve));
+  const pathId = `progress-highlighter-${Date.now()}`;
+  const stroke = {
+    sheetId: "sheet-3",
+    pathId,
+    profileId: "profile-e2e",
+    color: "#fde047",
+    width: 0.04,
+    isEraser: false,
+    isHighlighter: true,
+  };
+  const points = [
+    { x: 0.2, y: 0.65 },
+    { x: 0.8, y: 0.65 },
+    { x: 0.2, y: 0.65 },
+  ];
+  try {
+    peer.emit("drawing:start", { ...stroke, point: points[0] });
+    for (const point of points.slice(1)) peer.emit("drawing:move", { sheetId: stroke.sheetId, pathId, point });
+    await expect.poll(() => alphaAt(page, "sheet-3", 0.65)).toBeGreaterThan(80);
+    expect(await alphaAt(page, "sheet-3", 0.65)).toBeLessThan(100);
+    await page.evaluate(() => {
+      const state = { seen: false };
+      Object.assign(window, { highlighterCompletion: state });
+      const socket = (window as unknown as { __socket: { once(event: string, listener: () => void): void } }).__socket;
+      socket.once("drawing:ended", () => {
+        state.seen = true;
+      });
+    });
+    expect((await peer.timeout(5000).emitWithAck("drawing:end", { ...stroke, points })).ok).toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as unknown as { highlighterCompletion: { seen: boolean } }).highlighterCompletion.seen,
+        ),
+      )
+      .toBe(true);
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    );
+    expect(await alphaAt(page, "sheet-3", 0.65)).toBeGreaterThan(80);
+    expect(await alphaAt(page, "sheet-3", 0.65)).toBeLessThan(100);
+    // Deletion is an ordered server round trip after completion. If a temporary
+    // copy survived completion, deleting the saved path would leave its pixels.
+    await peer.timeout(5000).emitWithAck("drawing:delete", { sheetId: stroke.sheetId, pathId });
+    await expect.poll(() => alphaAt(page, "sheet-3", 0.65)).toBe(0);
+    await expect(pageSurface(page, "sheet-0")).toHaveAttribute("data-page-active", "true");
+  } finally {
+    await peer.timeout(5000).emitWithAck("drawing:delete", { sheetId: stroke.sheetId, pathId });
+    peer.disconnect();
+  }
+});
+
+test("a disconnected author's unfinished stroke disappears from an inactive canvas", async ({ page, request }) => {
+  await openViewer(page);
+  await expect(pageSurface(page, "sheet-3")).toHaveAttribute("data-page-ready", "true");
+  const peer = io("http://127.0.0.1:3197", { transports: ["websocket"], forceNew: true });
+  await new Promise<void>((resolve) => peer.on("connect", resolve));
+  const pathId = `disconnect-progress-${Date.now()}`;
+  try {
+    peer.emit("drawing:start", {
+      sheetId: "sheet-3",
+      pathId,
+      profileId: "profile-e2e",
+      color: "#ef4444",
+      width: 0.01,
+      point: { x: 0.2, y: 0.75 },
+      isEraser: false,
+      isHighlighter: false,
+    });
+    peer.emit("drawing:move", { sheetId: "sheet-3", pathId, point: { x: 0.8, y: 0.75 } });
+    await expect.poll(() => alphaAt(page, "sheet-3", 0.75)).toBeGreaterThan(0);
+    peer.disconnect();
+    await expect.poll(() => alphaAt(page, "sheet-3", 0.75)).toBe(0);
+    await expect(pageSurface(page, "sheet-0")).toHaveAttribute("data-page-active", "true");
+    const saved = (await (await request.get("/api/sheets/sheet-3/drawings")).json()) as { id: string }[];
+    expect(saved.some((path) => path.id === pathId)).toBe(false);
+  } finally {
     peer.disconnect();
   }
 });
