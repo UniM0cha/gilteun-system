@@ -386,6 +386,68 @@ describe("useDrawingSync session lifecycle", () => {
     expect(current.paths.map((item) => item.id)).toEqual(["a", "new"]);
   });
 
+  it.each(["add", "delete"] as const)(
+    "reconciles an uncertain %s after the reconnect bulk snapshot times out and is retried",
+    async (change) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const serverPaths = change === "add" ? [] : [path("a")];
+      await render({ preloadEnabled: true });
+      await bulk([
+        { sheetId: "one", paths: serverPaths },
+        { sheetId: "two", paths: [] },
+      ]);
+      await act(async () => {
+        if (change === "add") current.addPath(path("a"));
+        else current.deletePath("a");
+      });
+      await render({ sheetId: "two" });
+      await act(async () => {
+        fake.connected = false;
+        fake.receive("disconnect");
+      });
+      await act(async () => {
+        fake.connected = true;
+        fake.receive("connect");
+      });
+      await act(async () => vi.advanceTimersByTime(10_000));
+      expect(current.bulkStatus).toBe("error");
+      await act(async () => current.retryLoad());
+      await page([]);
+      // The old edit belongs to an inactive page, so only the bulk retry can settle it.
+      await bulk([
+        { sheetId: "one", paths: serverPaths },
+        { sheetId: "two", paths: [] },
+      ]);
+      expect(current.pathsBySheet.get("one")).toEqual(serverPaths);
+      expect(current.bulkStatus).toBe("ready");
+      expect(
+        fake.emissions.filter((item) => item.event === (change === "add" ? "drawing:end" : "drawing:delete")),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("reconciles an uncertain edit when a failed reconnect page request is retried before bulk loading", async () => {
+    await render();
+    await page([]);
+    await act(async () => current.addPath(path("uncertain")));
+    await act(async () => {
+      fake.connected = false;
+      fake.receive("disconnect");
+    });
+    await act(async () => {
+      fake.connected = true;
+      fake.receive("connect");
+    });
+    const failed = last<{ sheetId: string; requestId: string }>("join:sheet");
+    await act(async () => fake.receive("drawing:error", { ...failed, error: "query failed" }));
+    await act(async () => current.retryLoad());
+    await act(async () => current.addPath(path("after-retry")));
+    await page([]);
+    expect(current.paths.map((item) => item.id)).toEqual(["after-retry"]);
+    expect(fake.emissions.filter((item) => item.event === "drawing:end")).toHaveLength(2);
+    expect(fake.emissions.filter((item) => item.event === "drawings:subscribe")).toHaveLength(0);
+  });
+
   it("shows a first-page load failure and retries its own request even before bulk is enabled", async () => {
     await render();
     const original = last<{ sheetId: string; requestId: string }>("join:sheet");
