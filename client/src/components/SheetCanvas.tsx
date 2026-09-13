@@ -6,15 +6,15 @@ import {
   clamp01,
   fullRect,
   getCanvasContentRect,
-  syncCanvasBackingStore,
   distanceToSegment,
   generateId,
 } from "@/lib/canvas";
+import { getCanvasRenderSize, renderCanvasAtomically, retainSharedCanvasRenderer } from "@/lib/canvasRender";
 
 export type EraserType = "none" | "area" | "stroke";
 
 // 형광펜 반투명도 — 단일 stroke()로 그리므로 한 획 내 겹침은 alpha가 누적되지 않고(평평한 띠),
-// 서로 다른 획이 겹칠 때만 진해진다(실제 형광펜과 동일). 오프스크린 합성 불필요.
+// 서로 다른 획이 겹칠 때만 진해진다(실제 형광펜과 동일). 획별 별도 버퍼는 필요 없다.
 const HIGHLIGHTER_ALPHA = 0.35;
 
 export interface RemoteInProgressPath {
@@ -30,6 +30,12 @@ export interface RemoteInProgressPath {
 interface SheetCanvasProps {
   sheetId: string;
   imageUrl: string | null;
+  isActive?: boolean;
+  drawingsReady?: boolean;
+  imageLoadAttempt?: number;
+  onReadyChange?: (sheetId: string, ready: boolean) => void;
+  onRenderMetrics?: (sheetId: string, bytes: number) => void;
+  onLoadError?: (sheetId: string) => void;
   isDrawMode: boolean;
   penColor: string;
   penWidth: number;
@@ -64,6 +70,12 @@ interface SheetCanvasProps {
 function SheetCanvas({
   sheetId,
   imageUrl,
+  isActive = true,
+  drawingsReady = true,
+  imageLoadAttempt = 0,
+  onReadyChange,
+  onRenderMetrics,
+  onLoadError,
   isDrawMode,
   penColor,
   penWidth,
@@ -84,7 +96,39 @@ function SheetCanvas({
   profileId,
 }: SheetCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const sheetIdRef = useRef(sheetId);
+  sheetIdRef.current = sheetId;
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const imageReadyRef = useRef(false);
+  const imageGenerationRef = useRef(0);
+  const readyRef = useRef<{ sheetId: string; ready: boolean } | null>(null);
+  const callbacksRef = useRef({ onReadyChange, onRenderMetrics, onLoadError });
+  callbacksRef.current = { onReadyChange, onRenderMetrics, onLoadError };
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
+  const drawingSessionRef = useRef<{
+    eraserType: EraserType;
+    penColor: string;
+    width: number;
+    isHighlighter: boolean;
+    profileId: string;
+    onDrawCancel: SheetCanvasProps["onDrawCancel"];
+    onDrawMove: SheetCanvasProps["onDrawMove"];
+    onPathAdd: SheetCanvasProps["onPathAdd"];
+    onPathDelete: SheetCanvasProps["onPathDelete"];
+    onBatchEnd: SheetCanvasProps["onBatchEnd"];
+  } | null>(null);
+  const lastRenderRef = useRef<{
+    sheetId: string;
+    paths: DrawingPath[];
+    remoteInProgress: RemoteInProgressPath[];
+    currentPath: Point[];
+    currentPointCount: number;
+    cssWidth: number;
+    cssHeight: number;
+    dpr: number;
+  } | null>(null);
   const isDrawingRef = useRef(false);
   const currentPathRef = useRef<Point[]>([]);
   const currentPathIdRef = useRef<string>("");
@@ -108,45 +152,68 @@ function SheetCanvas({
   const pathsRef = useRef(paths);
   pathsRef.current = paths;
 
-  // 시트 전환 시 리셋. 부모가 key로 리마운트하지 않으므로(전환 깜박임 방지) 명시적으로 처리한다.
-  // 트리거는 sheetId — 두 시트가 같은 imageUrl을 공유해도 정확히 발화하도록 (훅의 paths 초기화와 동일 기준).
-  // 1) 진행 중인 그리기 상태를 취소 — 펜을 누른 채 페이지가 바뀌어도 이전 획이 새 시트에 저장되지 않도록
-  // 2) 이전 시트의 캔버스 픽셀을 페인트 전에 동기적으로 제거 — 잔상 방지(useLayoutEffect)
+  const publishReady = useCallback((id: string, ready: boolean) => {
+    if (readyRef.current?.sheetId === id && readyRef.current.ready === ready) return;
+    readyRef.current = { sheetId: id, ready };
+    callbacksRef.current.onReadyChange?.(id, ready);
+  }, []);
+
+  // A retained page changes only its position/active flag when it becomes the
+  // main page. Input cleanup never clears its completed drawing pixels.
   useLayoutEffect(() => {
-    // 진행 중이던 획을 피어에게도 취소 통보한 뒤 리셋 — 아래 수동 리셋과 겹치지만
-    // cancelDrawing이 취소 emit·배치 종료를 한 경로로 처리하므로 재사용한다.
-    cancelDrawingRef.current();
-    isDrawingRef.current = false;
-    drawingPointerIdRef.current = null;
-    currentPathRef.current = [];
-    currentPathIdRef.current = "";
-    erasedPathIdsRef.current = new Set();
-    activePointersRef.current = new Set();
-    // 예약된 redraw 취소 — 클리어 후 남은 rAF가 이전 paths를 다시 그려 잔상이 생기는 것 방지
-    cancelAnimationFrame(rafIdRef.current);
-    const canvas = drawingCanvasRef.current;
-    const ctx = canvas?.getContext("2d", { desynchronized: true });
-    if (canvas && ctx) {
-      // redraw가 남긴 DPR 변환을 초기화하고 전체 버퍼(device px)를 비운다.
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  }, [sheetId]);
+    if (!isActive) cancelDrawingRef.current();
+    return () => cancelDrawingRef.current();
+  }, [sheetId, isActive]);
 
-  // Canvas 크기 설정
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const release = retainSharedCanvasRenderer();
     const canvas = drawingCanvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const resizeCanvas = () => {
-      // backing store를 CSS 레이아웃 크기 × DPR로 설정 — 아이패드(DPR=2)에서 stroke를
-      // 기기 해상도로 렌더해 선명하게. (helper가 offsetWidth/Height 사용 → 핀치줌 시 버퍼 미부풀음)
-      // canvas.width/height 재설정 시 캔버스 자동 클리어됨 → redraw가 좌표계 변환 후 다시 그림.
-      syncCanvasBackingStore(canvas);
-      redrawCanvasRef.current();
+    return () => {
+      cancelAnimationFrame(rafIdRef.current);
+      release();
+      lastRenderRef.current = null;
+      if (canvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+      callbacksRef.current.onRenderMetrics?.(sheetIdRef.current, 0);
+      publishReady(sheetIdRef.current, false);
     };
+  }, [publishReady]);
 
+  const prepareImage = useCallback(async () => {
+    const img = imageRef.current;
+    if (!img || !imageUrl || img.getAttribute("src") !== imageUrl) return;
+    const generation = imageGenerationRef.current;
+    try {
+      if (img.decode) await img.decode();
+      if (imageGenerationRef.current !== generation || imageRef.current !== img) return;
+      if (img.naturalWidth <= 0) throw new Error("Image has no decoded pixels");
+      imageReadyRef.current = true;
+      redrawCanvasRef.current();
+    } catch {
+      if (imageGenerationRef.current !== generation || imageRef.current !== img) return;
+      imageReadyRef.current = false;
+      publishReady(sheetId, false);
+      callbacksRef.current.onLoadError?.(sheetId);
+    }
+  }, [imageUrl, sheetId, publishReady]);
+
+  useLayoutEffect(() => {
+    imageGenerationRef.current += 1;
+    imageReadyRef.current = !imageUrl;
+    publishReady(sheetId, false);
+    if (imageUrl && imageRef.current?.complete) void prepareImage();
+    else if (!imageUrl) redrawCanvasRef.current();
+    return () => {
+      imageGenerationRef.current += 1;
+    };
+  }, [imageUrl, imageLoadAttempt, sheetId, prepareImage, publishReady]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const resizeCanvas = () => redrawCanvasRef.current();
     resizeCanvas();
     const resizeObserver = new ResizeObserver(resizeCanvas);
     resizeObserver.observe(container);
@@ -158,7 +225,7 @@ function SheetCanvas({
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
     const handler = (e: TouchEvent) => {
-      if (isDrawModeRef.current) {
+      if (isActiveRef.current && isDrawModeRef.current) {
         e.preventDefault();
         // 단일 터치만 전파 차단 — 2+ 터치는 부모 핀치줌에 전달
         if (e.touches.length <= 1) {
@@ -179,89 +246,107 @@ function SheetCanvas({
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
 
-    // canvas 내부 픽셀을 레이아웃 크기 × DPR과 동기화 — ResizeObserver 갱신이 지연/누락되면
-    // 픽셀 종횡비 ≠ 표시 박스 종횡비가 되어 canvas가 비등방 stretch되고 stroke가 어긋난다.
-    // (helper는 offsetWidth/Height 사용 — getBoundingClientRect는 핀치줌 시 변환 후 크기를 반환해
-    // backing store가 줌 배율만큼 커지고 penWidth 정규화가 오염되므로 금지. 카드 비율 3:4 고정이라 등방 유지.)
-    // DPR을 곱해 backing store를 기기 해상도로 키우되, 좌표/굵기 계산은 CSS 단위로 유지하고
-    // ctx.setTransform(dpr,…)로 한 번에 스케일 — 이러면 아래 렌더 수식은 그대로 두면 된다.
-    const dpr = syncCanvasBackingStore(canvas);
-
-    const ctx = canvas.getContext("2d", { desynchronized: true });
-    if (!ctx) return;
-    // 모든 그리기를 CSS 픽셀 좌표계로 통일 (backing store는 DPR배). redraw마다 호출 →
-    // DPR 변동(디스플레이 이동 등)도 자동 반영.
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const drawRect = getCanvasContentRect(canvas);
-
-    ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-    if (drawRect.width <= 0 || drawRect.height <= 0) return;
-
-    // 저장된 paths 렌더링
-    for (const path of paths) {
-      if (path.points.length < 2) continue;
-      ctx.beginPath();
-      ctx.strokeStyle = path.color;
-      ctx.lineWidth = path.width * drawRect.width; // 정규화된 굵기 복원
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.globalCompositeOperation = path.isEraser ? "destination-out" : "source-over";
-      // 지우개(destination-out)엔 alpha를 적용하지 않음 — 손상된 데이터로 isEraser+isHighlighter가
-      // 함께 true여도 부분 지우기가 되지 않도록 방어.
-      ctx.globalAlpha = path.isHighlighter && !path.isEraser ? HIGHLIGHTER_ALPHA : 1;
-
-      const p0 = denormalizePoint(path.points[0], drawRect);
-      ctx.moveTo(p0.x, p0.y);
-      for (let i = 1; i < path.points.length; i++) {
-        const p = denormalizePoint(path.points[i], drawRect);
-        ctx.lineTo(p.x, p.y);
-      }
-      ctx.stroke();
+    const size = getCanvasRenderSize(canvas);
+    if (!size || !drawingsReady) {
+      publishReady(sheetId, false);
+      return;
     }
-
-    // 원격 진행 중 paths 렌더링
-    for (const rip of remoteInProgress) {
-      if (rip.points.length < 2) continue;
-      ctx.beginPath();
-      ctx.strokeStyle = rip.isEraser ? "#FFFFFF" : rip.color;
-      ctx.lineWidth = rip.width * drawRect.width;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.globalCompositeOperation = rip.isEraser ? "destination-out" : "source-over";
-      ctx.globalAlpha = rip.isHighlighter && !rip.isEraser ? HIGHLIGHTER_ALPHA : 1;
-
-      const p0 = denormalizePoint(rip.points[0], drawRect);
-      ctx.moveTo(p0.x, p0.y);
-      for (let i = 1; i < rip.points.length; i++) {
-        const p = denormalizePoint(rip.points[i], drawRect);
-        ctx.lineTo(p.x, p.y);
-      }
-      ctx.stroke();
-    }
-
-    // 현재 그리고 있는 path (ref에서 읽음 — React 렌더 없이 갱신)
     const curPath = currentPathRef.current;
-    if (curPath.length >= 2) {
-      ctx.beginPath();
-      ctx.strokeStyle = eraserType === "area" ? "#FFFFFF" : penColor;
-      ctx.lineWidth = eraserType === "area" ? eraserWidth : penWidth; // 화면 기준
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.globalCompositeOperation = eraserType === "area" ? "destination-out" : "source-over";
-      ctx.globalAlpha = eraserType === "none" && isHighlighter ? HIGHLIGHTER_ALPHA : 1;
-
-      const p0 = denormalizePoint(curPath[0], drawRect);
-      ctx.moveTo(p0.x, p0.y);
-      for (let i = 1; i < curPath.length; i++) {
-        const p = denormalizePoint(curPath[i], drawRect);
-        ctx.lineTo(p.x, p.y);
-      }
-      ctx.stroke();
+    const previous = lastRenderRef.current;
+    if (
+      previous?.sheetId === sheetId &&
+      previous.paths === paths &&
+      previous.remoteInProgress === remoteInProgress &&
+      previous.currentPath === curPath &&
+      previous.currentPointCount === curPath.length &&
+      previous.cssWidth === size.rect.width &&
+      previous.cssHeight === size.rect.height &&
+      previous.dpr === size.dpr
+    ) {
+      publishReady(sheetId, imageReadyRef.current);
+      return;
     }
+    publishReady(sheetId, false);
+    const bytes = renderCanvasAtomically(canvas, size, (ctx, drawRect) => {
+      // 저장된 paths 렌더링
+      for (const path of paths) {
+        if (path.points.length < 2) continue;
+        ctx.beginPath();
+        ctx.strokeStyle = path.color;
+        ctx.lineWidth = path.width * drawRect.width; // 정규화된 굵기 복원
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalCompositeOperation = path.isEraser ? "destination-out" : "source-over";
+        // 지우개(destination-out)엔 alpha를 적용하지 않음 — 손상된 데이터로 isEraser+isHighlighter가
+        // 함께 true여도 부분 지우기가 되지 않도록 방어.
+        ctx.globalAlpha = path.isHighlighter && !path.isEraser ? HIGHLIGHTER_ALPHA : 1;
 
-    ctx.globalCompositeOperation = "source-over";
-    ctx.globalAlpha = 1; // 형광펜 alpha 누수 방지 — 다음 redraw·다른 컨텍스트 사용이 반투명해지지 않도록
-  }, [paths, remoteInProgress, penColor, penWidth, isHighlighter, eraserType, eraserWidth]);
+        const p0 = denormalizePoint(path.points[0], drawRect);
+        ctx.moveTo(p0.x, p0.y);
+        for (let i = 1; i < path.points.length; i++) {
+          const p = denormalizePoint(path.points[i], drawRect);
+          ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      }
+
+      // 원격 진행 중 paths 렌더링
+      for (const rip of remoteInProgress) {
+        if (rip.points.length < 2) continue;
+        ctx.beginPath();
+        ctx.strokeStyle = rip.isEraser ? "#FFFFFF" : rip.color;
+        ctx.lineWidth = rip.width * drawRect.width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalCompositeOperation = rip.isEraser ? "destination-out" : "source-over";
+        ctx.globalAlpha = rip.isHighlighter && !rip.isEraser ? HIGHLIGHTER_ALPHA : 1;
+
+        const p0 = denormalizePoint(rip.points[0], drawRect);
+        ctx.moveTo(p0.x, p0.y);
+        for (let i = 1; i < rip.points.length; i++) {
+          const p = denormalizePoint(rip.points[i], drawRect);
+          ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      }
+
+      // 현재 그리고 있는 path (ref에서 읽음 — React 렌더 없이 갱신)
+      const session = drawingSessionRef.current;
+      if (session && curPath.length >= 2) {
+        ctx.beginPath();
+        ctx.strokeStyle = session.eraserType === "area" ? "#FFFFFF" : session.penColor;
+        ctx.lineWidth = session.width * drawRect.width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalCompositeOperation = session.eraserType === "area" ? "destination-out" : "source-over";
+        ctx.globalAlpha = session.eraserType === "none" && session.isHighlighter ? HIGHLIGHTER_ALPHA : 1;
+
+        const p0 = denormalizePoint(curPath[0], drawRect);
+        ctx.moveTo(p0.x, p0.y);
+        for (let i = 1; i < curPath.length; i++) {
+          const p = denormalizePoint(curPath[i], drawRect);
+          ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      }
+
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1; // 형광펜 alpha 누수 방지 — 다음 redraw·다른 컨텍스트 사용이 반투명해지지 않도록
+    });
+    if (bytes === null) return;
+    lastRenderRef.current = {
+      sheetId,
+      paths,
+      remoteInProgress,
+      currentPath: curPath,
+      currentPointCount: curPath.length,
+      cssWidth: size.rect.width,
+      cssHeight: size.rect.height,
+      dpr: size.dpr,
+    };
+    callbacksRef.current.onRenderMetrics?.(sheetId, bytes);
+    publishReady(sheetId, imageReadyRef.current);
+  }, [paths, remoteInProgress, drawingsReady, sheetId, publishReady]);
 
   // redraw ref 갱신 (ResizeObserver + rAF에서 사용)
   redrawCanvasRef.current = redrawCanvas;
@@ -272,10 +357,11 @@ function SheetCanvas({
     rafIdRef.current = requestAnimationFrame(() => redrawCanvasRef.current());
   }, []);
 
-  // 확정 paths / remoteInProgress / 도구 설정 변경 시 리드로우
-  useEffect(() => {
-    requestRedraw();
-  }, [redrawCanvas, requestRedraw]);
+  // Complete changed data before a retained page can be exposed. Switching the
+  // active flag or tool settings does not invalidate the completed bitmap.
+  useLayoutEffect(() => {
+    redrawCanvas();
+  }, [redrawCanvas]);
 
   // DPR만 바뀌는 경우(브라우저 줌, Retina↔비Retina 모니터 이동) ResizeObserver는 CSS 크기가
   // 그대로라 발화하지 않는다. 그러면 backing store가 이전 DPR 버퍼로 남아 HiDPI가 깨지므로,
@@ -284,7 +370,7 @@ function SheetCanvas({
   useEffect(() => {
     let mql: MediaQueryList | null = null;
     const onChange = () => {
-      requestRedraw();
+      redrawCanvasRef.current();
       register();
     };
     const register = () => {
@@ -347,30 +433,46 @@ function SheetCanvas({
     [], // pathsRef로 참조하므로 paths 의존성 불필요 (좌표계가 이미지에 의존하지 않음)
   );
 
-  // 진행 중인 그리기 취소
-  const cancelDrawing = () => {
-    if (!isDrawingRef.current) return;
-
-    if (eraserType === "stroke") {
-      onBatchEnd?.();
-      erasedPathIdsRef.current = new Set();
-    } else if (currentPathIdRef.current) {
-      // 이미 drawing:start/move를 보낸 획 — 취소를 알리지 않으면 피어의 remoteInProgress에
-      // 영원히 남아 지워지지 않는 잔상이 된다. (영역 지우개도 drawing:start를 보내므로 포함)
-      onDrawCancel?.({ pathId: currentPathIdRef.current });
-    }
-
-    isDrawingRef.current = false;
+  const releaseDrawingPointer = () => {
+    const pointerId = drawingPointerIdRef.current;
     drawingPointerIdRef.current = null;
-    currentPathRef.current = [];
-    // 같은 id로 두 번 취소되지 않도록 비운다 — 이후 읽는 곳은 전부 isDrawingRef 가드 뒤에 있다.
-    currentPathIdRef.current = "";
-    requestRedraw();
+    const canvas = drawingCanvasRef.current;
+    if (canvas && pointerId !== null && canvas.hasPointerCapture(pointerId)) {
+      canvas.releasePointerCapture(pointerId);
+    }
   };
-  cancelDrawingRef.current = cancelDrawing;
+
+  // Capture a stroke's tool and callbacks at pointer-down. Page deactivation
+  // cannot redirect a cancellation or batch completion into another page.
+  const cancelDrawing = () => {
+    const session = drawingSessionRef.current;
+    const hadDrawing = isDrawingRef.current;
+    isDrawingRef.current = false;
+    if (hadDrawing && session?.eraserType === "stroke") {
+      session.onBatchEnd?.();
+    } else if (hadDrawing && currentPathIdRef.current) {
+      session?.onDrawCancel?.({ pathId: currentPathIdRef.current });
+    }
+    releaseDrawingPointer();
+    erasedPathIdsRef.current.clear();
+    if (hadDrawing) {
+      currentPathRef.current = [];
+      currentPathIdRef.current = "";
+      drawingSessionRef.current = null;
+      requestRedraw();
+    }
+  };
+  cancelDrawingRef.current = () => {
+    cancelDrawing();
+    const canvas = drawingCanvasRef.current;
+    for (const id of activePointersRef.current) {
+      if (canvas?.hasPointerCapture(id)) canvas.releasePointerCapture(id);
+    }
+    activePointersRef.current.clear();
+  };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (!isDrawMode) return;
+    if (!isActive || !isDrawMode || !drawingsReady || !imageReadyRef.current) return;
 
     // 스타일러스 최초 감지 → 부모가 펜 전용 모드를 자동으로 켠다(기기당 1회).
     // 켜진 프레임에는 penOnly prop이 아직 이전 값이므로 반환값으로 판단해야
@@ -413,8 +515,25 @@ function SheetCanvas({
     const point = getPointerCoords(e);
     if (!point) return;
 
+    const canvas = drawingCanvasRef.current;
+    if (!canvas) return;
+    const drawRect = getCanvasContentRect(canvas);
+    if (drawRect.width <= 0) return;
+    const normalizedWidth = (eraserType === "area" ? eraserWidth : penWidth) / drawRect.width;
+    drawingSessionRef.current = {
+      eraserType,
+      penColor,
+      width: normalizedWidth,
+      isHighlighter,
+      profileId,
+      onDrawCancel,
+      onDrawMove,
+      onPathAdd,
+      onPathDelete,
+      onBatchEnd,
+    };
     // 포인터 캡처 — 요소 밖 드래그에도 이벤트 수신
-    drawingCanvasRef.current?.setPointerCapture(e.pointerId);
+    canvas.setPointerCapture(e.pointerId);
     drawingPointerIdRef.current = e.pointerId;
 
     if (eraserType === "stroke") {
@@ -435,13 +554,6 @@ function SheetCanvas({
     currentPathRef.current = [point];
     requestRedraw();
 
-    const canvas = drawingCanvasRef.current;
-    if (!canvas) return;
-    // penWidth는 CSS px → CSS 레이아웃 크기로 정규화해야 렌더(CSS 좌표계)와 굵기가 일치.
-    const drawRect = getCanvasContentRect(canvas);
-    if (drawRect.width <= 0) return;
-    const normalizedWidth = eraserType === "area" ? eraserWidth / drawRect.width : penWidth / drawRect.width;
-
     onDrawStart?.({
       pathId,
       color: eraserType === "area" ? "#FFFFFF" : penColor,
@@ -453,7 +565,9 @@ function SheetCanvas({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDrawingRef.current || !isDrawMode) return;
+    if (!isActive || !isDrawingRef.current || !isDrawMode) return;
+    const session = drawingSessionRef.current;
+    if (!session) return;
     // 그리기 중인 포인터가 아니면 무시
     if (e.pointerId !== drawingPointerIdRef.current) return;
 
@@ -462,11 +576,11 @@ function SheetCanvas({
     if (!point) return;
 
     // 드래그 획 지우개: 연속으로 path 삭제
-    if (eraserType === "stroke") {
+    if (session.eraserType === "stroke") {
       const pathId = findPathAtPoint(point);
       if (pathId && !erasedPathIdsRef.current.has(pathId)) {
         erasedPathIdsRef.current.add(pathId);
-        onPathDelete?.(pathId);
+        session.onPathDelete?.(pathId);
       }
       return;
     }
@@ -495,59 +609,66 @@ function SheetCanvas({
     const now = Date.now();
     if (now - lastMoveTimeRef.current >= 16) {
       lastMoveTimeRef.current = now;
-      onDrawMove?.({ pathId: currentPathIdRef.current, point });
+      session.onDrawMove?.({ pathId: currentPathIdRef.current, point });
     }
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
     activePointersRef.current.delete(e.pointerId);
-
-    // 그리기 중인 포인터가 아니면 무시
-    if (e.pointerId !== drawingPointerIdRef.current) return;
-    if (!isDrawingRef.current) return;
-
-    // 드래그 획 지우개: 배치 종료
-    if (eraserType === "stroke") {
-      onBatchEnd?.();
-      erasedPathIdsRef.current = new Set();
-      isDrawingRef.current = false;
-      drawingPointerIdRef.current = null;
+    if (!isActive) {
+      cancelDrawing();
       return;
     }
-
+    if (e.pointerId !== drawingPointerIdRef.current || !isDrawingRef.current) return;
+    const session = drawingSessionRef.current;
+    if (!session) return;
     isDrawingRef.current = false;
-    drawingPointerIdRef.current = null;
+    releaseDrawingPointer();
 
-    if (currentPathRef.current.length > 1) {
-      const canvas = drawingCanvasRef.current;
-      if (!canvas) return;
-      // penWidth는 CSS px → CSS 레이아웃 크기로 정규화 (handlePointerDown과 동일 기준).
-      const drawRect = getCanvasContentRect(canvas);
-      if (drawRect.width <= 0) return;
-      const normalizedWidth = eraserType === "area" ? eraserWidth / drawRect.width : penWidth / drawRect.width;
-
-      const newPath: DrawingPath = {
+    if (session.eraserType === "stroke") {
+      session.onBatchEnd?.();
+      erasedPathIdsRef.current.clear();
+    } else if (currentPathRef.current.length > 1) {
+      session.onPathAdd?.({
         id: currentPathIdRef.current,
-        sheetId: "",
-        profileId,
-        color: eraserType === "area" ? "#FFFFFF" : penColor,
-        width: normalizedWidth,
+        sheetId,
+        profileId: session.profileId,
+        color: session.eraserType === "area" ? "#FFFFFF" : session.penColor,
+        width: session.width,
         points: [...currentPathRef.current],
-        isEraser: eraserType === "area",
-        isHighlighter: eraserType === "none" && isHighlighter,
-      };
-
-      onPathAdd?.(newPath);
+        isEraser: session.eraserType === "area",
+        isHighlighter: session.eraserType === "none" && session.isHighlighter,
+      });
+    } else if (currentPathIdRef.current) {
+      session.onDrawCancel?.({ pathId: currentPathIdRef.current });
     }
-
     currentPathRef.current = [];
+    currentPathIdRef.current = "";
+    drawingSessionRef.current = null;
     requestRedraw();
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent) => {
+    activePointersRef.current.delete(e.pointerId);
+    if (e.pointerId === drawingPointerIdRef.current) cancelDrawing();
   };
 
   return (
     <div ref={containerRef} className="relative w-full h-full">
       {imageUrl && (
-        <img src={imageUrl} alt="악보" className="absolute inset-0 w-full h-full pointer-events-none object-contain" />
+        <img
+          key={`${imageUrl}:${imageLoadAttempt}`}
+          ref={imageRef}
+          src={imageUrl}
+          alt="악보"
+          className="absolute inset-0 w-full h-full pointer-events-none object-contain"
+          onLoad={() => void prepareImage()}
+          onError={() => {
+            imageReadyRef.current = false;
+            publishReady(sheetId, false);
+            callbacksRef.current.onLoadError?.(sheetId);
+          }}
+        />
       )}
 
       <canvas
@@ -555,12 +676,19 @@ function SheetCanvas({
         className={`absolute inset-0 w-full h-full ${
           isDrawMode ? (eraserType === "stroke" ? "cursor-pointer" : "cursor-crosshair") : "cursor-default"
         }`}
-        style={{ touchAction: "none", WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
+        data-sheet-id={sheetId}
+        style={{
+          touchAction: "none",
+          WebkitTouchCallout: "none",
+          WebkitUserSelect: "none",
+          pointerEvents: isActive ? "auto" : "none",
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onLostPointerCapture={handlePointerCancel}
       />
 
       {!imageUrl && (
