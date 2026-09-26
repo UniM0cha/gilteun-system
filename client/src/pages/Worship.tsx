@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import { LoaderCircle, Upload } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useWorship, useCommands } from "@/hooks/queries";
 import { useAppStore } from "@/store/appStore";
 import { useDeviceSettingsStore, selectPenOnlyActive, type PanelSide } from "@/store/deviceSettingsStore";
@@ -479,9 +480,15 @@ function WorshipViewer({ worshipId: id }: { worshipId: string | undefined }) {
         sidebarSide={sidebarSide}
       />
 
-      {/* 컴팩트 모드 또는 모바일(헤더 칩 숨김): 연결 끊김 시 플로팅 인디케이터 */}
-      {(isCompact || isMobile) && !isConnected && (
-        <div className="absolute top-3 right-3 z-50 flex items-center gap-2 px-3 py-1.5 bg-destructive/15 border border-destructive/30 rounded-lg backdrop-blur-sm">
+      {/* 헤더 칩이 안 보일 때(컴팩트 모드, 또는 칩이 숨는 sm 미만 폭)만 연결 끊김 플로팅 인디케이터.
+          칩과 같은 sm 기준이어야 한다 — isMobile(48rem)로 가르면 sm~md 폭(iPad mini 세로 등)에서 둘이 겹친다 */}
+      {!isConnected && (
+        <div
+          className={cn(
+            "absolute top-3 right-3 z-50 flex items-center gap-2 px-3 py-1.5 bg-destructive/15 border border-destructive/30 rounded-lg backdrop-blur-sm",
+            !isCompact && "sm:hidden",
+          )}
+        >
           <div className="size-2 rounded-full bg-destructive animate-pulse" />
           <span className="text-xs font-medium text-destructive">연결 끊김</span>
         </div>
