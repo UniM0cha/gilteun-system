@@ -124,13 +124,23 @@ function SortableSheetItem({
                 showCloseButton={false}
               >
                 <DialogTitle className="sr-only">{sheet.title} 미리보기</DialogTitle>
-                <DialogClose className="sr-only">닫기</DialogClose>
                 <div className="relative flex flex-col items-center">
-                  <img
-                    src={`/uploads/${sheet.imagePath}`}
-                    alt={sheet.title}
-                    className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-lg"
-                  />
+                  {/* 악보가 화면을 거의 채우면 바깥(백드롭)을 눌러 닫기 어려우므로 악보 우측 상단에 닫기 버튼을 둔다.
+                      래퍼가 이미지 크기로 줄어들어야 버튼이 다이얼로그 폭이 아닌 악보 모서리에 붙는다. */}
+                  <div className="relative">
+                    <img
+                      src={`/uploads/${sheet.imagePath}`}
+                      alt={sheet.title}
+                      className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-lg"
+                    />
+                    <DialogClose
+                      title="닫기"
+                      className="absolute top-2 right-2 flex size-11 items-center justify-center rounded-full bg-black/70 text-white outline-none transition-colors hover:bg-black/80 focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <X className="size-5" />
+                      <span className="sr-only">닫기</span>
+                    </DialogClose>
+                  </div>
                   <div className="mt-4 rounded-full bg-black/70 px-6 py-3 font-medium text-white">{sheet.title}</div>
                 </div>
               </DialogContent>
