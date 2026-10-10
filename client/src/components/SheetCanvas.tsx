@@ -10,6 +10,7 @@ import {
   distanceToSegment,
   generateId,
 } from "@/lib/canvas";
+import { createDeferredRedraw, type DeferredRedraw } from "@/lib/deferredRedraw";
 import { getCanvasRenderSize, renderCanvasAtomically, retainSharedCanvasRenderer } from "@/lib/canvasRender";
 
 export type EraserType = "none" | "area" | "stroke";
@@ -143,6 +144,7 @@ function SheetCanvas({
   // effect에서 cancelDrawing을 호출하기 위한 미러 (직접 호출하면 exhaustive-deps 경고)
   const cancelDrawingRef = useRef<() => void>(() => {});
   const rafIdRef = useRef(0);
+  const deferredRedrawRef = useRef<DeferredRedraw | null>(null);
   const erasedPathIdsRef = useRef<Set<string>>(new Set());
   const activePointersRef = useRef<Set<number>>(new Set());
 
@@ -215,12 +217,30 @@ function SheetCanvas({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const resizeCanvas = () => redrawCanvasRef.current();
-    resizeCanvas();
-    const resizeObserver = new ResizeObserver(resizeCanvas);
+    redrawCanvasRef.current();
+    // 이미 그려진 페이지는 크기가 멈출 때까지 재합성을 미룬다 — 그동안 3:4 bitmap이 CSS로 등방 확대/축소된다.
+    // 아직 한 번도 그려지지 않은 페이지는 미룰 bitmap이 없으므로 즉시 그린다.
+    const deferred = createDeferredRedraw(
+      () => redrawCanvasRef.current(),
+      () => isActiveRef.current,
+    );
+    deferredRedrawRef.current = deferred;
+    const resizeObserver = new ResizeObserver(() => {
+      if (lastRenderRef.current) deferred.notifyResize();
+      else redrawCanvasRef.current();
+    });
     resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      deferred.cancel();
+      deferredRedrawRef.current = null;
+    };
   }, []);
+
+  // 미뤄둔 재합성이 남은 채 활성 페이지가 되면 바로 실제 크기로 맞춘다
+  useLayoutEffect(() => {
+    if (isActive) deferredRedrawRef.current?.flushNow();
+  }, [isActive]);
 
   // iOS 돋보기 방지 + 부모 더블탭 감지 차단 — native listener (React synthetic보다 먼저 실행)
   useEffect(() => {
