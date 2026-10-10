@@ -19,16 +19,12 @@ let frameId = 0;
 
 function flush() {
   frameId = 0;
-  let ranOther = false;
-  for (const entry of [...queue]) {
-    if (entry.isPriority()) {
-      queue.delete(entry);
-      entry.run();
-    } else if (!ranOther) {
-      queue.delete(entry);
-      entry.run();
-      ranOther = true;
-    }
+  // 활성 페이지가 대기 중이면 그 프레임은 활성 페이지만 — 가장 무거운 프레임에 숨은 페이지 비용을 얹지 않는다
+  const priority = [...queue].filter((entry) => entry.isPriority());
+  const batch = priority.length > 0 ? priority : [...queue].slice(0, 1);
+  for (const entry of batch) {
+    queue.delete(entry);
+    entry.run();
   }
   if (queue.size > 0) frameId = requestAnimationFrame(flush);
 }

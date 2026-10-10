@@ -37,9 +37,11 @@ describe("deferred resize redraw", () => {
     pages.forEach((page) => page.notifyResize());
     vi.advanceTimersByTime(RESIZE_SETTLE_MS);
     vi.advanceTimersByTime(16);
-    expect(order).toEqual(["a", "c"]);
+    expect(order).toEqual(["c"]);
     vi.advanceTimersByTime(16);
-    expect(order).toEqual(["a", "c", "b"]);
+    expect(order).toEqual(["c", "a"]);
+    vi.advanceTimersByTime(16);
+    expect(order).toEqual(["c", "a", "b"]);
     vi.advanceTimersByTime(16);
     expect(order).toHaveLength(3);
   });
