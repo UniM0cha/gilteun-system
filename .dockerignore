@@ -6,3 +6,5 @@ server/uploads/sheets/*
 .git
 .claude
 길튼 시스템
+.env
+*/.env

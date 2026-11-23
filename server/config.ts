@@ -11,4 +11,6 @@ export const config = {
   clientDistDir: path.join(__dirname, "..", "client", "dist"),
   isProduction: process.env.NODE_ENV === "production",
   authPin: process.env.AUTH_PIN || null,
+  geminiApiKey: process.env.GEMINI_API_KEY || null,
+  geminiModel: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
 };

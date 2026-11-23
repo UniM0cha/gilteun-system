@@ -9,6 +9,7 @@ import { db } from "../db";
 import { worships, sheets, drawingPaths } from "../db/schema.js";
 import { config } from "../config.js";
 import { isValidDateString, nowIso } from "../lib/date.js";
+import { attachTitlePendingList, cancelSheetTitleJob } from "../lib/sheetTitleJob.js";
 
 const router = Router();
 
@@ -70,7 +71,7 @@ router.get("/", (req, res) => {
 
     const result = items.map((w) => ({
       ...w,
-      sheets: (sheetsByWorshipId.get(w.id) ?? []).sort((a, b) => a.order - b.order),
+      sheets: attachTitlePendingList((sheetsByWorshipId.get(w.id) ?? []).sort((a, b) => a.order - b.order)),
     }));
 
     const hasMore = offset + limit < total;
@@ -133,7 +134,7 @@ router.get("/:id", (req, res) => {
       .where(eq(sheets.worshipId, id))
       .all()
       .sort((a, b) => a.order - b.order);
-    res.json({ ...worship, sheets: worshipSheets });
+    res.json({ ...worship, sheets: attachTitlePendingList(worshipSheets) });
   } catch (error) {
     console.error("Failed to fetch worship:", error);
     res.status(500).json({ error: "Failed to fetch worship" });
@@ -170,7 +171,7 @@ router.put("/:id", (req, res) => {
       .where(eq(sheets.worshipId, id))
       .all()
       .sort((a, b) => a.order - b.order);
-    res.json({ ...updated, sheets: worshipSheets });
+    res.json({ ...updated, sheets: attachTitlePendingList(worshipSheets) });
 
     const io = req.app.get("io") as Server | undefined;
     if (io) io.to(`worship:${id}`).emit("worship:updated", { worshipId: id, worship: updated });
@@ -191,6 +192,7 @@ router.delete("/:id", (req, res) => {
     // 연관 sheets의 drawing_paths 삭제 + 이미지 파일 삭제
     const worshipSheets = db.select().from(sheets).where(eq(sheets.worshipId, id)).all();
     for (const sheet of worshipSheets) {
+      cancelSheetTitleJob(sheet.id);
       db.delete(drawingPaths).where(eq(drawingPaths.sheetId, sheet.id)).run();
       const imagePath = path.join(config.uploadsDir, sheet.imagePath);
       if (fs.existsSync(imagePath)) {

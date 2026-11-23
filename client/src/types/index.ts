@@ -25,6 +25,7 @@ export interface Sheet {
   imagePath: string;
   order: number;
   createdAt: string;
+  titlePending?: boolean;
 }
 
 export interface Worship {

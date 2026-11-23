@@ -2,6 +2,7 @@ import { Server, Socket } from "socket.io";
 import { eq, asc } from "drizzle-orm";
 import { db } from "../db";
 import { profiles, roles, worships, sheets } from "../db/schema.js";
+import { attachTitlePendingList } from "../lib/sheetTitleJob.js";
 
 interface UserInfo {
   profileId: string;
@@ -85,7 +86,7 @@ export function setupPresenceHandler(io: Server, socket: Socket): void {
           .where(eq(sheets.worshipId, data.worshipId))
           .orderBy(asc(sheets.order))
           .all();
-        socket.emit("sheets:updated", { worshipId: data.worshipId, sheets: worshipSheets });
+        socket.emit("sheets:updated", { worshipId: data.worshipId, sheets: attachTitlePendingList(worshipSheets) });
         socket.emit("worship:updated", { worshipId: data.worshipId, worship });
       } else {
         // 접속이 끊긴 사이 예배 자체가 삭제된 경우
@@ -107,6 +108,34 @@ export function setupPresenceHandler(io: Server, socket: Socket): void {
       }
     }
     broadcastPresence(io, data.worshipId);
+  });
+
+  // 편집 화면 등 presence 목록에 들어가지 않고 악보 목록 변경만 실시간 구독
+  socket.on("watch:worship-sheets", (data: { worshipId?: string }) => {
+    if (!data?.worshipId) return;
+    socket.join(`worship-sheets:${data.worshipId}`);
+    try {
+      const worship = db.select().from(worships).where(eq(worships.id, data.worshipId)).get();
+      if (worship) {
+        const worshipSheets = db
+          .select()
+          .from(sheets)
+          .where(eq(sheets.worshipId, data.worshipId))
+          .orderBy(asc(sheets.order))
+          .all();
+        socket.emit("sheets:updated", {
+          worshipId: data.worshipId,
+          sheets: attachTitlePendingList(worshipSheets),
+        });
+      }
+    } catch (error) {
+      console.error("[Presence] Failed to send watched sheets snapshot:", error);
+    }
+  });
+
+  socket.on("unwatch:worship-sheets", (data: { worshipId?: string }) => {
+    if (!data?.worshipId) return;
+    socket.leave(`worship-sheets:${data.worshipId}`);
   });
 
   // 현재 보고 있는 페이지 변경

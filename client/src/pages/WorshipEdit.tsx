@@ -18,6 +18,7 @@ import {
   Pencil,
   Check,
   Eye,
+  Loader2,
 } from "lucide-react";
 import {
   DndContext,
@@ -43,6 +44,8 @@ import {
   useDeleteSheet,
   useReorderSheets,
 } from "@/hooks/queries";
+import { getSocket } from "@/hooks/useSocket";
+import { useWorshipSocket } from "@/hooks/useWorshipSocket";
 import type { Sheet, WorshipType } from "@/types";
 import { cn } from "@/lib/utils";
 import { formatKoreanDate } from "@/lib/date";
@@ -187,7 +190,14 @@ function SortableSheetItem({
           ) : (
             <>
               <div className="font-medium line-clamp-2">{sheet.title}</div>
-              <div className="text-sm text-muted-foreground mt-1 truncate">{sheet.fileName}</div>
+              {sheet.titlePending ? (
+                <div className="flex items-center gap-1.5 text-xs text-primary mt-1">
+                  <Loader2 className="size-3.5 animate-spin shrink-0" />
+                  <span className="truncate">악보에서 제목·코드 인식 중…</span>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground mt-1 truncate">{sheet.fileName}</div>
+              )}
             </>
           )}
         </div>
@@ -295,6 +305,8 @@ export default function WorshipEdit() {
   const [worshipId, setWorshipId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const activeIdRef = useRef<string | null>(null);
+  activeIdRef.current = activeId;
 
   // 수정 모드면 기존 예배, 신규 모드면 유형 로드 후 첫 유형이 초기값
   const formValues = useMemo<WorshipFormValues | undefined>(() => {
@@ -357,6 +369,35 @@ export default function WorshipEdit() {
     }
   }, [worshipData]);
 
+  // 소켓 리스너를 먼저 등록한 뒤 구독 요청(watch:worship-sheets)을 보내 초기 스냅샷을 놓치지 않는다
+  useWorshipSocket(worshipId ?? undefined, (updatedSheets) => {
+    setSheets((prev) => {
+      if (activeIdRef.current !== null) {
+        const byId = new Map(updatedSheets.map((s) => [s.id, s]));
+        return prev.map((s) => {
+          const fresh = byId.get(s.id);
+          return fresh ? { ...s, title: fresh.title, titlePending: fresh.titlePending } : s;
+        });
+      }
+      return updatedSheets;
+    });
+  });
+
+  // 편집 화면에서 presence 목록에 들어가지 않고 악보 목록 변경만 실시간 구독
+  useEffect(() => {
+    if (!worshipId) return;
+    const socket = getSocket();
+    const watch = () => {
+      socket.emit("watch:worship-sheets", { worshipId });
+    };
+    watch();
+    socket.on("connect", watch);
+    return () => {
+      socket.off("connect", watch);
+      socket.emit("unwatch:worship-sheets", { worshipId });
+    };
+  }, [worshipId]);
+
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const allowedTypes = ["image/jpeg", "image/png", "image/heic", "image/heif"];
@@ -399,7 +440,7 @@ export default function WorshipEdit() {
         file,
         title: sheetTitle,
       });
-      setSheets((prev) => [...prev, sheet]);
+      setSheets((prev) => (prev.some((s) => s.id === sheet.id) ? prev : [...prev, sheet]));
     }
 
     if (fileInputRef.current) {
@@ -653,6 +694,7 @@ export default function WorshipEdit() {
               <AlertDescription>
                 <ul className="space-y-1">
                   <li>악보 추가·삭제·순서 변경은 즉시 저장됩니다 (상단 "예배 정보 저장"과 무관)</li>
+                  <li>업로드 시 악보 이미지에서 곡 제목과 코드를 자동으로 인식해 채웁니다</li>
                   <li>JPG, PNG, HEIC 이미지 파일을 지원합니다</li>
                   <li>여러 파일을 한 번에 선택하여 업로드할 수 있습니다</li>
                   <li>드래그하여 악보 순서를 자유롭게 변경하세요</li>

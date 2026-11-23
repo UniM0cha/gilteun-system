@@ -11,15 +11,23 @@ import { db } from "../db";
 import { sheets, drawingPaths } from "../db/schema.js";
 import { config } from "../config.js";
 import { nowIso } from "../lib/date.js";
+import {
+  attachTitlePending,
+  attachTitlePendingList,
+  cancelSheetTitleJob,
+  enqueueSheetTitleJob,
+} from "../lib/sheetTitleJob.js";
 
 const router = Router();
 
 function broadcastSheetsUpdate(io: Server, worshipId: string) {
   const allSheets = db.select().from(sheets).where(eq(sheets.worshipId, worshipId)).orderBy(asc(sheets.order)).all();
-  io.to(`worship:${worshipId}`).emit("sheets:updated", {
-    worshipId,
-    sheets: allSheets,
-  });
+  io.to(`worship:${worshipId}`)
+    .to(`worship-sheets:${worshipId}`)
+    .emit("sheets:updated", {
+      worshipId,
+      sheets: attachTitlePendingList(allSheets),
+    });
 }
 
 // Multer 설정
@@ -101,9 +109,22 @@ router.post("/worships/:worshipId/sheets", upload.single("image"), async (req, r
       .run();
 
     const created = db.select().from(sheets).where(eq(sheets.id, id)).get();
-    res.status(201).json(created);
-
     const io = req.app.get("io") as Server | undefined;
+
+    if (created) {
+      enqueueSheetTitleJob({
+        sheetId: id,
+        worshipId,
+        imagePath: convertedPath,
+        initialTitle: title,
+        io,
+        onUpdated: broadcastSheetsUpdate,
+      });
+      res.status(201).json(attachTitlePending(created));
+    } else {
+      res.status(201).json(created);
+    }
+
     if (io) broadcastSheetsUpdate(io, worshipId);
   } catch (error) {
     console.error("Failed to upload sheet:", error);
@@ -122,10 +143,11 @@ router.put("/sheets/:id", (req, res) => {
       return;
     }
     if (title) {
+      cancelSheetTitleJob(id);
       db.update(sheets).set({ title }).where(eq(sheets.id, id)).run();
     }
     const updated = db.select().from(sheets).where(eq(sheets.id, id)).get();
-    res.json(updated);
+    res.json(updated ? attachTitlePending(updated) : updated);
 
     const io = req.app.get("io") as Server | undefined;
     if (io) broadcastSheetsUpdate(io, existing.worshipId);
@@ -144,6 +166,7 @@ router.delete("/sheets/:id", (req, res) => {
       res.status(404).json({ error: "Sheet not found" });
       return;
     }
+    cancelSheetTitleJob(id);
     // drawingPaths 삭제
     db.delete(drawingPaths).where(eq(drawingPaths.sheetId, id)).run();
     // 이미지 파일 삭제
