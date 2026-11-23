@@ -4,6 +4,7 @@ import { ArrowLeft, Menu, Edit, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { RoleIcon } from "@/components/RoleIcon";
 import type { PresenceUser } from "@/types";
 import type { PanelSide } from "@/store/deviceSettingsStore";
 
@@ -122,7 +123,11 @@ function WorshipHeader({
                 <div className="p-2 max-h-60 overflow-y-auto">
                   {presenceUsers.map((user) => (
                     <div key={user.profileId} className="flex items-center gap-3 px-2 py-2 rounded-md">
-                      <span className="text-lg">{user.roleIcon}</span>
+                      <RoleIcon
+                        icon={user.roleIcon}
+                        className="size-4.5 text-muted-foreground"
+                        emojiClassName="text-lg"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{user.name}</div>
                         <div className="text-xs text-muted-foreground">{user.role}</div>

@@ -9,6 +9,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/EmptyState";
 import { HomeTipsBanner } from "@/components/HomeTipsBanner";
+import { RoleIcon } from "@/components/RoleIcon";
 
 const quickLinks = [
   { to: "/profile-setup", icon: UserCircle, label: "프로필 관리" },
@@ -81,9 +82,9 @@ export default function Home() {
                       className="flex items-center gap-4 rounded-lg border bg-card p-4 text-left shadow-xs transition-colors hover:bg-accent"
                     >
                       <div
-                        className={`flex size-12 shrink-0 items-center justify-center rounded-lg text-2xl ${profile.color}`}
+                        className={`flex size-12 shrink-0 items-center justify-center rounded-lg text-white ${profile.color}`}
                       >
-                        {role?.icon}
+                        <RoleIcon icon={role?.icon} className="size-6" emojiClassName="text-2xl" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold truncate">{profile.name}</h3>

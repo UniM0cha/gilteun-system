@@ -5,6 +5,7 @@ import { FileMusic, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
+import { RoleIcon } from "@/components/RoleIcon";
 import type { Sheet, PresenceUser } from "@/types";
 import type { PanelSide } from "@/store/deviceSettingsStore";
 import { panelTransition, panelContentTransition, getPanelSlideX, getPanelSideConfig } from "./panelMotion";
@@ -88,8 +89,12 @@ function SheetListSidebar({
                     {usersOnSheet.length > 0 && (
                       <div className="flex -space-x-1">
                         {usersOnSheet.slice(0, 3).map((u) => (
-                          <span key={u.profileId} className="text-sm" title={`${u.name} (${u.role})`}>
-                            {u.roleIcon}
+                          <span
+                            key={u.profileId}
+                            className="inline-flex items-center justify-center"
+                            title={`${u.name} (${u.role})`}
+                          >
+                            <RoleIcon icon={u.roleIcon} className="size-3.5" emojiClassName="text-sm" />
                           </span>
                         ))}
                         {usersOnSheet.length > 3 && (

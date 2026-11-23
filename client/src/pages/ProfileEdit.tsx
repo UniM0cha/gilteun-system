@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { RoleIcon } from "@/components/RoleIcon";
 
 type ProfileFormValues = {
   name: string;
@@ -110,8 +111,8 @@ export default function ProfileEdit() {
             {/* 프로필 미리보기 */}
             <div className="flex items-center justify-center mb-8">
               <div className="relative">
-                <div className={`flex size-28 items-center justify-center rounded-xl text-6xl ${color}`}>
-                  {getRoleById(roleId)?.icon}
+                <div className={`flex size-28 items-center justify-center rounded-xl text-white ${color}`}>
+                  <RoleIcon icon={getRoleById(roleId)?.icon} className="size-14" emojiClassName="text-6xl" />
                 </div>
                 <div className="absolute -bottom-2 -right-2 rounded-full border bg-card p-2 shadow-sm">
                   <User className="size-5 text-muted-foreground" />
@@ -148,7 +149,7 @@ export default function ProfileEdit() {
                           : "bg-background hover:bg-accent"
                       }`}
                     >
-                      <span className="text-xl">{role.icon}</span>
+                      <RoleIcon icon={role.icon} className="size-5" emojiClassName="text-xl" />
                       <span>{role.name}</span>
                     </button>
                   ))}

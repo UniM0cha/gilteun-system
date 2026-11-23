@@ -42,7 +42,7 @@ export function setupPresenceHandler(io: Server, socket: Socket): void {
     // 유저 정보 조회
     let name = "익명";
     let role = "";
-    let roleIcon = "👤";
+    let roleIcon = "icon:users";
 
     try {
       const profile = db.select().from(profiles).where(eq(profiles.id, data.profileId)).get();

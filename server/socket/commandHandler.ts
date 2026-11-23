@@ -13,7 +13,7 @@ export function setupCommandHandler(io: Server, socket: Socket): void {
 
       let senderName = "익명";
       let senderRole = "";
-      let senderRoleIcon = "👤";
+      let senderRoleIcon = "icon:users";
 
       if (profile) {
         senderName = profile.name;

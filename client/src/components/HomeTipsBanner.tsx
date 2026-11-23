@@ -170,28 +170,19 @@ export function HomeTipsBanner({ className }: HomeTipsBannerProps) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: prefersReducedMotion ? 0 : 0.16, ease: [0.33, 1, 0.68, 1] }}
             >
-              <div className="w-full aspect-[16/10] overflow-hidden rounded-xl border bg-muted/30 flex items-center justify-center">
-                <img
-                  src={currentTip.imageSrc}
-                  alt={currentTip.imageAlt}
-                  className="h-full w-full object-contain select-none"
-                  draggable={false}
-                />
-              </div>
-
-              <DialogTitle className="mt-4 text-base sm:text-lg font-bold leading-snug">{currentTip.title}</DialogTitle>
+              <DialogTitle className="text-base sm:text-lg font-bold leading-snug">{currentTip.title}</DialogTitle>
               <DialogDescription className="mt-1.5 text-sm leading-relaxed">{currentTip.description}</DialogDescription>
 
               {currentTip.steps && currentTip.steps.length > 0 && (
                 <div className="mt-5 border-t pt-4">
-                  <ol className="space-y-4">
+                  <ol className="flex flex-col gap-4">
                     {currentTip.steps.map((step, stepIndex) => (
-                      <li key={step.title} className="rounded-xl border bg-muted/20 p-3.5 sm:p-4 space-y-2.5">
+                      <li key={step.title} className="rounded-xl border bg-muted/20 p-3.5 sm:p-4 flex flex-col gap-2.5">
                         <div className="flex items-start gap-2.5">
                           <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                             {stepIndex + 1}
                           </span>
-                          <div className="min-w-0 flex-1 space-y-1">
+                          <div className="min-w-0 flex-1 flex flex-col gap-1">
                             <div className="text-sm font-semibold">{step.title}</div>
                             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                               {step.description}

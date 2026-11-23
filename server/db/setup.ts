@@ -1,4 +1,5 @@
 import { sqlite } from ".";
+import { migrateLegacyRoleIcons } from "./migrateRoleIcons.js";
 
 export function setupDatabase(): void {
   sqlite.exec(`
@@ -79,4 +80,6 @@ export function setupDatabase(): void {
       existingCommands.forEach((command, index) => updateOrder.run(index, command.id));
     })();
   }
+
+  migrateLegacyRoleIcons();
 }

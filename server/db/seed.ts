@@ -34,13 +34,13 @@ async function seed() {
 
   // 2. Roles (7)
   const roleData = [
-    { id: nanoid(), name: "인도자", icon: "🎤" },
-    { id: nanoid(), name: "건반", icon: "🎹" },
-    { id: nanoid(), name: "드럼", icon: "🥁" },
-    { id: nanoid(), name: "기타", icon: "🎸" },
-    { id: nanoid(), name: "베이스", icon: "🎸" },
-    { id: nanoid(), name: "보컬", icon: "🎵" },
-    { id: nanoid(), name: "목사님", icon: "📖" },
+    { id: nanoid(), name: "인도자", icon: "icon:mic-vocal" },
+    { id: nanoid(), name: "건반", icon: "icon:piano" },
+    { id: nanoid(), name: "드럼", icon: "icon:drum" },
+    { id: nanoid(), name: "기타", icon: "icon:guitar-acoustic" },
+    { id: nanoid(), name: "베이스", icon: "icon:clef-bass" },
+    { id: nanoid(), name: "보컬", icon: "icon:music" },
+    { id: nanoid(), name: "목사님", icon: "icon:book-open-text" },
   ];
   db.insert(roles).values(roleData).run();
   console.log(`Inserted ${roleData.length} roles.`);

@@ -1,3 +1,5 @@
+import { RoleIcon } from "@/components/RoleIcon";
+
 interface CommandToastProps {
   emoji: string;
   label: string;
@@ -17,7 +19,7 @@ export default function CommandToast({ emoji, label, senderName, senderRoleIcon,
       <div className="flex-1">
         <div className="text-2xl font-semibold text-foreground">{label}</div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-          <span className="text-lg">{senderRoleIcon}</span>
+          <RoleIcon icon={senderRoleIcon} className="size-4" emojiClassName="text-lg" />
           <span className="font-semibold">{senderName}</span>
           <span>님이 전송</span>
         </div>

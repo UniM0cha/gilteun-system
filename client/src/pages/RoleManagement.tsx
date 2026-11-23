@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router";
 import { toast } from "sonner";
@@ -13,6 +13,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState } from "@/components/EmptyState";
+import {
+  RoleIcon,
+  ROLE_ICON_CATEGORIES,
+  ROLE_ICON_PRESETS,
+  getRoleIconPreset,
+  type RoleIconCategory,
+} from "@/components/RoleIcon";
 
 type RoleFormValues = { name: string; icon: string };
 
@@ -25,17 +32,23 @@ export default function RoleManagement() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const { register, handleSubmit, reset, watch } = useForm<RoleFormValues>({
-    defaultValues: { name: "", icon: "" },
+  const [activeCategory, setActiveCategory] = useState<RoleIconCategory>("악기");
+  const { register, handleSubmit, reset, watch, setValue } = useForm<RoleFormValues>({
+    defaultValues: { name: "", icon: "icon:piano" },
   });
   const nameValue = watch("name");
   const iconValue = watch("icon");
+
+  useEffect(() => {
+    register("icon", { validate: (v) => v.trim().length > 0 });
+  }, [register]);
 
   const isRoleInUse = (roleId: string) => profiles.some((p) => p.roleId === roleId);
 
   const openAdd = () => {
     setEditingId(null);
-    reset({ name: "", icon: "" });
+    setActiveCategory("악기");
+    reset({ name: "", icon: "icon:piano" });
     setDialogOpen(true);
   };
 
@@ -43,6 +56,10 @@ export default function RoleManagement() {
     const role = roles.find((r) => r.id === id);
     if (role) {
       setEditingId(id);
+      const preset = getRoleIconPreset(role.icon);
+      if (preset) {
+        setActiveCategory(preset.category);
+      }
       // keepDefaultValues: reset(values)가 defaultValues를 교체해 이후 빈 reset()이 이 값으로 복원되는 롤백 버그 방지
       reset({ name: role.name, icon: role.icon }, { keepDefaultValues: true });
       setDialogOpen(true);
@@ -95,32 +112,75 @@ export default function RoleManagement() {
             <DialogHeader>
               <DialogTitle>{editingId ? "역할 수정" : "새 역할 추가"}</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="role-name" className="mb-2">
-                  역할 이름
-                </Label>
-                <Input
-                  id="role-name"
-                  type="text"
-                  {...register("name", { validate: (v) => v.trim().length > 0 })}
-                  placeholder="예: 기타, 드럼, 보컬..."
-                  className="h-11"
-                  autoFocus
-                />
+            <div className="flex flex-col gap-4">
+              {/* 미리보기 + 역할 이름 */}
+              <div className="flex items-end gap-3">
+                <div
+                  className="flex size-12 shrink-0 items-center justify-center rounded-lg border bg-muted text-foreground"
+                  aria-label="선택된 아이콘 미리보기"
+                >
+                  <RoleIcon icon={iconValue} className="size-6" emojiClassName="text-2xl" />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="role-name" className="mb-2">
+                    역할 이름
+                  </Label>
+                  <Input
+                    id="role-name"
+                    type="text"
+                    {...register("name", { validate: (v) => v.trim().length > 0 })}
+                    placeholder="예: 어쿠스틱, 일렉, 베이스..."
+                    className="h-11"
+                    autoFocus
+                  />
+                </div>
               </div>
+
+              {/* 아이콘 선택 */}
               <div>
-                <Label htmlFor="role-icon" className="mb-2">
-                  이모지 아이콘
-                </Label>
-                <Input
-                  id="role-icon"
-                  type="text"
-                  {...register("icon", { validate: (v) => v.trim().length > 0 })}
-                  className="h-11 text-center text-xl"
-                  placeholder="🎸"
-                  maxLength={2}
-                />
+                <Label className="mb-2">아이콘 선택</Label>
+                <div className="flex flex-wrap gap-1.5 mb-2.5" role="tablist" aria-label="아이콘 카테고리">
+                  {ROLE_ICON_CATEGORIES.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeCategory === category}
+                      onClick={() => setActiveCategory(category)}
+                      className={cn(
+                        "min-h-9 rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
+                        activeCategory === category
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-56 overflow-y-auto p-1">
+                  {ROLE_ICON_PRESETS.filter((p) => p.category === activeCategory).map((preset) => {
+                    const Icon = preset.component;
+                    const isSelected = iconValue === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setValue("icon", preset.id, { shouldDirty: true, shouldValidate: true })}
+                        aria-pressed={isSelected}
+                        className={cn(
+                          "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border p-2 text-center transition-colors cursor-pointer",
+                          isSelected
+                            ? "border-primary bg-primary/10 text-primary ring-1 ring-inset ring-primary"
+                            : "bg-background hover:bg-accent text-foreground",
+                        )}
+                      >
+                        <Icon className="size-5 shrink-0" aria-hidden="true" />
+                        <span className="text-[11px] leading-tight truncate w-full">{preset.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -143,8 +203,8 @@ export default function RoleManagement() {
                   <CardContent>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="flex size-12 items-center justify-center rounded-lg bg-muted text-2xl">
-                          {role.icon}
+                        <div className="flex size-12 items-center justify-center rounded-lg bg-muted text-foreground">
+                          <RoleIcon icon={role.icon} className="size-6" emojiClassName="text-2xl" />
                         </div>
                         <div>
                           <h3 className="font-semibold">{role.name}</h3>

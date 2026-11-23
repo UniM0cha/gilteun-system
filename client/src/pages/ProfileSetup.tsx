@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState } from "@/components/EmptyState";
+import { RoleIcon } from "@/components/RoleIcon";
 
 export default function ProfileSetup() {
   const { data: profiles = [] } = useProfiles();
@@ -50,9 +51,13 @@ export default function ProfileSetup() {
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className={`flex size-12 shrink-0 items-center justify-center rounded-lg text-2xl ${profile.color}`}
+                        className={`flex size-12 shrink-0 items-center justify-center rounded-lg text-white ${profile.color}`}
                       >
-                        {getRoleById(profile.roleId)?.icon}
+                        <RoleIcon
+                          icon={getRoleById(profile.roleId)?.icon}
+                          className="size-6"
+                          emojiClassName="text-2xl"
+                        />
                       </div>
                       <div>
                         <div className="font-semibold">{profile.name}</div>
