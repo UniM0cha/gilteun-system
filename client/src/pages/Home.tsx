@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/EmptyState";
+import { HomeTipsBanner } from "@/components/HomeTipsBanner";
 
 const quickLinks = [
   { to: "/profile-setup", icon: UserCircle, label: "프로필 관리" },
@@ -36,7 +37,7 @@ export default function Home() {
     <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
-        <div className="relative text-center mb-10">
+        <div className="relative text-center mb-6 sm:mb-8">
           {authStatus?.required && (
             <Button
               variant="ghost"
@@ -54,6 +55,9 @@ export default function Home() {
           <h1 className="text-3xl font-bold tracking-tight mb-1">길튼 시스템</h1>
           <p className="text-muted-foreground">예배 찬양 지원 시스템</p>
         </div>
+
+        {/* 활용 팁 배너 */}
+        <HomeTipsBanner className="mb-4 sm:mb-6" />
 
         {/* 프로필 선택 */}
         <Card className="mb-6">
